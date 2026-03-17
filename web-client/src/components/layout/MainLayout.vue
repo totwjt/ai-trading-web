@@ -21,6 +21,18 @@ const userInfo = ref({
   avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAUFRuvDVoYwMUzc9WD6lbtldY6E2S3YU40H94c5xFAL7OKTWcd6QzPLNF-sF6b-J5-KFJAfin_7dzq0ZLEkrxaaqz1XQI1fIwB_4QgQrJXWQsfoVx10pixf2Akf7YyWxIDqe9vcPERa0dFSOqZc01gi-sDWoDRc8R9aFLACUfuHPfEUCHlve-WAXyhnpGIvwIi1aCJIdywpuj1Yn_rCCPXY3f0yKZA6bwW6vZbG7BYu-hCQlkT4S8Ya5p_-UHLozijfzB-FcTyFdUF'
 })
 
+// 判断是否显示侧边栏
+const showSidebar = computed(() => {
+  // 编辑策略和回测详情页面不显示侧边栏
+  const noSidebarPaths = [
+    '/backtest/edit/',
+    '/backtest/detail/'
+  ]
+  
+  // 检查当前路径是否匹配不需要侧边栏的路径
+  return !noSidebarPaths.some(path => route.path.startsWith(path))
+})
+
 </script>
 
 <template>
@@ -58,8 +70,8 @@ const userInfo = ref({
     </header>
 
     <div class="flex flex-1 overflow-hidden">
-      <!-- Sidebar -->
-      <aside class="w-48 bg-white border-r flex flex-col shrink-0">
+      <!-- Sidebar - 只在需要时显示 -->
+      <aside v-if="showSidebar" class="w-48 bg-white border-r flex flex-col shrink-0">
         <nav class="flex-1 py-4">
           <router-link 
             v-for="item in menuItems"
