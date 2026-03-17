@@ -24,7 +24,7 @@ const userInfo = ref({
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col">
+  <div class="h-screen flex flex-col overflow-hidden">
     <!-- Header -->
     <header class="h-14 bg-white border-b flex items-center justify-between px-4 z-50 shrink-0">
       <div class="flex items-center space-x-8">
@@ -72,15 +72,12 @@ const userInfo = ref({
             <span>{{ item.name }}</span>
           </router-link>
         </nav>
-        <div class="p-4 border-t mt-auto space-y-4">
+        <div class="p-4 border-t">
+          <!-- 用户栏优化：去掉设置栏，设置连接放到用户栏 -->
           <router-link 
             to="/settings"
-            class="flex items-center px-2 py-2 space-x-3 text-sm text-gray-500 hover:text-primary transition-colors"
+            class="flex items-center space-x-3 px-2 py-2 cursor-pointer group hover:bg-gray-50 rounded transition-colors"
           >
-            <span class="material-symbols-outlined text-lg">settings</span>
-            <span>设置</span>
-          </router-link>
-          <div class="flex items-center space-x-3 px-2 pt-2 cursor-pointer group">
             <img 
               :src="userInfo.avatar" 
               alt="Avatar" 
@@ -90,10 +87,8 @@ const userInfo = ref({
               <p class="font-medium text-gray-700 leading-none">{{ userInfo.name }}</p>
               <p class="text-xxs text-gray-400 mt-1">{{ userInfo.level }}</p>
             </div>
-            <svg class="w-4 h-4 text-gray-400 group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
-            </svg>
-          </div>
+            <span class="material-symbols-outlined text-lg text-gray-400 group-hover:text-primary">settings</span>
+          </router-link>
         </div>
       </aside>
 
