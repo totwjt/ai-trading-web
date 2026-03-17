@@ -54,23 +54,30 @@ const editStrategy = () => {
 
 <template>
   <div class="min-h-screen bg-white p-4">
-    <!-- 顶部导航栏 -->
-    <header class="flex items-center justify-between px-6 h-12 border-b border-slate-200 bg-white shrink-0 mb-4">
+    <!-- 顶部导航栏 - 按照设计文件 -->
+    <header class="flex items-center justify-between px-6 h-14 border-b border-slate-200 bg-white shrink-0">
+      <div class="flex items-center space-x-8 h-full">
+        <div class="flex items-center h-full">
+          <button 
+            class="h-full px-4 text-sm font-medium text-slate-500 hover:text-primary transition-colors"
+            @click="editStrategy"
+          >
+            编辑策略
+          </button>
+          <button class="h-full px-4 text-sm font-bold active-tab">
+            回测详情
+          </button>
+        </div>
+        <div class="h-6 w-px bg-slate-200"></div>
+        <span class="text-sm font-medium text-slate-600">策略: {{ backtestData.strategyName }}</span>
+      </div>
       <div class="flex items-center space-x-4">
         <button 
           class="flex items-center gap-1 text-sm text-slate-600 hover:text-primary transition-colors"
           @click="goBack"
         >
           <Icon icon="mdi:arrow-left" :size="20" />
-          返回策略列表
-        </button>
-        <div class="h-4 w-px bg-slate-200"></div>
-        <span class="text-sm font-medium text-slate-600">回测详情: {{ backtestData.strategyName }}</span>
-        <button 
-          class="ml-4 px-3 py-1 text-xs font-medium text-primary hover:bg-blue-50 rounded transition-colors"
-          @click="editStrategy"
-        >
-          编辑策略
+          策略中心
         </button>
       </div>
     </header>
