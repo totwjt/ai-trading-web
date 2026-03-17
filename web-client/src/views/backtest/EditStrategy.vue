@@ -32,7 +32,7 @@ const runBacktest = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white flex flex-col overflow-hidden">
+  <div class="flex-1 bg-white flex flex-col overflow-hidden">
     <!-- 顶部导航栏 - 按照设计文件 -->
     <header class="flex items-center justify-between px-6 h-14 border-b border-slate-200 bg-white shrink-0">
       <div class="flex items-center space-x-8 h-full">
@@ -193,16 +193,41 @@ const runBacktest = () => {
       </section>
     </main>
 
-    <!-- 底部状态栏 -->
-    <footer class="bg-white border-t border-slate-200 px-4 py-1.5 flex items-center justify-between text-[10px] text-slate-400 font-medium">
-      <div class="flex items-center gap-4">
-        <span class="flex items-center gap-1">
-          <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Python 环境正常
-        </span>
-        <span>Backtrader v1.9.78.123</span>
-      </div>
-      <div>
-        Line 15, Column 25
+    <!-- 底部性能指标栏 -->
+    <footer class="h-16 border-t border-slate-200 px-6 flex items-center bg-slate-50 shrink-0">
+      <div class="flex flex-1 items-center justify-between">
+        <div class="flex items-center space-x-12">
+          <div class="flex flex-col">
+            <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">累计收益率</span>
+            <span class="text-up font-bold text-lg">+24.52%</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">年化收益</span>
+            <span class="text-up font-bold text-lg">+18.20%</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">最大回撤</span>
+            <span class="text-down font-bold text-lg">-5.12%</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">夏普比率</span>
+            <span class="text-slate-800 font-bold text-lg">2.14</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">胜率</span>
+            <span class="text-slate-800 font-bold text-lg">62.5%</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">盈亏比</span>
+            <span class="text-slate-800 font-bold text-lg">1.85</span>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-xs text-slate-500">最后更新: 2023-11-20 16:45:00</span>
+          <button class="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
+            <Icon icon="mdi:refresh" :size="16" />
+          </button>
+        </div>
       </div>
     </footer>
   </div>

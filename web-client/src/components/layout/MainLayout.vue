@@ -35,9 +35,7 @@ const showSidebar = computed(() => {
       <div class="flex items-center space-x-8">
         <div class="flex items-center space-x-2">
           <div class="bg-primary p-1 rounded">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
-            </svg>
+            <Icon icon="mdi:chart-line" :size="24" class="text-white" />
           </div>
           <span class="text-xl font-bold text-gray-800 tracking-tight">AI Trading Pro</span>
         </div>

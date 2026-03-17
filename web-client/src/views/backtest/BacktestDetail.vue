@@ -53,7 +53,7 @@ const editStrategy = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white p-4">
+  <div class="flex-1 bg-white flex flex-col overflow-hidden">
     <!-- 顶部导航栏 - 按照设计文件 -->
     <header class="flex items-center justify-between px-6 h-14 border-b border-slate-200 bg-white shrink-0">
       <div class="flex items-center space-x-8 h-full">

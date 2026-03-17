@@ -3,6 +3,9 @@ AI交易平台 Web UI 规范（TailwindCSS 设计系统）
 
 ---
 
+# 0 在写任何页面时可参照 design/ 的设计文件
+包括code.html、screen.png
+
 # 1 设计原则
 
 交易系统 UI 设计优先级
