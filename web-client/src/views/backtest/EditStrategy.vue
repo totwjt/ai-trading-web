@@ -8,9 +8,6 @@ const router = useRouter()
 // 获取策略ID
 const strategyId = route.params.id
 
-// 当前激活的标签页
-const activeTab = ref('edit')
-
 // 模拟策略数据
 const strategyData = ref({
   name: '沪深300价值增强-V2',
@@ -18,12 +15,9 @@ const strategyData = ref({
   status: '运行中'
 })
 
-// 切换标签页
-const switchTab = (tab: string) => {
-  activeTab.value = tab
-  if (tab === 'backtest') {
-    router.push(`/backtest/detail/${strategyId}`)
-  }
+// 返回策略中心
+const goBack = () => {
+  router.push('/backtest')
 }
 
 // 保存策略
@@ -33,37 +27,33 @@ const saveStrategy = () => {
 
 // 运行回测
 const runBacktest = () => {
-  router.push(`/backtest/detail/${strategyId}`)
+  if (strategyId) {
+    router.push(`/backtest/detail/${strategyId}`)
+  } else {
+    // 新建策略时，先保存再跳转
+    console.log('保存并运行回测')
+  }
 }
 </script>
 
 <template>
   <div class="min-h-screen bg-white flex flex-col overflow-hidden">
-    <!-- 页内导航 -->
-    <header class="flex items-center justify-between px-6 h-14 border-b border-slate-200 bg-white shrink-0">
-      <div class="flex items-center space-x-8 h-full">
-        <div class="flex items-center h-full">
-          <button 
-            class="h-full px-4 text-sm font-bold"
-            :class="activeTab === 'edit' ? 'active-tab' : 'text-slate-500 hover:text-primary transition-colors'"
-            @click="switchTab('edit')"
-          >
-            编辑策略
-          </button>
-          <button 
-            class="h-full px-4 text-sm font-medium"
-            :class="activeTab === 'backtest' ? 'active-tab' : 'text-slate-500 hover:text-primary transition-colors'"
-            @click="switchTab('backtest')"
-          >
-            回测详情
-          </button>
-        </div>
-        <div class="h-6 w-px bg-slate-200"></div>
-        <span class="text-sm font-medium text-slate-600">策略: {{ strategyData.name }}</span>
+    <!-- 顶部导航栏 -->
+    <header class="flex items-center justify-between px-6 h-12 border-b border-slate-200 bg-white shrink-0">
+      <div class="flex items-center space-x-4">
+        <button 
+          class="flex items-center gap-1 text-sm text-slate-600 hover:text-primary transition-colors"
+          @click="goBack"
+        >
+          <Icon icon="mdi:arrow-left" :size="20" />
+          返回策略列表
+        </button>
+        <div class="h-4 w-px bg-slate-200"></div>
+        <span class="text-sm font-medium text-slate-600">编辑策略: {{ strategyData.name }}</span>
       </div>
       <div class="flex items-center space-x-4">
         <!-- Backtesting Parameters -->
-        <div class="flex items-center space-x-3 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 mr-2">
+        <div class="flex items-center space-x-3 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
           <div class="flex items-center space-x-1.5">
             <label class="text-[11px] text-slate-500 whitespace-nowrap">开始日期</label>
             <input class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700" type="date" value="2023-01-01"/>
@@ -85,10 +75,10 @@ const runBacktest = () => {
             </select>
           </div>
         </div>
-        <button class="bg-primary text-white px-5 py-1.5 rounded text-sm font-semibold hover:bg-blue-700 shadow-sm shadow-blue-200 transition-all" @click="runBacktest">
+        <button class="bg-primary text-white px-4 py-1.5 rounded text-sm font-semibold hover:bg-blue-700 shadow-sm shadow-blue-200 transition-all" @click="runBacktest">
           运行回测
         </button>
-        <button class="border border-slate-200 px-5 py-1.5 rounded text-sm font-medium hover:bg-slate-50 transition-colors" @click="saveStrategy">
+        <button class="border border-slate-200 px-4 py-1.5 rounded text-sm font-medium hover:bg-slate-50 transition-colors" @click="saveStrategy">
           保存
         </button>
       </div>
