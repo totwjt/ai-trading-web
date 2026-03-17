@@ -92,71 +92,102 @@ const runBacktest = () => {
           </span>
           <span>Python 3.8</span>
         </div>
-        <div class="flex-1 bg-[#1E1E1E] p-4 font-mono text-sm text-slate-300 overflow-auto">
-          <pre><code>
-# 双均线交叉策略
-class DualMovingAverageCross(bt.Strategy):
-    params = (
-        ('short_period', 5),
-        ('long_period', 20),
-    )
-
-    def __init__(self):
-        self.short_ma = bt.indicators.SimpleMovingAverage(
-            self.data.close, period=self.params.short_period
-        )
-        self.long_ma = bt.indicators.SimpleMovingAverage(
-            self.data.close, period=self.params.long_period
-        )
-        self.crossover = bt.indicators.CrossOver(self.short_ma, self.long_ma)
-
-    def next(self):
-        if not self.position:
-            if self.crossover > 0:
-                self.buy()
-        elif self.crossover < 0:
-            self.close()
-          </code></pre>
+        <div class="flex-1 overflow-auto editor-scrollbar font-mono text-[13px] leading-relaxed p-4 bg-[#1E1E1E]">
+          <div class="flex">
+            <div class="w-10 text-slate-600 select-none text-right pr-4">
+              1<br/>2<br/>3<br/>4<br/>5<br/>6<br/>7<br/>8<br/>9<br/>10<br/>11<br/>12<br/>13<br/>14<br/>15<br/>16<br/>17<br/>18<br/>19<br/>20
+            </div>
+            <div class="flex-1 text-slate-300">
+              <span class="text-pink-400 italic">import</span> pandas <span class="text-pink-400 italic">as</span> pd<br/>
+              <span class="text-pink-400 italic">from</span> gzt_api <span class="text-pink-400 italic">import</span> Strategy, Order<br/><br/>
+              <span class="text-blue-300">class</span> <span class="text-yellow-200">ValueStrategy</span>(<span class="text-green-300">Strategy</span>):<br/>
+                  <span class="text-blue-300">def</span> <span class="text-yellow-200">on_init</span>(<span class="text-orange-300">self</span>):<br/>
+                      <span class="text-slate-500"># 初始化沪深300权重股池</span><br/>
+                      <span class="text-orange-300">self</span>.universe = [<span class="text-green-400">'000001.SH'</span>, <span class="text-green-400">'600519.SH'</span>]<br/>
+                      <span class="text-orange-300">self</span>.set_benchmark(<span class="text-green-400">'000300.SH'</span>)<br/><br/>
+                  <span class="text-blue-300">def</span> <span class="text-yellow-200">on_bar</span>(<span class="text-orange-300">self</span>, <span class="text-orange-300">bar</span>):<br/>
+                      <span class="text-slate-500"># 简单的均线交叉逻辑</span><br/>
+                      ma5 = <span class="text-orange-300">bar</span>.close.rolling(<span class="text-cyan-400">5</span>).mean()<br/>
+                      ma20 = <span class="text-orange-300">bar</span>.close.rolling(<span class="text-cyan-400">20</span>).mean()<br/><br/>
+                      <span class="text-pink-400 italic">if</span> ma5 &gt; ma20 <span class="text-pink-400 italic">and</span> <span class="text-orange-300">self</span>.pos == <span class="text-cyan-400">0</span>:<br/>
+                          <span class="text-orange-300">self</span>.buy(<span class="text-orange-300">bar</span>.symbol, <span class="text-orange-300">bar</span>.close, <span class="text-cyan-400">1000</span>)<br/>
+                      <span class="text-pink-400 italic">elif</span> ma5 &lt; ma20 <span class="text-pink-400 italic">and</span> <span class="text-orange-300">self</span>.pos &gt; <span class="text-cyan-400">0</span>:<br/>
+                          <span class="text-orange-300">self</span>.sell(<span class="text-orange-300">bar</span>.symbol, <span class="text-orange-300">bar</span>.close, <span class="text-orange-300">self</span>.pos)<br/>
+              <span class="text-slate-400 cursor-blink animate-pulse">|</span>
+            </div>
+          </div>
         </div>
       </section>
 
-      <!-- 右侧：参数配置 -->
-      <section class="w-[40%] border-l border-slate-200 bg-white flex flex-col overflow-hidden">
-        <div class="px-4 py-3 border-b border-slate-200 bg-slate-50">
-          <h3 class="font-bold text-sm">策略参数配置</h3>
+      <!-- 右侧：运行日志 + 回测预览 -->
+      <section class="w-[40%] flex flex-col border-l border-slate-200 bg-slate-50 overflow-hidden">
+        <!-- 运行日志 -->
+        <div class="h-1/2 flex flex-col border-b border-slate-200">
+          <div class="flex items-center justify-between px-4 py-2 bg-white border-b border-slate-200">
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-tight">运行日志 / 错误</span>
+            <button class="text-slate-400 hover:text-slate-600">
+              <Icon icon="mdi:delete" :size="16" />
+            </button>
+          </div>
+          <div class="flex-1 overflow-auto custom-scrollbar p-4 font-mono text-[12px] space-y-2">
+            <div class="flex text-slate-500">
+              <span class="w-20 shrink-0">[10:04:22]</span>
+              <span class="text-blue-600">INFO:</span>
+              <span class="ml-2">初始化策略引擎完成...</span>
+            </div>
+            <div class="flex text-slate-500">
+              <span class="w-20 shrink-0">[10:04:23]</span>
+              <span class="text-blue-600">INFO:</span>
+              <span class="ml-2">正在下载 000300.SH 历史行情数据 [2022-01-01 -&gt; 2023-12-31]</span>
+            </div>
+            <div class="flex text-slate-500">
+              <span class="w-20 shrink-0">[10:04:25]</span>
+              <span class="text-up font-medium">ERROR:</span>
+              <span class="ml-2">模块 'talib' 未找到。请在策略配置中添加依赖。</span>
+            </div>
+            <div class="flex text-slate-500">
+              <span class="w-20 shrink-0">[10:04:28]</span>
+              <span class="text-blue-600">INFO:</span>
+              <span class="ml-2 text-slate-700">开始运行回测预览...</span>
+            </div>
+          </div>
         </div>
-        <div class="flex-1 overflow-auto p-4 space-y-4">
-          <div>
-            <label class="text-xs text-slate-500 block mb-1">策略名称</label>
-            <input 
-              type="text" 
-              v-model="strategyData.name"
-              class="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
+
+        <!-- 实时回测预览 -->
+        <div class="h-1/2 flex flex-col bg-white">
+          <div class="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-tight">实时回测预览</span>
+            <div class="flex items-center space-x-3">
+              <span class="text-[10px] text-slate-400 flex items-center">
+                <span class="w-2 h-2 rounded-full bg-primary mr-1"></span>权益曲线
+              </span>
+              <span class="text-[10px] text-slate-400 flex items-center">
+                <span class="w-2 h-2 rounded-full bg-slate-300 mr-1"></span>基准
+              </span>
+            </div>
           </div>
-          <div>
-            <label class="text-xs text-slate-500 block mb-1">短期均线周期</label>
-            <input 
-              type="number" 
-              value="5"
-              class="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-          </div>
-          <div>
-            <label class="text-xs text-slate-500 block mb-1">长期均线周期</label>
-            <input 
-              type="number" 
-              value="20"
-              class="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-          </div>
-          <div>
-            <label class="text-xs text-slate-500 block mb-1">初始资金</label>
-            <input 
-              type="number" 
-              value="1000000"
-              class="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
+          <div class="flex-1 relative p-2 overflow-hidden flex flex-col">
+            <div class="flex-1 flex items-end justify-between space-x-[2px] opacity-80 mt-4 px-4">
+              <div class="w-2 bg-slate-200 h-[30%]"></div>
+              <div class="w-2 bg-slate-200 h-[35%]"></div>
+              <div class="w-2 bg-slate-200 h-[32%]"></div>
+              <div class="w-2 bg-up h-[45%]"></div>
+              <div class="w-2 bg-up h-[55%]"></div>
+              <div class="w-2 bg-down h-[40%]"></div>
+              <div class="w-2 bg-up h-[60%]"></div>
+              <div class="w-2 bg-up h-[75%]"></div>
+              <div class="w-2 bg-down h-[65%]"></div>
+              <div class="w-2 bg-up h-[80%]"></div>
+              <div class="w-2 bg-up h-[90%]"></div>
+            </div>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div class="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-200 shadow-md">
+                <span class="text-xs text-slate-600 flex items-center font-medium">
+                  <span class="w-3 h-3 animate-spin mr-2 text-primary"></span>
+                  预览数据加载中...
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
