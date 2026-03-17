@@ -19,7 +19,27 @@ const router = createRouter({
       path: '/backtest',
       name: '策略回测',
       component: () => import('@/views/BacktestView.vue'),
-      meta: { title: '策略回测', icon: 'assessment' }
+      meta: { title: '策略回测', icon: 'assessment' },
+      children: [
+        {
+          path: '',
+          name: '策略中心',
+          component: () => import('@/views/backtest/StrategyCenter.vue'),
+          meta: { title: '策略中心' }
+        },
+        {
+          path: 'edit/:id?',
+          name: '编辑策略',
+          component: () => import('@/views/backtest/EditStrategy.vue'),
+          meta: { title: '编辑策略' }
+        },
+        {
+          path: 'detail/:id',
+          name: '回测详情',
+          component: () => import('@/views/backtest/BacktestDetail.vue'),
+          meta: { title: '回测详情' }
+        }
+      ]
     },
     {
       path: '/simulation',

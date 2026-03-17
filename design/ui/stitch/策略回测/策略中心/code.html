@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>股智Pro - 策略中心</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0066FF",
+                        "background-light": "#f8f9fa",
+                        "background-dark": "#121212",
+                        "gain": "#e02d2d",
+                        "loss": "#20a052",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Public Sans', 'Noto Sans SC', sans-serif; }
+        .gain-text { color: #e02d2d; }
+        .loss-text { color: #20a052; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-white dark:bg-slate-950 font-display text-slate-900 dark:text-slate-100">
+<div class="min-h-screen">
+<!-- Main Content -->
+<main class="flex flex-col min-w-0">
+<div class="overflow-y-auto custom-scrollbar p-8 space-y-10 max-w-7xl mx-auto w-full">
+<!-- Strategy Monitoring Module (Preserved) -->
+<div class="space-y-4">
+<div class="flex justify-between items-center">
+<h3 class="font-bold text-lg tracking-tight">策略监控台</h3>
+<div class="flex items-center gap-4 text-xs text-slate-500 font-medium">
+<div class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-loss"></span> 运行中: 9</div>
+<div class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-slate-300"></span> 暂停: 3</div>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-[11px] uppercase tracking-wider">
+<th class="px-6 py-4 font-semibold">策略名称</th>
+<th class="px-6 py-4 font-semibold">状态</th>
+<th class="px-6 py-4 font-semibold">持仓标的</th>
+<th class="px-6 py-4 font-semibold text-right">当前收益率</th>
+<th class="px-6 py-4 font-semibold text-right">胜率</th>
+<th class="px-6 py-4 font-semibold text-right">交易次数</th>
+<th class="px-6 py-4 font-semibold text-center">风险等级</th>
+<th class="px-6 py-4 font-semibold text-right">操作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+<!-- Row 1 -->
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex flex-col">
+<span class="text-sm font-bold">趋势先行A (大盘股)</span>
+<span class="text-[10px] text-slate-400">MA交叉策略</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">运行中</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex flex-wrap gap-1">
+<span class="text-[11px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded">贵州茅台</span>
+<span class="text-[11px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded">招商银行</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right font-bold gain-text">+12.4%</td>
+<td class="px-6 py-4 text-right text-sm">68.2%</td>
+<td class="px-6 py-4 text-right text-sm font-medium">142</td>
+<td class="px-6 py-4 text-center">
+<span class="text-[11px] font-semibold text-orange-500">中风险</span>
+</td>
+<td class="px-6 py-4 text-right space-x-3">
+<button class="text-primary hover:underline text-xs font-semibold">详情</button>
+<button class="text-slate-500 hover:text-slate-900 text-xs font-semibold">编辑</button>
+<button class="text-loss hover:text-red-700 text-xs font-semibold">停止</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex flex-col">
+<span class="text-sm font-bold">量化对冲1号</span>
+<span class="text-[10px] text-slate-400">多空配对策略</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">已暂停</span>
+</td>
+<td class="px-6 py-4">
+<span class="text-[11px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded">宁德时代</span>
+</td>
+<td class="px-6 py-4 text-right font-bold loss-text">-2.15%</td>
+<td class="px-6 py-4 text-right text-sm">52.4%</td>
+<td class="px-6 py-4 text-right text-sm font-medium">89</td>
+<td class="px-6 py-4 text-center">
+<span class="text-[11px] font-semibold text-gain">高风险</span>
+</td>
+<td class="px-6 py-4 text-right space-x-3">
+<button class="text-primary hover:underline text-xs font-semibold">详情</button>
+<button class="text-slate-500 hover:text-slate-900 text-xs font-semibold">编辑</button>
+<button class="text-primary font-semibold text-xs">启动</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Strategy Center / Marketplace -->
+<div class="space-y-6">
+<div class="flex justify-between items-end border-b border-slate-100 dark:border-slate-800 pb-4">
+<div>
+<h3 class="font-bold text-lg tracking-tight">策略中心</h3>
+<p class="text-xs text-slate-500 mt-1">发现经过回测验证的高效量化模型</p>
+</div>
+<button class="text-xs text-primary font-semibold flex items-center gap-1">
+                            查看更多 <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- Strategy Card 1 -->
+<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-primary">
+<span class="material-symbols-outlined text-xl">rebase_edit</span>
+</div>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">股票</span>
+</div>
+<h4 class="font-bold text-sm mb-2 group-hover:text-primary transition-colors">风格轮动</h4>
+<p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4 flex-1">
+                                基于价值、成长、质量等多因子，自动捕捉当前市场强势风格并进行行业均衡配置。
+                            </p>
+<div class="pt-4 border-t border-slate-50 dark:border-slate-800 flex flex-col gap-3">
+<div class="flex justify-between items-center">
+<span class="text-[10px] text-slate-400 uppercase font-semibold">历史年化收益</span>
+<span class="text-sm font-bold gain-text">24.8%</span>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<button class="text-[11px] py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-slate-800">查看详情</button>
+<button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">引用策略</button>
+</div>
+</div>
+</div>
+<!-- Strategy Card 2 -->
+<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg text-orange-500">
+<span class="material-symbols-outlined text-xl">history</span>
+</div>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">股票</span>
+</div>
+<h4 class="font-bold text-sm mb-2 group-hover:text-primary transition-colors">日内回转交易 (T+0)</h4>
+<p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4 flex-1">
+                                针对高波动性标的，通过高频价格监控实现日内低买高卖，不留底仓风险。
+                            </p>
+<div class="pt-4 border-t border-slate-50 dark:border-slate-800 flex flex-col gap-3">
+<div class="flex justify-between items-center">
+<span class="text-[10px] text-slate-400 uppercase font-semibold">历史胜率</span>
+<span class="text-sm font-bold text-slate-900 dark:text-slate-100">62.1%</span>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<button class="text-[11px] py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-slate-800">查看详情</button>
+<button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">引用策略</button>
+</div>
+</div>
+</div>
+<!-- Strategy Card 3 -->
+<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-emerald-500">
+<span class="material-symbols-outlined text-xl">bar_chart</span>
+</div>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">股票</span>
+</div>
+<h4 class="font-bold text-sm mb-2 group-hover:text-primary transition-colors">小市值因子策略</h4>
+<p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4 flex-1">
+                                筛选低估值、高成长潜力的小市值标的，利用市场非对称信息获取长期超额回报。
+                            </p>
+<div class="pt-4 border-t border-slate-50 dark:border-slate-800 flex flex-col gap-3">
+<div class="flex justify-between items-center">
+<span class="text-[10px] text-slate-400 uppercase font-semibold">近一年收益</span>
+<span class="text-sm font-bold gain-text">31.2%</span>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<button class="text-[11px] py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-slate-800">查看详情</button>
+<button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">引用策略</button>
+</div>
+</div>
+</div>
+<!-- Strategy Card 4 -->
+<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-purple-500">
+<span class="material-symbols-outlined text-xl">psychology</span>
+</div>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">股票</span>
+</div>
+<h4 class="font-bold text-sm mb-2 group-hover:text-primary transition-colors">机器学习股价预测</h4>
+<p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4 flex-1">
+                                运用深度学习算法分析海量历史K线数据，建立概率模型动态调整多空仓位。
+                            </p>
+<div class="pt-4 border-t border-slate-50 dark:border-slate-800 flex flex-col gap-3">
+<div class="flex justify-between items-center">
+<span class="text-[10px] text-slate-400 uppercase font-semibold">夏普比率</span>
+<span class="text-sm font-bold text-slate-900 dark:text-slate-100">1.85</span>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<button class="text-[11px] py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-slate-800">查看详情</button>
+<button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">引用策略</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
