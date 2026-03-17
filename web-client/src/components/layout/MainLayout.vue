@@ -73,7 +73,7 @@ const userInfo = ref({
           </router-link>
         </nav>
         <div class="p-4 border-t">
-          <!-- 用户栏优化：去掉设置栏，设置连接放到用户栏 -->
+          <!-- 用户栏（包含设置 icon） -->
           <router-link 
             to="/settings"
             class="flex items-center space-x-3 px-2 py-2 cursor-pointer group hover:bg-gray-50 rounded transition-colors"
@@ -87,6 +87,7 @@ const userInfo = ref({
               <p class="font-medium text-gray-700 leading-none">{{ userInfo.name }}</p>
               <p class="text-xxs text-gray-400 mt-1">{{ userInfo.level }}</p>
             </div>
+            <!-- 设置 icon -->
             <span class="material-symbols-outlined text-lg text-gray-400 group-hover:text-primary">settings</span>
           </router-link>
         </div>
