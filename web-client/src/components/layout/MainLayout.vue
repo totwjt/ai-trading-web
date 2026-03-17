@@ -23,14 +23,7 @@ const userInfo = ref({
 
 // 判断是否显示侧边栏
 const showSidebar = computed(() => {
-  // 编辑策略和回测详情页面不显示侧边栏
-  const noSidebarPaths = [
-    '/backtest/edit/',
-    '/backtest/detail/'
-  ]
-  
-  // 检查当前路径是否匹配不需要侧边栏的路径
-  return !noSidebarPaths.some(path => route.path.startsWith(path))
+  return !route.meta.hideSidebar
 })
 
 </script>
@@ -70,7 +63,7 @@ const showSidebar = computed(() => {
     </header>
 
     <div class="flex flex-1 overflow-hidden">
-      <!-- Sidebar - 只在需要时显示 -->
+      <!-- Sidebar - 根据路由 meta 决定是否显示 -->
       <aside v-if="showSidebar" class="w-48 bg-white border-r flex flex-col shrink-0">
         <nav class="flex-1 py-4">
           <router-link 

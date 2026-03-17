@@ -26,20 +26,20 @@ const router = createRouter({
           name: '策略中心',
           component: () => import('@/views/backtest/StrategyCenter.vue'),
           meta: { title: '策略中心' }
-        },
-        {
-          path: 'edit/:id?',
-          name: '编辑策略',
-          component: () => import('@/views/backtest/EditStrategy.vue'),
-          meta: { title: '编辑策略' }
-        },
-        {
-          path: 'detail/:id',
-          name: '回测详情',
-          component: () => import('@/views/backtest/BacktestDetail.vue'),
-          meta: { title: '回测详情' }
         }
       ]
+    },
+    {
+      path: '/backtest/edit/:id?',
+      name: '编辑策略',
+      component: () => import('@/views/backtest/EditStrategy.vue'),
+      meta: { title: '编辑策略', hideSidebar: true }
+    },
+    {
+      path: '/backtest/detail/:id',
+      name: '回测详情',
+      component: () => import('@/views/backtest/BacktestDetail.vue'),
+      meta: { title: '回测详情', hideSidebar: true }
     },
     {
       path: '/simulation',
