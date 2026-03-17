@@ -128,4 +128,4 @@ AI工作规则
 
 8 通常项目会按照docs/plan.md来按照步骤开发
 
-9 在每次确定完成一个阶段后，完善 docs/progress.md记录当前完成的步骤，然后git提交代码，remote：git@github.com:totwjt/ai-trading-web.git
+9 在每次确定完成一个阶段后，完善 docs/progress.md记录当前完成的步骤，然后git提交代码（add+commit+push），remote：git@github.com:totwjt/ai-trading-web.git
