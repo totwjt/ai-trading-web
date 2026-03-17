@@ -68,6 +68,7 @@ tailwind.config = {
 ai-trading-web
 │
 ├─ AI_CONTEXT.md
+├─ README.md
 │
 ├─ docs
 │   ├─ ARCHITECTURE.md
@@ -83,26 +84,15 @@ ai-trading-web
 ├─ skills
 │   └─ SKILLS.md
 │
-├─ modules
-│   ├─ user
-│   │   └─ README.md
-│   │
-│   ├─ market
-│   │   └─ README.md
-│   │
-│   ├─ strategy
-│   │   └─ README.md
-│   │
-│   ├─ backtest
-│   │   └─ README.md
-│   │
-│   ├─ portfolio
-│   │   └─ README.md
-│   │
-│   └─ simulator
-│       └─ README.md
+├─ web-client                # 前端系统
+│   ├─ src/
+│   ├─ package.json
+│   └─ vite.config.ts
 │
-├─ web-client/
-├─ backend/ （Python）
-│
-└─ README.md
+└─ backend                   # 后端服务 (Python)
+    ├─ gateway/              # API 网关
+    ├─ data_sync/            # 数据同步服务
+    ├─ strategy/             # 策略管理服务
+    ├─ backtest/             # 回测服务
+    ├─ trading/              # 交易服务
+    └─ ai/                   # AI 分析服务

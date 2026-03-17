@@ -25,5 +25,21 @@
    - App.vue (RouterView)
    - main.ts (入口文件，Pinia + Ant Design Vue)
 
+6. ✅ 前后端分离架构
+   - web-client/ 前端目录
+   - backend/ 后端目录 (Python)
+   - .gitignore 配置
+   - 更新文档反映新结构
+
+### 项目结构：
+```
+ai-trading-web/
+├── web-client/          # 前端 (Vue 3 + Vite)
+├── backend/             # 后端 (Python)
+├── docs/                # 文档
+├── design/              # 设计规范
+└── ...
+```
+
 ### 下一步：
 - Phase 2: 根据UI图生成每个路由空页面

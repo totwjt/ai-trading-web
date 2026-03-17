@@ -14,8 +14,14 @@ This file contains guidelines for AI agents working on the AI Trading Web projec
 - Ant Design Vue 4.1.2 (UI Components)
 
 **Architecture:**
-- Frontend: `web-client`
-- Backend Services: `gateway-service`, `data-sync-service`, `strategy-service`, `backtest-service`, `trading-service`, `ai-service`
+- Frontend: `web-client/` (Vue 3 + Vite)
+- Backend Services: `backend/`
+  - `gateway/` - API 网关
+  - `data_sync/` - 数据同步服务
+  - `strategy/` - 策略管理服务
+  - `backtest/` - 回测服务
+  - `trading/` - 交易服务
+  - `ai/` - AI 分析服务
 
 ## 2. Build & Development Commands
 
