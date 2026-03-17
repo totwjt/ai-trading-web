@@ -79,17 +79,24 @@ ai-trading-web/
 web-client/src/
 ├── components/
 │   └── layout/
-│       └── MainLayout.vue      # 主布局组件
+│       ├── MainLayout.vue              # 主布局组件（完整导航）
+│       ├── RecommendationLayout.vue    # 智能选股布局（专用头部）
+│       └── SimpleLayout.vue            # 简单布局（仅主内容）
 ├── views/
 │   ├── HomeView.vue            # 首页
-│   ├── RecommendationView.vue  # 智能选股
+│   ├── RecommendationView.vue  # 智能荐股
 │   ├── BacktestView.vue        # 策略回测
 │   ├── SimulationView.vue      # 模拟交易
 │   ├── HoldingsView.vue        # 我的持仓
 │   └── SettingsView.vue        # 设置
 └── router/
-    └── index.ts                # 路由配置
+    └── index.ts                # 路由配置（支持不同布局）
 ```
+
+### 布局系统说明：
+- **MainLayout**: 首页、策略回测、模拟交易、我的持仓、设置（完整导航）
+- **RecommendationLayout**: 智能荐股（专用头部，无侧边栏）
+- **SimpleLayout**: 未来扩展使用（仅主内容）
 
 ### 下一步：
 - Phase 3: 业务模块开发（用户模块、智能荐股、策略回测、实盘模拟）
