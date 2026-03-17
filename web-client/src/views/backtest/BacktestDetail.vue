@@ -53,37 +53,44 @@ const editStrategy = () => {
 </script>
 
 <template>
-  <div class="flex-1 bg-white flex flex-col overflow-hidden">
+  <div class="flex-1 bg-white flex flex-col overflow-hidden min-h-0 h-full">
     <!-- 顶部导航栏 - 按照设计文件 -->
     <header class="flex items-center justify-between px-6 h-14 border-b border-slate-200 bg-white shrink-0">
-      <div class="flex items-center space-x-8 h-full">
-        <div class="flex items-center h-full">
-          <button 
-            class="h-full px-4 text-sm font-medium text-slate-500 hover:text-primary transition-colors"
-            @click="editStrategy"
-          >
-            编辑策略
-          </button>
-          <button class="h-full px-4 text-sm font-bold active-tab">
-            回测详情
-          </button>
-        </div>
-        <div class="h-6 w-px bg-slate-200"></div>
-        <span class="text-sm font-medium text-slate-600">策略: {{ backtestData.strategyName }}</span>
-      </div>
-      <div class="flex items-center space-x-4">
-        <button 
-          class="flex items-center gap-1 text-sm text-slate-600 hover:text-primary transition-colors"
+      <!-- 返回按钮移到左边 -->
+      <div class="flex items-center">
+        <button
+          class="flex items-center gap-1 mr-6 text-sm text-slate-600 hover:text-primary transition-colors"
           @click="goBack"
         >
           <Icon icon="mdi:arrow-left" :size="20" />
-          策略中心
+          返回策略中心
         </button>
+        <div class="h-6 w-px bg-slate-200 mr-6"></div>
+        <div class="flex items-center h-full space-x-8">
+          <div class="flex items-center h-full">
+            <button
+              class="h-full px-4 text-sm font-medium text-slate-500 hover:text-primary transition-colors"
+              @click="editStrategy"
+            >
+              编辑策略
+            </button>
+            <button class="h-full px-4 text-sm font-bold active-tab">
+              回测详情
+            </button>
+          </div>
+          <div class="h-6 w-px bg-slate-200"></div>
+          <span class="text-sm font-medium text-slate-600">策略: {{ backtestData.strategyName }}</span>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4">
+        <!-- 右侧可以放其他操作按钮 -->
       </div>
     </header>
 
-    <!-- Top Section: Essential Parameters -->
-    <header class="grid grid-cols-1 md:grid-cols-4 gap-4 border border-slate-200 rounded p-4 bg-white shadow-sm mb-4">
+    <!-- 内容区域 - 添加左右留白 -->
+    <main class="flex-1 overflow-auto p-6">
+      <!-- Top Section: Essential Parameters -->
+      <section class="grid grid-cols-1 md:grid-cols-4 gap-4 border border-slate-200 rounded p-4 bg-white shadow-sm mb-4">
       <div class="border-r border-slate-100 last:border-0">
         <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">回测策略名称</p>
         <div class="flex items-center gap-2">
@@ -120,10 +127,10 @@ const editStrategy = () => {
             重新运行
           </button>
         </div>
-      </div>
-    </header>
+        </div>
+      </section>
 
-    <!-- Middle Section: Main Equity Chart -->
+      <!-- Middle Section: Main Equity Chart -->
     <section class="border border-slate-200 rounded bg-white shadow-sm flex flex-col overflow-hidden min-h-[400px] mb-4">
       <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
         <div class="flex items-center gap-4">
@@ -183,7 +190,7 @@ const editStrategy = () => {
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-50">
-              <tr 
+              <tr
                 v-for="(trade, index) in transactionLog"
                 :key="index"
                 class="hover:bg-slate-50/50"
@@ -223,7 +230,7 @@ const editStrategy = () => {
           </div>
         </div>
         <div class="flex-1 bg-slate-900 p-4 font-mono text-[11px] text-slate-300 overflow-auto log-container">
-          <div 
+          <div
             v-for="(log, index) in systemLog"
             :key="index"
             class="mb-1"
@@ -237,14 +244,15 @@ const editStrategy = () => {
               {{ log.level }}:
             </span>
             {{ log.message }}
+            </div>
+            <div class="animate-pulse text-primary">_</div>
           </div>
-          <div class="animate-pulse text-primary">_</div>
         </div>
       </div>
-    </div>
+    </main>
 
     <!-- Footer Status Bar -->
-    <footer class="bg-white border-t border-slate-200 px-4 py-1.5 flex items-center justify-between text-[10px] text-slate-400 font-medium mt-4">
+    <footer class="bg-white border-t border-slate-200 px-6 py-1.5 flex items-center justify-between text-[10px] text-slate-400 font-medium shrink-0">
       <div class="flex items-center gap-4">
         <span class="flex items-center gap-1">
           <span class="w-1.5 h-1.5 rounded-full bg-success"></span> Connected to DataServer

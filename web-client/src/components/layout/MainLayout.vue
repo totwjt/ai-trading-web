@@ -16,9 +16,9 @@ const menuItems = computed(() => [
 
 // 用户信息
 const userInfo = ref({
-  name: '量化交易员',
+  name: '天才交易员',
   level: 'LV.5 资深用户',
-  avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAUFRuvDVoYwMUzc9WD6lbtldY6E2S3YU40H94c5xFAL7OKTWcd6QzPLNF-sF6b-J5-KFJAfin_7dzq0ZLEkrxaaqz1XQI1fIwB_4QgQrJXWQsfoVx10pixf2Akf7YyWxIDqe9vcPERa0dFSOqZc01gi-sDWoDRc8R9aFLACUfuHPfEUCHlve-WAXyhnpGIvwIi1aCJIdywpuj1Yn_rCCPXY3f0yKZA6bwW6vZbG7BYu-hCQlkT4S8Ya5p_-UHLozijfzB-FcTyFdUF'
+  avatar: 'user-secret'
 })
 
 // 判断是否显示侧边栏
@@ -41,9 +41,9 @@ const showSidebar = computed(() => {
         </div>
         <!-- Global Search -->
         <div class="relative w-96">
-          <input 
-            class="w-full h-9 bg-gray-100 border-none rounded-full px-10 text-sm focus:ring-2 focus:ring-primary/20 transition-all" 
-            placeholder="搜索股票代码 / 名称 / 简拼" 
+          <input
+            class="w-full h-9 bg-gray-100 border-none rounded-full px-10 text-sm focus:ring-2 focus:ring-primary/20 transition-all"
+            placeholder="搜索股票代码 / 名称 / 简拼"
             type="text"
           />
           <svg class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,7 +64,7 @@ const showSidebar = computed(() => {
       <!-- Sidebar - 根据路由 meta 决定是否显示 -->
       <aside v-if="showSidebar" class="w-48 bg-white border-r flex flex-col shrink-0">
         <nav class="flex-1 py-4">
-          <router-link 
+          <router-link
             v-for="item in menuItems"
             :key="item.path"
             :to="item.path"
@@ -77,14 +77,14 @@ const showSidebar = computed(() => {
         </nav>
         <div class="p-4 border-t">
           <!-- 用户栏（包含设置 icon） -->
-          <router-link 
+          <router-link
             to="/settings"
             class="flex items-center space-x-3 px-2 py-2 cursor-pointer group hover:bg-gray-50 rounded transition-colors"
           >
-            <img 
-              :src="userInfo.avatar" 
-              alt="Avatar" 
-              class="w-8 h-8 rounded-full border border-gray-200"
+            <Icon 
+              :icon="userInfo.avatar" 
+              :size="32" 
+              class="text-gray-600"
             />
             <div class="text-xs flex-1">
               <p class="font-medium text-gray-700 leading-none">{{ userInfo.name }}</p>

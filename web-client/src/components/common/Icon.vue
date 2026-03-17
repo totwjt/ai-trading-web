@@ -23,6 +23,9 @@ const iconMap: Record<string, string> = {
   'inventory': 'mdi:package-variant',
   'settings': 'mdi:cog',
   
+  // 用户图标
+  'user-secret': 'fa:user-secret',
+  
   // 操作图标
   'refresh': 'mdi:refresh',
   'filter_list': 'mdi:filter',

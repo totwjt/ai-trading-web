@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import Icon from '@/components/common/Icon.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +15,11 @@ const strategyData = ref({
   type: '指数增强',
   status: '运行中'
 })
+
+// 返回策略中心
+const goBack = () => {
+  router.push('/backtest')
+}
 
 // 保存策略
 const saveStrategy = () => {
@@ -32,53 +38,62 @@ const runBacktest = () => {
 </script>
 
 <template>
-  <div class="flex-1 bg-white flex flex-col overflow-hidden">
+  <div class="flex-1 bg-white flex flex-col overflow-hidden min-h-0 h-full">
     <!-- 顶部导航栏 - 按照设计文件 -->
     <header class="flex items-center justify-between px-6 h-14 border-b border-slate-200 bg-white shrink-0">
-      <div class="flex items-center space-x-8 h-full">
-        <div class="flex items-center h-full">
-          <button class="h-full px-4 text-sm font-bold active-tab">编辑策略</button>
-          <button 
-            class="h-full px-4 text-sm font-medium text-slate-500 hover:text-primary transition-colors"
-            @click="runBacktest"
-          >
-            回测详情
-          </button>
-        </div>
-        <div class="h-6 w-px bg-slate-200"></div>
-        <span class="text-sm font-medium text-slate-600">策略: {{ strategyData.name }}</span>
-      </div>
-      <div class="flex items-center space-x-4">
-        <!-- Backtesting Parameters -->
-        <div class="flex items-center space-x-3 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 mr-2">
-          <div class="flex items-center space-x-1.5">
-            <label class="text-[11px] text-slate-500 whitespace-nowrap">开始日期</label>
-            <input class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700" type="date" value="2023-01-01"/>
-          </div>
-          <div class="w-px h-3 bg-slate-300"></div>
-          <div class="flex items-center space-x-1.5">
-            <label class="text-[11px] text-slate-500 whitespace-nowrap">结束日期</label>
-            <input class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700" type="date" value="2023-12-31"/>
-          </div>
-          <div class="w-px h-3 bg-slate-300"></div>
-          <div class="flex items-center space-x-1.5">
-            <label class="text-[11px] text-slate-500 whitespace-nowrap">数据频率</label>
-            <select class="bg-transparent border-none p-0 text-xs focus:ring-0 text-slate-700 cursor-pointer">
-              <option>日线</option>
-              <option>周线</option>
-              <option>1分钟</option>
-              <option>5分钟</option>
-              <option>15分钟</option>
-            </select>
-          </div>
-        </div>
-        <button class="bg-primary text-white px-5 py-1.5 rounded text-sm font-semibold hover:bg-blue-700 shadow-sm shadow-blue-200 transition-all" @click="runBacktest">
-          运行回测
+      <!-- 返回按钮移到左边 -->
+      <div class="flex items-center">
+        <button
+          class="flex items-center gap-1 mr-6 text-sm text-slate-600 hover:text-primary transition-colors"
+          @click="goBack"
+        >
+          <Icon icon="mdi:arrow-left" :size="20" />
+          返回策略中心
         </button>
-        <button class="border border-slate-200 px-5 py-1.5 rounded text-sm font-medium hover:bg-slate-50 transition-colors" @click="saveStrategy">
-          保存
-        </button>
+        <div class="h-6 w-px bg-slate-200 mr-6"></div>
+        <div class="flex items-center h-full space-x-8">
+          <div class="flex items-center h-full">
+            <button class="h-full px-4 text-sm font-bold active-tab">编辑策略</button>
+            <button
+              class="h-full px-4 text-sm font-medium text-slate-500 hover:text-primary transition-colors"
+              @click="runBacktest"
+            >
+              回测详情
+            </button>
+          </div>
+          <div class="h-6 w-px bg-slate-200"></div>
+          <span class="text-sm font-medium text-slate-600">策略: {{ strategyData.name }}</span>
+        </div>
       </div>
+      <!-- 右侧：回测参数和操作按钮 -->
+      <div class="flex items-center space-x-3 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 mr-2">
+        <div class="flex items-center space-x-1.5">
+          <label class="text-[11px] text-slate-500 whitespace-nowrap">开始日期</label>
+          <input class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700" type="date" value="2023-01-01"/>
+        </div>
+        <div class="w-px h-3 bg-slate-300"></div>
+        <div class="flex items-center space-x-1.5">
+          <label class="text-[11px] text-slate-500 whitespace-nowrap">结束日期</label>
+          <input class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700" type="date" value="2023-12-31"/>
+        </div>
+        <div class="w-px h-3 bg-slate-300"></div>
+        <div class="flex items-center space-x-1.5">
+          <label class="text-[11px] text-slate-500 whitespace-nowrap">数据频率</label>
+          <select class="bg-transparent border-none p-0 text-xs focus:ring-0 text-slate-700 cursor-pointer">
+            <option>日线</option>
+            <option>周线</option>
+            <option>1分钟</option>
+            <option>5分钟</option>
+            <option>15分钟</option>
+          </select>
+        </div>
+      </div>
+      <button class="bg-primary text-white px-5 py-1.5 rounded text-sm font-semibold hover:bg-blue-700 shadow-sm shadow-blue-200 transition-all" @click="runBacktest">
+        运行回测
+      </button>
+      <button class="border border-slate-200 px-5 py-1.5 rounded text-sm font-medium hover:bg-slate-50 transition-colors" @click="saveStrategy">
+        保存
+      </button>
     </header>
 
     <!-- 主编辑区域 -->
@@ -194,7 +209,7 @@ const runBacktest = () => {
     </main>
 
     <!-- 底部性能指标栏 -->
-    <footer class="h-16 border-t border-slate-200 px-6 flex items-center bg-slate-50 shrink-0">
+    <footer class="h-16 border-t border-slate-200 px-6 flex items-center bg-slate-50 shrink-0 mt-auto">
       <div class="flex flex-1 items-center justify-between">
         <div class="flex items-center space-x-12">
           <div class="flex flex-col">
