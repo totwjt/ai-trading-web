@@ -53,8 +53,8 @@ ai-trading-web/
    - 设置 (Settings) - 用户设置（路由：`/settings`）
 
 2. ✅ 创建页面组件
-   - HomeView.vue - 首页组件，包含统计数据、筛选标签、推荐列表
-   - RecommendationView.vue - 智能荐股组件，包含股票推荐、评分、详情（路由：`/recommendation`）
+   - HomeView.vue - 首页组件，包含资产摘要、K线图、策略管理（交易仪表板）
+   - RecommendationView.vue - 智能荐股组件，包含统计数据、筛选标签、推荐列表（路由：`/recommendation`）
    - BacktestView.vue - 策略回测组件，包含策略列表、详情面板
    - SimulationView.vue - 模拟交易组件，包含账户信息、持仓、下单面板
    - HoldingsView.vue - 持仓管理组件，包含持仓列表、盈亏统计
@@ -92,11 +92,52 @@ web-client/src/
     └── index.ts                # 路由配置
 ```
 
-### 布局系统说明：
-- **所有页面**都使用 `MainLayout`（完整导航：左侧导航 + 头部导航）
-- **主结构**：`首页+nav-bar+left-bar` 提供全局导航
-- **其他页面**：在主结构的 `main` 区域内显示，可以有自己的页面标题，但不能有独立的导航
-- **SimpleLayout**: 未来扩展使用（仅主内容）
+## 布局架构确认 ✅
+
+### 架构理解（AI 初始化时必须理解）：
+1. **主结构**：`设计/ui/stitch/首页+nav-bar+left-bar`
+   - 包含：左侧导航 + 头部导航 + 首页 main 内容
+   - 用途：全局布局，所有页面共用
+
+2. **页面结构**：
+   - 所有页面都是 **main 内容**（在主结构的 main 区域内显示）
+   - 必须使用主结构的导航（左侧导航 + 头部导航）
+   - 不能有自己的独立导航
+
+3. **智能荐股页面**：
+   - 文件：`设计/ui/stitch/智能荐股router-main`
+   - 理解：这是 **main 内容的一部分**，不是独立页面
+   - 注意：它的头部（"智能选股中心"）是**页面标题**，不是独立导航
+   - 路由：`/recommendation`
+
+### 项目路由配置：
+```
+/              -> 首页 (使用 MainLayout)
+/recommendation -> 智能荐股 (使用 MainLayout)
+/backtest       -> 策略回测 (使用 MainLayout)
+/simulation     -> 模拟交易 (使用 MainLayout)
+/holdings       -> 我的持仓 (使用 MainLayout)
+/settings       -> 设置 (使用 MainLayout)
+```
+
+### 组件结构：
+```
+App.vue
+└── MainLayout.vue (全局导航：左侧导航 + 头部导航)
+    └── RouterView
+        ├── HomeView.vue (首页)
+        ├── RecommendationView.vue (智能荐股 - main 内容)
+        ├── BacktestView.vue (策略回测 - main 内容)
+        ├── SimulationView.vue (模拟交易 - main 内容)
+        ├── HoldingsView.vue (我的持仓 - main 内容)
+        └── SettingsView.vue (设置 - main 内容)
+```
+
+### 文档更新：
+- ✅ AI_CONTEXT.md - 添加布局架构说明
+- ✅ AGENTS.md - 添加布局规则
+- ✅ README.md - 添加布局架构说明
+- ✅ 进度文档 - 确认架构理解
 
 ### 下一步：
 - Phase 3: 业务模块开发（用户模块、智能荐股、策略回测、实盘模拟）

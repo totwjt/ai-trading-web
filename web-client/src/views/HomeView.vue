@@ -1,191 +1,195 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-// 模拟数据
-const stats = ref([
-  { label: '今日处理新闻', value: '12,482', change: '+12% vs 昨', trend: 'up' },
-  { label: '今日板块推荐', value: '12', change: '查看全部', trend: 'neutral' },
-  { label: 'AI胜率 (近30日)', value: '72.4%', change: '跑赢大盘', trend: 'down' },
-  { label: '系统延迟', value: '14ms', change: '优于 99% 节点', trend: 'neutral' }
+// 模拟资产数据
+const assets = ref([
+  { label: '总资产 (CNY)', value: '1,248,500.00' },
+  { label: '今日盈亏', value: '+15,240.50', change: '+1.24%' },
+  { label: '持仓市值', value: '842,300.00' },
+  { label: '模拟账户余额', value: '406,200.00' }
 ])
 
-const filterTabs = ref([
-  { name: '全部推荐', active: true },
-  { name: '机构调研', active: false },
-  { name: '研报精选', active: false },
-  { name: '北向资金', active: false },
-  { name: '政策解读', active: false }
-])
-
-const recommendations = ref([
+// 模拟策略数据
+const strategies = ref([
   {
     id: 1,
-    type: '深度解析',
-    typeColor: 'red',
-    source: '东方财富',
-    time: '2023-10-24 09:30',
-    title: 'Meta裁员标志着效率优先战略调整，云服务外包迎来新机遇',
-    analysis: '通过大模型分析全球头部互联网企业财报，识别出在降本增效的大背景下，企业正加速将非核心研发业务外包。Meta的策略转型预示着北美大型科技公司对外部IT服务供应商的依赖度将提升，尤其是具备数字化转型交付能力的头部服务商，有望获得确定性溢价空间。',
-    sectors: ['人力资源服务', '云计算', 'IT外包', '跨境交付'],
-    stocks: [
-      { name: '科大讯飞', code: '002230.SZ', score: 98 },
-      { name: '中软国际', code: '0354.HK', score: 92 },
-      { name: '软通动力', code: '301236.SZ', score: 89 }
-    ]
+    name: '中证500增强A1',
+    returns: '+12.4%',
+    winRate: '68.5%',
+    maxDrawdown: '4.2%'
   },
   {
     id: 2,
-    type: '研报精选',
-    typeColor: 'blue',
-    source: '华泰证券',
-    time: '2023-10-24 10:15',
-    title: '半导体国产化进程加速：设备端采购订单Q3环比增长40%',
-    analysis: '分析国内主要晶圆厂招投标数据，发现刻蚀机、薄膜沉积设备等关键环节国产替代率显著提升。近期产业链调研显示，下游排产已排至明年Q2。AI模型预测，具有先进制程突破能力的设备厂商将在接下来的财报季迎来业绩与估值的双重修复。',
-    sectors: ['半导体设备', '国产化替代', '电子元器件'],
-    stocks: [
-      { name: '中微公司', code: '688012.SH', score: 96 },
-      { name: '北方华创', code: '002371.SZ', score: 94 },
-      { name: '拓荆科技', code: '688072.SH', score: 85 }
-    ]
+    name: '均线回归Alpha',
+    returns: '-2.1%',
+    winRate: '52.3%',
+    maxDrawdown: '8.7%'
   },
   {
     id: 3,
-    type: '资金流向',
-    typeColor: 'green',
-    source: 'Wind资讯',
-    time: '2023-10-24 11:45',
-    title: '北向资金大幅净买入白酒板块，消费复苏预期重新点燃',
-    analysis: '今日早盘陆股通资金异常流入核心蓝筹，其中白酒龙头个股流入量占全天预计交易量的15%。AI大数据回测显示，白酒板块在资金连续3天净买入后，未来一周出现阶段性底部的概率为82%。建议关注高端及次高端白酒龙头。',
-    sectors: ['白酒', '核心资产', '消费升级'],
-    stocks: [
-      { name: '贵州茅台', code: '600519.SH', score: 91 },
-      { name: '泸州老窖', code: '000568.SZ', score: 88 },
-      { name: '山西汾酒', code: '600809.SH', score: 84 }
-    ]
+    name: '高频套利V2',
+    returns: '+4.8%',
+    winRate: '81.0%',
+    maxDrawdown: '1.5%'
   }
 ])
 </script>
 
 <template>
-  <div class="min-h-screen bg-bgMain">
-    <!-- Stats Summary -->
-    <div class="grid grid-cols-4 gap-4 p-6 pb-0">
+  <div class="min-h-screen bg-bgMain p-4">
+    <!-- Top Summary Bar -->
+    <section class="grid grid-cols-4 gap-4 mb-4">
       <div 
-        v-for="(stat, index) in stats" 
+        v-for="(asset, index) in assets"
         :key="index"
-        class="bg-white p-4 border border-gray-100 flex justify-between items-end"
+        class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex justify-between items-end"
       >
         <div>
-          <p class="text-[10px] text-textMute font-bold uppercase tracking-wider">{{ stat.label }}</p>
-          <p class="text-2xl font-bold">{{ stat.value }}</p>
+          <p class="text-xs text-gray-500 mb-1">{{ asset.label }}</p>
+          <p class="text-2xl font-bold font-numeric">{{ asset.value }}</p>
         </div>
-        <span 
-          :class="[
-            'text-xs font-bold',
-            stat.trend === 'up' ? 'text-up' : 
-            stat.trend === 'down' ? 'text-down' : 'text-primary'
-          ]"
-        >
-          {{ stat.change }}
-        </span>
+        <span v-if="asset.change" class="text-sm font-semibold text-up">{{ asset.change }}</span>
       </div>
-    </div>
+    </section>
 
-    <!-- Filter Tabs -->
-    <div class="flex gap-2 px-6 pt-4">
-      <button 
-        v-for="tab in filterTabs"
-        :key="tab.name"
-        :class="[
-          'px-4 py-1.5 text-xs font-bold rounded transition-all',
-          tab.active 
-            ? 'bg-primary text-white' 
-            : 'bg-white border border-gray-200 text-textSub hover:border-primary hover:text-primary'
-        ]"
-      >
-        {{ tab.name }}
-      </button>
-    </div>
-
-    <!-- Recommendation List -->
-    <div class="p-6 space-y-4">
-      <div 
-        v-for="rec in recommendations"
-        :key="rec.id"
-        class="bg-white border border-gray-100 hover:border-primary/50 transition-colors shadow-sm overflow-hidden flex"
-      >
-        <!-- Left: Analysis Logic -->
-        <div class="w-[65%] p-4 border-r border-gray-100">
-          <div class="flex items-center gap-3 mb-2">
-            <span 
-              :class="[
-                'text-[10px] font-bold px-1.5 py-0.5 rounded',
-                rec.typeColor === 'red' ? 'bg-red-100 text-red-700' :
-                rec.typeColor === 'blue' ? 'bg-blue-100 text-blue-700' :
-                rec.typeColor === 'green' ? 'bg-green-100 text-green-700' :
-                'bg-purple-100 text-purple-700'
-              ]"
-            >
-              {{ rec.type }}
-            </span>
-            <span class="text-xs text-textMute font-medium">来源：{{ rec.source }} • {{ rec.time }}</span>
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-12 gap-4">
+      <!-- Central Chart Section -->
+      <div class="col-span-9 space-y-4">
+        <!-- K线图区域 -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-2 border-b">
+            <div class="flex items-center space-x-4">
+              <span class="font-bold text-lg">贵州茅台 (600519.SH)</span>
+              <div class="flex space-x-2 text-xs">
+                <span class="bg-gray-100 px-2 py-1 rounded cursor-pointer hover:bg-gray-200">分时</span>
+                <span class="bg-primary text-white px-2 py-1 rounded cursor-pointer">日K</span>
+                <span class="bg-gray-100 px-2 py-1 rounded cursor-pointer hover:bg-gray-200">周K</span>
+              </div>
+            </div>
+            <div class="flex items-center space-x-4 text-xs text-gray-500">
+              <span class="cursor-pointer hover:text-primary">MA</span>
+              <span class="cursor-pointer hover:text-primary">MACD</span>
+              <span class="cursor-pointer hover:text-primary">KDJ</span>
+              <span class="cursor-pointer hover:text-primary">BOLL</span>
+            </div>
           </div>
-          <h2 class="text-lg font-bold text-textMain mb-2 leading-snug hover:text-primary cursor-pointer transition-colors">
-            {{ rec.title }}
-          </h2>
-          <div class="bg-gray-50 p-3 mb-3 border-l-2 border-primary">
-            <p class="text-xs leading-relaxed text-textSub">
-              <span class="font-bold text-textMain">AI解析逻辑：</span>
-              {{ rec.analysis }}
-            </p>
-          </div>
-          <div class="flex flex-wrap gap-2 items-center">
-            <span class="text-xs font-bold text-textMute">利好板块:</span>
-            <span 
-              v-for="sector in rec.sectors"
-              :key="sector"
-              class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded"
-            >
-              {{ sector }}
-            </span>
+          <!-- Chart Container -->
+          <div class="chart-container relative p-4 bg-white h-64 flex items-center justify-center text-gray-400">
+            K线图区域 (Canvas)
           </div>
         </div>
-        
-        <!-- Right: Stocks Table -->
-        <div class="w-[35%] bg-gray-50/30">
-          <table class="w-full h-full density-table">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="text-left font-bold text-textMute">利好股票</th>
-                <th class="text-left font-bold text-textMute">代码</th>
-                <th class="text-right font-bold text-textMute">AI评分</th>
-                <th class="text-right font-bold text-textMute">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr 
-                v-for="stock in rec.stocks"
-                :key="stock.code"
-                class="hover:bg-blue-50"
-              >
-                <td class="font-bold text-textMain">{{ stock.name }}</td>
-                <td class="text-textMute">{{ stock.code }}</td>
-                <td class="text-right text-up font-bold text-sm font-numeric">{{ stock.score }}</td>
-                <td class="text-right">
-                  <button class="material-symbols-outlined text-sm text-primary">add_circle</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+
+        <!-- Strategy Management -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-white rounded-lg shadow-sm border border-gray-100">
+            <div class="px-4 py-3 border-b flex justify-between items-center">
+              <h3 class="font-bold text-sm">策略管理</h3>
+              <button class="text-xs text-primary hover:underline">查看更多</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full density-table">
+                <thead class="bg-gray-50 text-gray-500">
+                  <tr>
+                    <th class="text-left">策略名称</th>
+                    <th class="text-right">当前收益</th>
+                    <th class="text-right">胜率</th>
+                    <th class="text-right">最大回撤</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr 
+                    v-for="strategy in strategies"
+                    :key="strategy.id"
+                  >
+                    <td class="font-medium">{{ strategy.name }}</td>
+                    <td 
+                      :class="[
+                        'text-right font-numeric',
+                        strategy.returns.startsWith('+') ? 'text-up' : 'text-down'
+                      ]"
+                    >
+                      {{ strategy.returns }}
+                    </td>
+                    <td class="text-right font-numeric">{{ strategy.winRate }}</td>
+                    <td class="text-right font-numeric">{{ strategy.maxDrawdown }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+            <h3 class="font-bold text-sm mb-4">快速操作</h3>
+            <div class="grid grid-cols-2 gap-3">
+              <button class="px-4 py-3 bg-up text-white text-sm font-bold rounded hover:bg-red-600 transition-colors">
+                买入
+              </button>
+              <button class="px-4 py-3 bg-down text-white text-sm font-bold rounded hover:bg-green-600 transition-colors">
+                卖出
+              </button>
+              <button class="px-4 py-2 border border-gray-200 text-textMain text-sm font-bold rounded hover:bg-gray-50 transition-colors">
+                查看持仓
+              </button>
+              <button class="px-4 py-2 border border-gray-200 text-textMain text-sm font-bold rounded hover:bg-gray-50 transition-colors">
+                策略回测
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Load More -->
-    <div class="pb-8 flex justify-center">
-      <button class="px-12 py-2 border-2 border-gray-200 text-textMute text-xs font-bold hover:border-primary hover:text-primary transition-all rounded">
-        加载更多分析数据
-      </button>
+      <!-- Right Panel -->
+      <div class="col-span-3 space-y-4">
+        <!-- Market News -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+          <h3 class="font-bold text-sm mb-3">市场动态</h3>
+          <div class="space-y-3">
+            <div class="text-xs">
+              <p class="font-medium text-textMain">A股三大指数集体收涨</p>
+              <p class="text-textMute mt-1">沪指涨1.2%，深成指涨1.5%，创业板指涨2.1%</p>
+            </div>
+            <div class="text-xs">
+              <p class="font-medium text-textMain">北向资金净流入</p>
+              <p class="text-textMute mt-1">今日净流入85.6亿元</p>
+            </div>
+            <div class="text-xs">
+              <p class="font-medium text-textMain">新能源板块领涨</p>
+              <p class="text-textMute mt-1">光伏、锂电池概念股表现强势</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+          <h3 class="font-bold text-sm mb-3">市场概览</h3>
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between">
+              <span class="text-textMute">上涨股票</span>
+              <span class="text-up font-bold">1,856</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-textMute">下跌股票</span>
+              <span class="text-down font-bold">1,234</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-textMute">涨停股票</span>
+              <span class="text-up font-bold">78</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-textMute">跌停股票</span>
+              <span class="text-down font-bold">12</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.chart-container {
+  min-height: 400px;
+}
+</style>

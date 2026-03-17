@@ -10,10 +10,31 @@ ai-trading-web/
 ├── backend/             # 后端服务 (Python)
 ├── docs/                # 文档
 ├── design/              # 设计规范
+│   └── ui/stitch/       # UI 设计文件
+│       ├── 首页+nav-bar+left-bar/  # 主结构（全局导航）
+│       └── 智能荐股router-main/    # 智能荐股页面内容
 ├── agents/              # AI 代理配置
 ├── skills/              # AI 技能配置
 └── AI_CONTEXT.md        # AI 上下文配置
 ```
+
+## 布局架构（重要）
+
+### 主结构
+- **文件**: `design/ui/stitch/首页+nav-bar+left-bar/code.html`
+- **包含**: 左侧导航 + 头部导航 + 首页 main 内容
+- **用途**: 全局布局，所有页面共用
+
+### 页面结构
+- **所有页面**都是 **main 内容**（在主结构的 main 区域内显示）
+- **必须**使用主结构的导航（左侧导航 + 头部导航）
+- **不能**有自己的独立导航
+
+### 智能荐股页面
+- **文件**: `design/ui/stitch/智能荐股router-main/code.html`
+- **理解**: 这是 **main 内容的一部分**，不是独立页面
+- **注意**: 它的头部（"智能选股中心"）是**页面标题**，不是独立导航
+- **路由**: `/recommendation`
 
 ## 技术栈
 

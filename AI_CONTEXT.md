@@ -26,6 +26,47 @@ portfolio
 simulator
 模拟交易系统
 
+## 布局架构（重要）
+
+### 主结构
+- **文件**: `design/ui/stitch/首页+nav-bar+left-bar/code.html`
+- **包含**: 左侧导航 + 头部导航 + 首页 main 内容
+- **用途**: 全局布局，所有页面共用
+
+### 页面结构
+- **所有页面**都是 **main 内容**（在主结构的 main 区域内显示）
+- **必须**使用主结构的导航（左侧导航 + 头部导航）
+- **不能**有自己的独立导航
+
+### 智能荐股页面
+- **文件**: `design/ui/stitch/智能荐股router-main/code.html`
+- **理解**: 这是 **main 内容的一部分**，不是独立页面
+- **注意**: 它的头部（"智能选股中心"）是**页面标题**，不是独立导航
+- **路由**: `/recommendation`
+
+### 项目路由
+```
+/              -> 首页 (使用 MainLayout)
+/recommendation -> 智能荐股 (使用 MainLayout)
+/backtest       -> 策略回测 (使用 MainLayout)
+/simulation     -> 模拟交易 (使用 MainLayout)
+/holdings       -> 我的持仓 (使用 MainLayout)
+/settings       -> 设置 (使用 MainLayout)
+```
+
+### 组件结构
+```
+App.vue
+└── MainLayout.vue (全局导航：左侧导航 + 头部导航)
+    └── RouterView
+        ├── HomeView.vue (首页)
+        ├── RecommendationView.vue (智能荐股 - main 内容)
+        ├── BacktestView.vue (策略回测 - main 内容)
+        ├── SimulationView.vue (模拟交易 - main 内容)
+        ├── HoldingsView.vue (我的持仓 - main 内容)
+        └── SettingsView.vue (设置 - main 内容)
+```
+
 文档索引
 
 架构
