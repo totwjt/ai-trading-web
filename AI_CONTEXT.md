@@ -41,7 +41,7 @@ docs/API.md
 docs/DOMAIN.md
 
 UI设计规范
-design/ui/UI_RULES.md
+design/UI_RULES.md
 
 docs/plan.md
 当前项目进度

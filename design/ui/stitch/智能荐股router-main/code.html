@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>智能选股中心 - 专业量化投研终端</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0066FF",
+                        "background-light": "#ffffff",
+                        "background-dark": "#0f172a",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "PingFang SC", "Microsoft YaHei", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "2px",
+                        "lg": "4px",
+                        "xl": "8px",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: "Public Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .stock-table th, .stock-table td {
+            padding: 4px 8px;
+            font-size: 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .compact-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .compact-scrollbar::-webkit-scrollbar-thumb {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased font-display">
+<div class="min-h-screen flex flex-col">
+<!-- Header Section -->
+<header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
+<div class="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary text-3xl">analytics</span>
+<div>
+<h1 class="text-xl font-bold tracking-tight">智能选股中心 <span class="ml-2 text-xs font-normal text-slate-400 border border-slate-200 px-1 rounded">PRO TERMINAL</span></h1>
+<p class="text-xs text-slate-500">基于AI深度学习的实时新闻驱动型股票推荐系统 • 实时更新</p>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 text-xs font-medium border-r border-slate-200 pr-6">
+<span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                    数据连接中: 实时
+                </div>
+<div class="flex gap-4">
+<button class="flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-xs font-bold rounded">
+<span class="material-symbols-outlined text-sm">refresh</span>
+                        手动刷新
+                    </button>
+<button class="flex items-center gap-1 px-3 py-1.5 border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+                        筛选条件
+                    </button>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 max-w-[1600px] mx-auto w-full p-6">
+<!-- Stats Summary -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+<div class="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 flex justify-between items-end">
+<div>
+<p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">今日处理新闻</p>
+<p class="text-2xl font-bold">12,482</p>
+</div>
+<span class="text-xs text-green-600 font-bold">+12% vs 昨</span>
+</div>
+<div class="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 flex justify-between items-end">
+<div><p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">今日板块推荐</p><p class="text-2xl font-bold">12</p></div>
+<span class="text-xs text-primary font-bold">查看全部</span>
+</div>
+<div class="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 flex justify-between items-end">
+<div>
+<p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">AI胜率 (近30日)</p>
+<p class="text-2xl font-bold">72.4%</p>
+</div>
+<span class="text-xs text-red-600 font-bold">跑赢大盘</span>
+</div>
+<div class="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 flex justify-between items-end">
+<div>
+<p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">系统延迟</p>
+<p class="text-2xl font-bold">14ms</p>
+</div>
+<span class="text-xs text-slate-400 font-medium">优于 99% 节点</span>
+</div>
+</div>
+<!-- Filter Tabs -->
+<div class="flex gap-2 mb-4">
+<button class="px-4 py-1.5 text-xs font-bold bg-primary text-white rounded">全部推荐</button>
+<button class="px-4 py-1.5 text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:border-primary hover:text-primary rounded transition-all">机构调研</button>
+<button class="px-4 py-1.5 text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:border-primary hover:text-primary rounded transition-all">研报精选</button>
+<button class="px-4 py-1.5 text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:border-primary hover:text-primary rounded transition-all">北向资金</button>
+<button class="px-4 py-1.5 text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:border-primary hover:text-primary rounded transition-all">政策解读</button>
+</div>
+<!-- Recommendation List -->
+<div class="space-y-4">
+<!-- Card 1 -->
+<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-colors shadow-sm overflow-hidden flex">
+<!-- Left: Analysis Logic -->
+<div class="w-[65%] p-4 border-r border-slate-100 dark:border-slate-800">
+<div class="flex items-center gap-3 mb-2">
+<span class="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded">深度解析</span>
+<span class="text-xs text-slate-400 font-medium">来源：东方财富 • 2023-10-24 09:30</span>
+</div>
+<h2 class="text-lg font-bold text-slate-900 mb-2 leading-snug hover:text-primary cursor-pointer transition-colors">Meta裁员标志着效率优先战略调整，云服务外包迎来新机遇</h2>
+<div class="bg-slate-50 dark:bg-slate-800/50 p-3 mb-3 border-l-2 border-primary">
+<p class="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+<span class="font-bold text-slate-800 dark:text-slate-200">AI解析逻辑：</span>
+                            通过大模型分析全球头部互联网企业财报，识别出在降本增效的大背景下，企业正加速将非核心研发业务外包。Meta的策略转型预示着北美大型科技公司对外部IT服务供应商的依赖度将提升，尤其是具备数字化转型交付能力的头部服务商，有望获得确定性溢价空间。
+                        </p>
+</div>
+<div class="flex flex-wrap gap-2 items-center">
+<span class="text-xs font-bold text-slate-400">利好板块:</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded">人力资源服务</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded">云计算</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded">IT外包</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded">跨境交付</span>
+</div>
+</div>
+<!-- Right: Stocks Table -->
+<div class="w-[35%] bg-slate-50/30 dark:bg-slate-900/50">
+<table class="w-full h-full stock-table">
+<thead class="bg-slate-50 dark:bg-slate-800">
+<tr>
+<th class="text-left font-bold text-slate-400">利好股票</th>
+<th class="text-left font-bold text-slate-400">代码</th>
+<th class="text-right font-bold text-slate-400">AI评分</th>
+<th class="text-right font-bold text-slate-400">操作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="font-bold text-slate-800">科大讯飞</td>
+<td class="text-slate-500">002230.SZ</td>
+<td class="text-right text-red-600 font-bold text-sm">98</td>
+<td class="text-right"><button class="material-symbols-outlined text-sm text-primary">add_circle</button></td>
+</tr>
+<tr>
+<td class="font-bold text-slate-800">中软国际</td>
+<td class="text-slate-500">0354.HK</td>
+<td class="text-right text-red-600 font-bold text-sm">92</td>
+<td class="text-right"><button class="material-symbols-outlined text-sm text-primary">add_circle</button></td>
+</tr>
+<tr>
+<td class="font-bold text-slate-800">软通动力</td>
+<td class="text-slate-500">301236.SZ</td>
+<td class="text-right text-red-600 font-bold text-sm">89</td>
+<td class="text-right"><button class="material-symbols-outlined text-sm text-primary">add_circle</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-colors shadow-sm overflow-hidden flex">
+<div class="w-[65%] p-4 border-r border-slate-100 dark:border-slate-800">
+<div class="flex items-center gap-3 mb-2">
+<span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded">研报精选</span>
+<span class="text-xs text-slate-400 font-medium">来源：华泰证券 • 2023-10-24 10:15</span>
+</div>
+<h2 class="text-lg font-bold text-slate-900 mb-2 leading-snug hover:text-primary cursor-pointer transition-colors">半导体国产化进程加速：设备端采购订单Q3环比增长40%</h2>
+<div class="bg-slate-50 dark:bg-slate-800/50 p-3 mb-3 border-l-2 border-primary">
+<p class="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+<span class="font-bold text-slate-800 dark:text-slate-200">AI解析逻辑：</span>
+                            分析国内主要晶圆厂招投标数据，发现刻蚀机、薄膜沉积设备等关键环节国产替代率显著提升。近期产业链调研显示，下游排产已排至明年Q2。AI模型预测，具有先进制程突破能力的设备厂商将在接下来的财报季迎来业绩与估值的双重修复。
+                        </p>
+</div>
+<div class="flex flex-wrap gap-2 items-center">
+<span class="text-xs font-bold text-slate-400">利好板块:</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded">半导体设备</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded">国产化替代</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded">电子元器件</span>
+</div>
+</div>
+<div class="w-[35%] bg-slate-50/30 dark:bg-slate-900/50">
+<table class="w-full h-full stock-table">
+<thead class="bg-slate-50 dark:bg-slate-800">
+<tr>
+<th class="text-left font-bold text-slate-400">利好股票</th>
+<th class="text-left font-bold text-slate-400">代码</th>
+<th class="text-right font-bold text-slate-400">AI评分</th>
+<th class="text-right font-bold text-slate-400">操作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="font-bold text-slate-800">中微公司</td>
+<td class="text-slate-500">688012.SH</td>
+<td class="text-right text-red-600 font-bold text-sm">96</td>
+<td class="text-right"><button class="material-symbols-outlined text-sm text-primary">add_circle</button></td>
+</tr>
+<tr>
+<td class="font-bold text-slate-800">北方华创</td>
+<td class="text-slate-500">002371.SZ</td>
+<td class="text-right text-red-600 font-bold text-sm">94</td>
+<td class="text-right"><button class="material-symbols-outlined text-sm text-primary">add_circle</button></td>
+</tr>
+<tr>
+<td class="font-bold text-slate-800">拓荆科技</td>
+<td class="text-slate-500">688072.SH</td>
+<td class="text-right text-red-600 font-bold text-sm">85</td>
+<td class="text-right"><button class="material-symbols-outlined text-sm text-primary">add_circle</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-colors shadow-sm overflow-hidden flex">
+<div class="w-[65%] p-4 border-r border-slate-100 dark:border-slate-800">
+<div class="flex items-center gap-3 mb-2">
+<span class="text-[10px] bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded">资金流向</span>
+<span class="text-xs text-slate-400 font-medium">来源：Wind资讯 • 2023-10-24 11:45</span>
+</div>
+<h2 class="text-lg font-bold text-slate-900 mb-2 leading-snug hover:text-primary cursor-pointer transition-colors">北向资金大幅净买入白酒板块，消费复苏预期重新点燃</h2>
+<div class="bg-slate-50 dark:bg-slate-800/50 p-3 mb-3 border-l-2 border-primary">
+<p class="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+<span class="font-bold text-slate-800 dark:text-slate-200">AI解析逻辑：</span>
+                            今日早盘陆股通资金异常流入核心蓝筹，其中白酒龙头个股流入量占全天预计交易量的15%。AI大数据回测显示，白酒板块在资金连续3天净买入后，未来一周出现阶段性底部的概率为82%。建议关注高端及次高端白酒龙头。
+                        </p>
+</div>
+<div class="flex flex-wrap gap-2 items-center">
+<span class="text-xs font-bold text-slate-400">利好板块:</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded">白酒</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded">核心资产</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded">消费升级</span>
+</div>
+</div>
+<div class="w-[35%] bg-slate-50/30 dark:bg-slate-900/50">
+<table class="w-full h-full stock-table">
+<thead class="bg-slate-50 dark:bg-slate-800">
+<tr>
+<th class="text-left font-bold text-slate-400">利好股票</th>
+<th class="text-left font-bold text-slate-400">代码</th>
+<th class="text-right font-bold text-slate-400">AI评分</th>
+<th class="text-right font-bold text-slate-400">操作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="font-bold text-slate-800">贵州茅台</td>
+<td class="text-slate-500">600519.SH</td>
+<td class="text-right text-red-600 font-bold text-sm">91</td>
+<td class="text-right"><button class="material-symbols-outlined text-sm text-primary">add_circle</button></td>
+</tr>
+<tr>
+<td class="font-bold text-slate-800">泸州老窖</td>
+<td class="text-slate-500">000568.SZ</td>
+<td class="text-right text-red-600 font-bold text-sm">88</td>
+<td class="text-right"><button class="material-symbols-outlined text-sm text-primary">add_circle</button></td>
+</tr>
+<tr>
+<td class="font-bold text-slate-800">山西汾酒</td>
+<td class="text-slate-500">600809.SH</td>
+<td class="text-right text-red-600 font-bold text-sm">84</td>
+<td class="text-right"><button class="material-symbols-outlined text-sm text-primary">add_circle</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-primary/50 transition-colors shadow-sm overflow-hidden flex">
+<div class="w-[65%] p-4 border-r border-slate-100 dark:border-slate-800">
+<div class="flex items-center gap-3 mb-2">
+<span class="text-[10px] bg-purple-100 text-purple-700 font-bold px-1.5 py-0.5 rounded">创新技术</span>
+<span class="text-xs text-slate-400 font-medium">来源：科创板日报 • 2023-10-24 14:20</span>
+</div>
+<h2 class="text-lg font-bold text-slate-900 mb-2 leading-snug hover:text-primary cursor-pointer transition-colors">固态电池能量密度突破500Wh/kg，商业化应用进入倒计时</h2>
+<div class="bg-slate-50 dark:bg-slate-800/50 p-3 mb-3 border-l-2 border-primary">
+<p class="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+<span class="font-bold text-slate-800 dark:text-slate-200">AI解析逻辑：</span>
+                            监测到多项固态电池核心专利获批。对比现有液态电池技术，固态电池在安全性和续航能力上具有代际优势。AI分析认为，随着成本曲线开始下行，配套电解质材料、硅碳负极的需求将爆发。首批搭载该技术的样车下线将是短期核心催化剂。
+                        </p>
+</div>
+<div class="flex flex-wrap gap-2 items-center">
+<span class="text-xs font-bold text-slate-400">利好板块:</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded">固态电池</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded">新能源汽车</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded">新材料</span>
+</div>
+</div>
+<div class="w-[35%] bg-slate-50/30 dark:bg-slate-900/50">
+<table class="w-full h-full stock-table">
+<thead class="bg-slate-50 dark:bg-slate-800">
+<tr>
+<th class="text-left font-bold text-slate-400">利好股票</th>
+<th class="text-left font-bold text-slate-400">代码</th>
+<th class="text-right font-bold text-slate-400">AI评分</th>
+<th class="text-right font-bold text-slate-400">操作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="font-bold text-slate-800">宁德时代</td>
+<td class="text-slate-500">300750.SZ</td>
+<td class="text-right text-red-600 font-bold text-sm">93</td>
+<td class="text-right"><button class="material-symbols-outlined text-sm text-primary">add_circle</button></td>
+</tr>
+<tr>
+<td class="font-bold text-slate-800">金龙羽</td>
+<td class="text-slate-500">002882.SZ</td>
+<td class="text-right text-red-600 font-bold text-sm">87</td>
+<td class="text-right"><button class="material-symbols-outlined text-sm text-primary">add_circle</button></td>
+</tr>
+<tr>
+<td class="font-bold text-slate-800">清陶能源</td>
+<td class="text-slate-500">UNLISTED</td>
+<td class="text-right text-red-600 font-bold text-sm">82</td>
+<td class="text-right"><button class="material-symbols-outlined text-sm text-primary">add_circle</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Load More -->
+<div class="mt-8 flex justify-center">
+<button class="px-12 py-2 border-2 border-slate-200 text-slate-500 text-xs font-bold hover:border-primary hover:text-primary transition-all rounded">
+                加载更多分析数据
+            </button>
+</div>
+</main>
+<!-- Simple Footer -->
+<footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-6">
+<div class="max-w-[1600px] mx-auto flex justify-between items-center text-[11px] text-slate-400">
+<div class="flex gap-4">
+<a class="hover:text-primary" href="#">关于我们</a>
+<a class="hover:text-primary" href="#">数据来源说明</a>
+<a class="hover:text-primary" href="#">免责条款</a>
+<a class="hover:text-primary" href="#">API文档</a>
+</div>
+<p>© 2023 智能选股中心. 股市有风险，投资需谨慎。数据仅供参考，不构成投资建议。</p>
+</div>
+</footer>
+</div>
+<!-- News Detail Modal -->
+<div class="fixed inset-0 z-[100] hidden" id="newsModal">
+<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeModal()"></div>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white dark:bg-slate-900 shadow-2xl rounded-lg overflow-hidden">
+<div class="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white leading-snug pr-8" id="modalTitle"></h3>
+<button class="material-symbols-outlined text-slate-400 hover:text-slate-600" onclick="closeModal()">close</button>
+</div>
+<div class="p-6">
+<h4 class="text-xs font-bold text-primary mb-3 uppercase tracking-wider">深度AI解析</h4>
+<div class="text-sm leading-relaxed text-slate-600 dark:text-slate-400 space-y-4" id="modalBody"></div>
+</div>
+<div class="p-4 bg-slate-50 dark:bg-slate-800/50 flex justify-end border-t border-slate-100 dark:border-slate-800">
+<button class="px-4 py-2 bg-primary text-white text-xs font-bold rounded hover:bg-blue-700 transition-colors" onclick="closeModal()">关闭详情</button>
+</div>
+</div>
+</div>
+<script>
+    function closeModal() {
+        document.getElementById('newsModal').classList.add('hidden');
+    }
+
+    document.querySelectorAll('.space-y-4 h2').forEach(title => {
+        title.addEventListener('click', function() {
+            const card = this.closest('.flex');
+            const analysisText = card.querySelector('.bg-slate-50 p').innerHTML.replace(/<span.*?>.*?<\/span>/, '').trim();
+            
+            document.getElementById('modalTitle').innerText = this.innerText;
+            document.getElementById('modalBody').innerHTML = '<p>' + analysisText + '</p>';
+            document.getElementById('newsModal').classList.remove('hidden');
+        });
+    });
+</script></body></html>

@@ -45,16 +45,16 @@ ai-trading-web/
 
 ### 已完成：
 1. ✅ 分析设计文件，确定页面路由
-   - 首页 (Home) - 智能选股中心
-   - 智能选股 (Recommendation) - AI精选股票
-   - 策略回测 (Backtest) - 策略回测管理
-   - 模拟交易 (Simulation) - 模拟交易账户
-   - 我的持仓 (Holdings) - 持仓管理
-   - 设置 (Settings) - 用户设置
+   - 首页 (Home) - 智能选股中心（路由：`/`）
+   - 智能荐股 (Recommendation) - AI精选股票（路由：`/recommendation`，导航栏中"智能选股"的内容页面）
+   - 策略回测 (Backtest) - 策略回测管理（路由：`/backtest`）
+   - 模拟交易 (Simulation) - 模拟交易账户（路由：`/simulation`）
+   - 我的持仓 (Holdings) - 持仓管理（路由：`/holdings`）
+   - 设置 (Settings) - 用户设置（路由：`/settings`）
 
 2. ✅ 创建页面组件
    - HomeView.vue - 首页组件，包含统计数据、筛选标签、推荐列表
-   - RecommendationView.vue - 智能选股组件，包含股票推荐、评分、详情
+   - RecommendationView.vue - 智能荐股组件，包含股票推荐、评分、详情（路由：`/recommendation`）
    - BacktestView.vue - 策略回测组件，包含策略列表、详情面板
    - SimulationView.vue - 模拟交易组件，包含账户信息、持仓、下单面板
    - HoldingsView.vue - 持仓管理组件，包含持仓列表、盈亏统计

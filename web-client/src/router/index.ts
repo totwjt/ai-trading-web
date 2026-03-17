@@ -13,7 +13,7 @@ const router = createRouter({
       path: '/recommendation',
       name: 'recommendation',
       component: () => import('@/views/RecommendationView.vue'),
-      meta: { title: '智能选股', icon: 'smart_toy' }
+      meta: { title: '智能荐股', icon: 'smart_toy' }
     },
     {
       path: '/backtest',

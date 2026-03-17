@@ -76,8 +76,7 @@ ai-trading-web
 │   └─ API.md
 │
 ├─ design
-│   └─ ui
-│       └─ UI_RULES.md
+│   └─ UI_RULES.md
 ├─ agents
 │   └─ AGENTS.md
 │
