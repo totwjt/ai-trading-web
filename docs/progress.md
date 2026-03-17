@@ -79,23 +79,23 @@ ai-trading-web/
 web-client/src/
 ├── components/
 │   └── layout/
-│       ├── MainLayout.vue              # 主布局组件（完整导航）
-│       ├── RecommendationLayout.vue    # 智能选股布局（专用头部）
-│       └── SimpleLayout.vue            # 简单布局（仅主内容）
+│       ├── MainLayout.vue      # 主布局组件（完整导航：左侧导航 + 头部导航）
+│       └── SimpleLayout.vue    # 简单布局（仅主内容，用于未来扩展）
 ├── views/
-│   ├── HomeView.vue            # 首页
-│   ├── RecommendationView.vue  # 智能荐股
-│   ├── BacktestView.vue        # 策略回测
-│   ├── SimulationView.vue      # 模拟交易
-│   ├── HoldingsView.vue        # 我的持仓
-│   └── SettingsView.vue        # 设置
+│   ├── HomeView.vue            # 首页（使用 MainLayout）
+│   ├── RecommendationView.vue  # 智能荐股（使用 MainLayout）
+│   ├── BacktestView.vue        # 策略回测（使用 MainLayout）
+│   ├── SimulationView.vue      # 模拟交易（使用 MainLayout）
+│   ├── HoldingsView.vue        # 我的持仓（使用 MainLayout）
+│   └── SettingsView.vue        # 设置（使用 MainLayout）
 └── router/
-    └── index.ts                # 路由配置（支持不同布局）
+    └── index.ts                # 路由配置
 ```
 
 ### 布局系统说明：
-- **MainLayout**: 首页、策略回测、模拟交易、我的持仓、设置（完整导航）
-- **RecommendationLayout**: 智能荐股（专用头部，无侧边栏）
+- **所有页面**都使用 `MainLayout`（完整导航：左侧导航 + 头部导航）
+- **主结构**：`首页+nav-bar+left-bar` 提供全局导航
+- **其他页面**：在主结构的 `main` 区域内显示，可以有自己的页面标题，但不能有独立的导航
 - **SimpleLayout**: 未来扩展使用（仅主内容）
 
 ### 下一步：
