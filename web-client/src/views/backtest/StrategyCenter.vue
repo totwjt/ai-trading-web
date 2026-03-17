@@ -165,5 +165,115 @@ const viewDetail = (id: number) => {
         新建策略
       </button>
     </div>
+
+    <!-- 策略中心/市场 -->
+    <div class="space-y-6 mt-10">
+      <div class="flex justify-between items-end border-b border-slate-100 pb-4">
+        <div>
+          <h3 class="font-bold text-lg tracking-tight">策略中心</h3>
+          <p class="text-xs text-slate-500 mt-1">发现经过回测验证的高效量化模型</p>
+        </div>
+        <button class="text-xs text-primary font-semibold flex items-center gap-1">
+          查看更多 <Icon icon="mdi:arrow-right" :size="16" />
+        </button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- 策略卡片 1 -->
+        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
+          <div class="flex justify-between items-start mb-4">
+            <div class="p-2 bg-blue-50 rounded-lg text-primary">
+              <Icon icon="mdi:chart-line" :size="24" />
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">股票</span>
+          </div>
+          <h4 class="font-bold text-sm mb-2 group-hover:text-primary transition-colors">风格轮动</h4>
+          <p class="text-xs text-slate-500 leading-relaxed mb-4 flex-1">
+            基于价值、成长、质量等多因子，自动捕捉当前市场强势风格并进行行业均衡配置。
+          </p>
+          <div class="pt-4 border-t border-slate-50 flex flex-col gap-3">
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">历史年化收益</span>
+              <span class="text-sm font-bold text-red-600">24.8%</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button class="text-[11px] py-1.5 border border-slate-200 rounded-lg font-semibold hover:bg-slate-50">查看详情</button>
+              <button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">引用策略</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 策略卡片 2 -->
+        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
+          <div class="flex justify-between items-start mb-4">
+            <div class="p-2 bg-orange-50 rounded-lg text-orange-500">
+              <Icon icon="mdi:history" :size="24" />
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">股票</span>
+          </div>
+          <h4 class="font-bold text-sm mb-2 group-hover:text-primary transition-colors">日内回转交易 (T+0)</h4>
+          <p class="text-xs text-slate-500 leading-relaxed mb-4 flex-1">
+            针对高波动性标的，通过高频价格监控实现日内低买高卖，不留底仓风险。
+          </p>
+          <div class="pt-4 border-t border-slate-50 flex flex-col gap-3">
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">历史胜率</span>
+              <span class="text-sm font-bold text-slate-900">62.1%</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button class="text-[11px] py-1.5 border border-slate-200 rounded-lg font-semibold hover:bg-slate-50">查看详情</button>
+              <button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">引用策略</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 策略卡片 3 -->
+        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
+          <div class="flex justify-between items-start mb-4">
+            <div class="p-2 bg-emerald-50 rounded-lg text-emerald-500">
+              <Icon icon="mdi:chart-bar" :size="24" />
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">股票</span>
+          </div>
+          <h4 class="font-bold text-sm mb-2 group-hover:text-primary transition-colors">小市值因子策略</h4>
+          <p class="text-xs text-slate-500 leading-relaxed mb-4 flex-1">
+            筛选低估值、高成长潜力的小市值标的，利用市场非对称信息获取长期超额回报。
+          </p>
+          <div class="pt-4 border-t border-slate-50 flex flex-col gap-3">
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">Sharpe比率</span>
+              <span class="text-sm font-bold text-slate-900">2.1</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button class="text-[11px] py-1.5 border border-slate-200 rounded-lg font-semibold hover:bg-slate-50">查看详情</button>
+              <button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">引用策略</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 策略卡片 4 -->
+        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
+          <div class="flex justify-between items-start mb-4">
+            <div class="p-2 bg-purple-50 rounded-lg text-purple-500">
+              <Icon icon="mdi:finance" :size="24" />
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">ETF</span>
+          </div>
+          <h4 class="font-bold text-sm mb-2 group-hover:text-primary transition-colors">行业轮动ETF</h4>
+          <p class="text-xs text-slate-500 leading-relaxed mb-4 flex-1">
+            基于行业景气度轮动，配置不同行业ETF，实现行业alpha收益。
+          </p>
+          <div class="pt-4 border-t border-slate-50 flex flex-col gap-3">
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">最大回撤</span>
+              <span class="text-sm font-bold text-slate-900">8.5%</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button class="text-[11px] py-1.5 border border-slate-200 rounded-lg font-semibold hover:bg-slate-50">查看详情</button>
+              <button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">引用策略</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
