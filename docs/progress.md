@@ -148,6 +148,13 @@ App.vue
    - 用户栏右侧 icon 换成设置图标
    - 点击用户栏跳转到设置页面
 
+4. **迁移到 Iconify 并本地化图标**：
+   - 安装 @iconify/vue 依赖
+   - 移除 Google Fonts Material Symbols
+   - 创建 Icon 组件，使用本地化图标映射
+   - 更新所有页面使用 Icon 组件
+   - 图标映射表包含所有常用图标
+
 ### 文档更新：
 - ✅ AI_CONTEXT.md - 添加布局架构说明
 - ✅ AGENTS.md - 添加布局规则
