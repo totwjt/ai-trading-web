@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>股智Pro - 数字化专业量化交易平台</title>
+<!-- Tailwind CSS v3 CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#0066FF',
+            up: '#FF0000', // Standard Chinese Market Red for Gain
+            down: '#00B050', // Standard Chinese Market Green for Loss
+            border: '#E5E7EB',
+            bgMain: '#F9FAFB'
+          },
+          fontSize: {
+            'xxs': '0.7rem',
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="typography">
+    body {
+      font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background-color: #F9FAFB;
+      color: #1F2937;
+    }
+    .font-numeric {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+  </style>
+<style data-purpose="custom-layout">
+    /* High density table styles */
+    .density-table th, .density-table td {
+      padding: 6px 8px;
+      font-size: 12px;
+      border-bottom: 1px solid #F3F4F6;
+    }
+    .sidebar-item-active {
+      background-color: #EFF6FF;
+      color: #0066FF;
+      border-right: 4px solid #0066FF;
+    }
+    .chart-container {
+      height: 400px;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #D1D5DB;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body class="h-screen overflow-hidden flex flex-col">
+<!-- BEGIN: MainHeader -->
+<header class="h-14 bg-white border-b flex items-center justify-between px-4 z-50 shrink-0" data-purpose="global-header">
+<div class="flex items-center space-x-8">
+<div class="flex items-center space-x-2">
+<div class="bg-primary p-1 rounded">
+<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<span class="text-xl font-bold text-gray-800 tracking-tight">股智Pro</span>
+</div>
+<!-- Global Search -->
+<div class="relative w-96">
+<input class="w-full h-9 bg-gray-100 border-none rounded-full px-10 text-sm focus:ring-2 focus:ring-primary/20 transition-all" placeholder="搜索股票代码 / 名称 / 简拼" type="text"/>
+<svg class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+</div>
+<div class="flex items-center space-x-6 text-gray-600">
+<div class="flex items-center space-x-1 cursor-pointer hover:text-primary transition-colors">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+</div>
+</header>
+<!-- END: MainHeader -->
+<div class="flex flex-1 overflow-hidden">
+<!-- BEGIN: Sidebar -->
+<aside class="w-48 bg-white border-r flex flex-col shrink-0" data-purpose="navigation-sidebar">
+<nav class="flex-1 py-4">
+<a class="sidebar-item-active flex items-center px-6 py-3 space-x-3 text-sm font-medium" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>首页</span>
+</a>
+<a class="flex items-center px-6 py-3 space-x-3 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary transition-all" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>策略回测</span>
+</a>
+<a class="flex items-center px-6 py-3 space-x-3 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary transition-all" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>模拟交易</span>
+</a>
+<a class="flex items-center px-6 py-3 space-x-3 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary transition-all" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>智能选股</span>
+</a>
+<a class="flex items-center px-6 py-3 space-x-3 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary transition-all" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>我的持仓</span>
+</a>
+</nav>
+<div class="p-4 border-t mt-auto space-y-4"><a class="flex items-center px-2 py-2 space-x-3 text-sm text-gray-500 hover:text-primary transition-colors" href="#"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span>设置</span></a><div class="flex items-center space-x-3 px-2 pt-2 cursor-pointer group"><img alt="Avatar" class="w-8 h-8 rounded-full border border-gray-200" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUFRuvDVoYwMUzc9WD6lbtldY6E2S3YU40H94c5xFAL7OKTWcd6QzPLNF-sF6b-J5-KFJAfin_7dzq0ZLEkrxaaqz1XQI1fIwB_4QgQrJXWQsfoVx10pixf2Akf7YyWxIDqe9vcPERa0dFSOqZc01gi-sDWoDRc8R9aFLACUfuHPfEUCHlve-WAXyhnpGIvwIi1aCJIdywpuj1Yn_rCCPXY3f0yKZA6bwW6vZbG7BYu-hCQlkT4S8Ya5p_-UHLozijfzB-FcTyFdUF"/><div class="text-xs flex-1"><p class="font-medium text-gray-700 leading-none">量化交易员</p><p class="text-xxs text-gray-400 mt-1">LV.5 资深用户</p></div><svg class="w-4 h-4 text-gray-400 group-hover:text-primary" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></div></div></aside>
+<!-- END: Sidebar -->
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto bg-bgMain p-4 custom-scrollbar" id="main-content">
+<!-- BEGIN: Top Summary Bar -->
+<section class="grid grid-cols-4 gap-4 mb-4" data-purpose="asset-summary">
+<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+<p class="text-xs text-gray-500 mb-1">总资产 (CNY)</p>
+<p class="text-2xl font-bold font-numeric">1,248,500.00</p>
+</div>
+<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+<p class="text-xs text-gray-500 mb-1">今日盈亏</p>
+<div class="flex items-baseline space-x-2">
+<p class="text-2xl font-bold font-numeric text-up">+15,240.50</p>
+<span class="text-sm font-semibold text-up">+1.24%</span>
+</div>
+</div>
+<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+<p class="text-xs text-gray-500 mb-1">持仓市值</p>
+<p class="text-2xl font-bold font-numeric">842,300.00</p>
+</div>
+<div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+<p class="text-xs text-gray-500 mb-1">模拟账户余额</p>
+<p class="text-2xl font-bold font-numeric text-gray-700">406,200.00</p>
+</div>
+</section>
+<!-- END: Top Summary Bar -->
+<div class="grid grid-cols-12 gap-4">
+<!-- BEGIN: Central Chart Section -->
+<div class="col-span-9 space-y-4">
+<div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden" data-purpose="candlestick-chart">
+<div class="flex items-center justify-between px-4 py-2 border-b">
+<div class="flex items-center space-x-4">
+<span class="font-bold text-lg">贵州茅台 (600519.SH)</span>
+<div class="flex space-x-2 text-xs">
+<span class="bg-gray-100 px-2 py-1 rounded cursor-pointer hover:bg-gray-200">分时</span>
+<span class="bg-primary text-white px-2 py-1 rounded cursor-pointer">日K</span>
+<span class="bg-gray-100 px-2 py-1 rounded cursor-pointer hover:bg-gray-200">周K</span>
+</div>
+</div>
+<div class="flex items-center space-x-4 text-xs text-gray-500">
+<span class="cursor-pointer hover:text-primary">MA</span>
+<span class="cursor-pointer hover:text-primary">MACD</span>
+<span class="cursor-pointer hover:text-primary">KDJ</span>
+<span class="cursor-pointer hover:text-primary">BOLL</span>
+</div>
+</div>
+<!-- Interactive Canvas for Candles -->
+<div class="chart-container relative p-4 bg-white">
+<canvas class="w-full h-full" id="mainChart"></canvas>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<!-- BEGIN: Strategy Management -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-100" data-purpose="strategy-table">
+<div class="px-4 py-3 border-b flex justify-between items-center">
+<h3 class="font-bold text-sm">策略管理</h3>
+<button class="text-xs text-primary hover:underline">查看更多</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full density-table">
+<thead class="bg-gray-50 text-gray-500">
+<tr>
+<th class="text-left">策略名称</th>
+<th class="text-right">当前收益</th>
+<th class="text-right">胜率</th>
+<th class="text-right">最大回撤</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="font-medium">中证500增强A1</td>
+<td class="text-right text-up font-numeric">+12.4%</td>
+<td class="text-right font-numeric">68.5%</td>
+<td class="text-right font-numeric">4.2%</td>
+</tr>
+<tr>
+<td class="font-medium">均线回归Alpha</td>
+<td class="text-right text-down font-numeric">-2.1%</td>
+<td class="text-right font-numeric">52.3%</td>
+<td class="text-right font-numeric">8.7%</td>
+</tr>
+<tr>
+<td class="font-medium">高频套利V2</td>
+<td class="text-right text-up font-numeric">+4.8%</td>
+<td class="text-right font-numeric">81.0%</td>
+<td class="text-right font-numeric">1.5%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- END: Strategy Management -->
+<!-- BEGIN: Quick Order Form -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-100" data-purpose="order-form">
+<div class="px-4 py-3 border-b flex justify-between items-center">
+<h3 class="font-bold text-sm">快速下单</h3>
+<span class="text-xs text-gray-400">可用：¥406,200.00</span>
+</div>
+<div class="p-4 space-y-3">
+<div class="flex items-center space-x-2">
+<span class="text-xs text-gray-500 w-12">证券</span>
+<input class="flex-1 text-sm border-gray-300 rounded focus:ring-primary h-8" type="text" value="600519.SH"/>
+</div>
+<div class="flex items-center space-x-2">
+<span class="text-xs text-gray-500 w-12">价格</span>
+<div class="flex-1 flex border border-gray-300 rounded overflow-hidden h-8">
+<button class="px-2 bg-gray-100 border-r">-</button>
+<input class="w-full text-sm border-none text-center focus:ring-0" type="text" value="1685.20"/>
+<button class="px-2 bg-gray-100 border-l">+</button>
+</div>
+</div>
+<div class="flex items-center space-x-2">
+<span class="text-xs text-gray-500 w-12">数量</span>
+<input class="flex-1 text-sm border-gray-300 rounded focus:ring-primary h-8" placeholder="买入股数" type="text"/>
+</div>
+<div class="grid grid-cols-2 gap-4 pt-2">
+<button class="bg-up text-white py-2 rounded text-sm font-bold hover:opacity-90 transition-opacity">买入 (B)</button>
+<button class="bg-down text-white py-2 rounded text-sm font-bold hover:opacity-90 transition-opacity">卖出 (S)</button>
+</div>
+</div>
+</div>
+<!-- END: Quick Order Form -->
+</div>
+<!-- BEGIN: Holdings Table -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-100" data-purpose="holdings-list">
+<div class="px-4 py-3 border-b">
+<h3 class="font-bold text-sm">当前持仓 (模拟)</h3>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full density-table">
+<thead class="bg-gray-50 text-gray-500">
+<tr>
+<th class="text-left">代码/名称</th>
+<th class="text-right">持仓量</th>
+<th class="text-right">成本价</th>
+<th class="text-right">最新价</th>
+<th class="text-right">盈亏额</th>
+<th class="text-right">盈亏率</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<p class="font-bold">600519</p>
+<p class="text-gray-400 text-xxs">贵州茅台</p>
+</td>
+<td class="text-right font-numeric">500</td>
+<td class="text-right font-numeric">1650.00</td>
+<td class="text-right font-numeric">1685.20</td>
+<td class="text-right text-up font-numeric">+17,600.00</td>
+<td class="text-right text-up font-numeric">+2.13%</td>
+</tr>
+<tr>
+<td>
+<p class="font-bold">300750</p>
+<p class="text-gray-400 text-xxs">宁德时代</p>
+</td>
+<td class="text-right font-numeric">1200</td>
+<td class="text-right font-numeric">192.40</td>
+<td class="text-right font-numeric">188.10</td>
+<td class="text-right text-down font-numeric">-5,160.00</td>
+<td class="text-right text-down font-numeric">-2.23%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- END: Holdings Table -->
+</div>
+<!-- BEGIN: Right Sidebar -->
+<div class="col-span-3 space-y-4">
+<!-- Real-time Market List -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-100 flex flex-col h-[550px]" data-purpose="market-list">
+<div class="px-4 py-3 border-b flex justify-between items-center">
+<h3 class="font-bold text-sm">实时行情</h3>
+<div class="flex space-x-2">
+<span class="text-xxs text-primary bg-primary/10 px-1.5 py-0.5 rounded">自选</span>
+<span class="text-xxs text-gray-400">沪深</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar">
+<table class="w-full density-table">
+<thead class="bg-gray-50 text-gray-400 text-xxs sticky top-0">
+<tr>
+<th class="text-left">名称</th>
+<th class="text-right">最新</th>
+<th class="text-right">涨跌幅</th>
+</tr>
+</thead>
+<tbody>
+<tr class="hover:bg-blue-50 cursor-pointer">
+<td><p class="font-medium">上证指数</p><p class="text-xxs text-gray-400">000001</p></td>
+<td class="text-right font-numeric font-medium text-up">3105.42</td>
+<td class="text-right font-numeric text-up">+0.45%</td>
+</tr>
+<tr class="hover:bg-blue-50 cursor-pointer">
+<td><p class="font-medium">创业板指</p><p class="text-xxs text-gray-400">399006</p></td>
+<td class="text-right font-numeric font-medium text-down">1820.14</td>
+<td class="text-right font-numeric text-down">-1.12%</td>
+</tr>
+<tr class="hover:bg-blue-50 cursor-pointer bg-blue-50/30">
+<td><p class="font-medium">贵州茅台</p><p class="text-xxs text-gray-400">600519</p></td>
+<td class="text-right font-numeric font-medium text-up">1685.20</td>
+<td class="text-right font-numeric text-up">+1.02%</td>
+</tr>
+<!-- Repeated rows for density -->
+<tr class="hover:bg-blue-50 cursor-pointer">
+<td><p class="font-medium">宁德时代</p><p class="text-xxs text-gray-400">300750</p></td>
+<td class="text-right font-numeric font-medium text-down">188.10</td>
+<td class="text-right font-numeric text-down">-0.85%</td>
+</tr>
+<tr class="hover:bg-blue-50 cursor-pointer">
+<td><p class="font-medium">招商银行</p><p class="text-xxs text-gray-400">600036</p></td>
+<td class="text-right font-numeric font-medium text-up">35.42</td>
+<td class="text-right font-numeric text-up">+0.22%</td>
+</tr>
+<tr class="hover:bg-blue-50 cursor-pointer">
+<td><p class="font-medium">五粮液</p><p class="text-xxs text-gray-400">000858</p></td>
+<td class="text-right font-numeric font-medium text-up">148.20</td>
+<td class="text-right font-numeric text-up">+1.55%</td>
+</tr>
+<tr class="hover:bg-blue-50 cursor-pointer">
+<td><p class="font-medium">平安银行</p><p class="text-xxs text-gray-400">000001</p></td>
+<td class="text-right font-numeric font-medium text-up">10.45</td>
+<td class="text-right font-numeric text-up">+0.12%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- AI News Recommendations -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-100" data-purpose="ai-news">
+<div class="px-4 py-3 border-b">
+<h3 class="font-bold text-sm">消息面荐股 (AI)</h3>
+</div>
+<div class="p-3 space-y-4">
+<div class="border-b pb-3 last:border-0">
+<div class="flex justify-between items-start mb-1">
+<span class="text-xs font-bold text-primary bg-primary/5 px-2 py-0.5 rounded">建议关注</span>
+<span class="text-xxs text-gray-400">10分钟前</span>
+</div>
+<h4 class="text-sm font-bold">比亚迪 (002594.SZ)</h4>
+<p class="text-xs text-gray-500 mt-1 line-clamp-2">消息面：公司发布5月交付报告，同比增长30%，AI分析预测短期有上冲动能。</p>
+<div class="mt-2 h-8 w-full">
+<canvas id="sparkline1"></canvas>
+</div>
+</div>
+<div class="border-b pb-3 last:border-0">
+<div class="flex justify-between items-start mb-1">
+<span class="text-xs font-bold text-primary bg-primary/5 px-2 py-0.5 rounded">强烈建议</span>
+<span class="text-xxs text-gray-400">1小时前</span>
+</div>
+<h4 class="text-sm font-bold">工业富联 (601138.SH)</h4>
+<p class="text-xs text-gray-500 mt-1 line-clamp-2">消息面：获得大额AI服务器订单，产业链上下游联动明显。</p>
+<div class="mt-2 h-8 w-full">
+<canvas id="sparkline2"></canvas>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- END: Right Sidebar -->
+</div>
+</main>
+</div>
+<!-- BEGIN: Floating Backtest Panel -->
+<div class="fixed bottom-6 right-6 w-80 bg-white shadow-2xl rounded-xl border border-gray-200 z-[100] transform transition-transform" data-purpose="backtest-summary">
+<div class="p-4">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-bold text-sm flex items-center">
+<span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+          回测结果：策略 A1
+        </h3>
+<button class="text-gray-400 hover:text-gray-600">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-4">
+<div>
+<p class="text-xxs text-gray-400">年化收益率</p>
+<p class="text-lg font-bold text-up font-numeric">24.5%</p>
+</div>
+<div>
+<p class="text-xxs text-gray-400">夏普比率</p>
+<p class="text-lg font-bold font-numeric text-gray-700">2.14</p>
+</div>
+<div>
+<p class="text-xxs text-gray-400">胜率</p>
+<p class="text-lg font-bold font-numeric text-gray-700">64.2%</p>
+</div>
+<div>
+<p class="text-xxs text-gray-400">盈亏比</p>
+<p class="text-lg font-bold font-numeric text-gray-700">1.82</p>
+</div>
+</div>
+<div class="h-20 w-full bg-gray-50 rounded">
+<canvas id="equityCurve"></canvas>
+</div>
+</div>
+</div>
+<!-- END: Floating Backtest Panel -->
+<!-- JavaScript for Canvas Rendering -->
+<script data-purpose="canvas-renderer">
+    function drawChart() {
+      const canvas = document.getElementById('mainChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.parentElement.clientWidth;
+      const h = canvas.parentElement.clientHeight;
+      canvas.width = w;
+      canvas.height = h;
+
+      // Draw Grid
+      ctx.strokeStyle = '#F3F4F6';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 6; i++) {
+        const y = (h / 6) * i;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+
+      // Draw Mock Candles
+      const candleWidth = (w / 30) - 4;
+      for (let i = 0; i < 30; i++) {
+        const x = i * (w / 30) + 10;
+        const isUp = Math.random() > 0.4;
+        const candleH = Math.random() * 100 + 50;
+        const candleY = h/2 + (Math.sin(i/3) * 50);
+        
+        ctx.fillStyle = isUp ? '#FF0000' : '#00B050';
+        ctx.fillRect(x, candleY, candleWidth, candleH);
+        
+        // Wicks
+        ctx.beginPath();
+        ctx.strokeStyle = isUp ? '#FF0000' : '#00B050';
+        ctx.moveTo(x + candleWidth/2, candleY - 10);
+        ctx.lineTo(x + candleWidth/2, candleY + candleH + 10);
+        ctx.stroke();
+      }
+
+      // Draw Volume Bar
+      for (let i = 0; i < 30; i++) {
+        const x = i * (w / 30) + 10;
+        const volH = Math.random() * 40;
+        ctx.fillStyle = '#E5E7EB';
+        ctx.fillRect(x, h - volH, candleWidth, volH);
+      }
+    }
+
+    function drawSparkline(id, color) {
+      const canvas = document.getElementById(id);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+      
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.moveTo(0, canvas.height/2);
+      for(let i=0; i<20; i++) {
+        ctx.lineTo((canvas.width/20)*i, Math.random() * canvas.height);
+      }
+      ctx.stroke();
+    }
+
+    // Initialize all canvases
+    window.addEventListener('load', () => {
+      drawChart();
+      drawSparkline('sparkline1', '#FF0000');
+      drawSparkline('sparkline2', '#FF0000');
+      drawSparkline('equityCurve', '#0066FF');
+    });
+
+    window.addEventListener('resize', () => {
+      drawChart();
+    });
+  </script>
+</body></html>
