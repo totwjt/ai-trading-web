@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import Icon from '@/components/common/Icon.vue'
 
 const route = useRoute()
 
@@ -19,7 +20,6 @@ const userInfo = ref({
   level: 'LV.5 资深用户',
   avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAUFRuvDVoYwMUzc9WD6lbtldY6E2S3YU40H94c5xFAL7OKTWcd6QzPLNF-sF6b-J5-KFJAfin_7dzq0ZLEkrxaaqz1XQI1fIwB_4QgQrJXWQsfoVx10pixf2Akf7YyWxIDqe9vcPERa0dFSOqZc01gi-sDWoDRc8R9aFLACUfuHPfEUCHlve-WAXyhnpGIvwIi1aCJIdywpuj1Yn_rCCPXY3f0yKZA6bwW6vZbG7BYu-hCQlkT4S8Ya5p_-UHLozijfzB-FcTyFdUF'
 })
-
 
 </script>
 
@@ -68,7 +68,7 @@ const userInfo = ref({
             class="flex items-center px-6 py-3 space-x-3 text-sm font-medium transition-all"
             :class="route.path === item.path ? 'sidebar-item-active' : 'text-gray-600 hover:bg-gray-50 hover:text-primary'"
           >
-            <span class="material-symbols-outlined text-lg">{{ item.icon }}</span>
+            <Icon :icon="item.icon" :size="20" />
             <span>{{ item.name }}</span>
           </router-link>
         </nav>
@@ -88,7 +88,7 @@ const userInfo = ref({
               <p class="text-xxs text-gray-400 mt-1">{{ userInfo.level }}</p>
             </div>
             <!-- 设置 icon -->
-            <span class="material-symbols-outlined text-lg text-gray-400 group-hover:text-primary">settings</span>
+            <Icon icon="settings" :size="20" class="text-gray-400 group-hover:text-primary" />
           </router-link>
         </div>
       </aside>

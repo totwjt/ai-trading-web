@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import Icon from '@/components/common/Icon.vue'
 
 // 模拟统计数据
 const stats = ref([
@@ -176,7 +177,9 @@ const recommendations = ref([
                 <td class="text-textMute">{{ stock.code }}</td>
                 <td class="text-right text-up font-bold text-sm font-numeric">{{ stock.score }}</td>
                 <td class="text-right">
-                  <button class="material-symbols-outlined text-sm text-primary">add_circle</button>
+                  <button class="text-sm text-primary">
+                    <Icon icon="add_circle" :size="16" />
+                  </button>
                 </td>
               </tr>
             </tbody>
