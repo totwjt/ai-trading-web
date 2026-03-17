@@ -1,177 +1,229 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import Icon from '@/components/common/Icon.vue'
 
-// 模拟策略数据
-const strategies = ref([
-  {
-    id: 1,
-    name: '中证500增强A1',
-    type: '指数增强',
-    status: '运行中',
-    returns: '+12.4%',
-    winRate: '68.5%',
-    maxDrawdown: '4.2%',
-    sharpe: 1.85
-  },
-  {
-    id: 2,
-    name: '均线回归Alpha',
-    type: '量化多因子',
-    status: '暂停',
-    returns: '-2.1%',
-    winRate: '52.3%',
-    maxDrawdown: '8.7%',
-    sharpe: 0.92
-  },
-  {
-    id: 3,
-    name: '高频套利V2',
-    type: '高频交易',
-    status: '运行中',
-    returns: '+4.8%',
-    winRate: '81.0%',
-    maxDrawdown: '1.5%',
-    sharpe: 2.34
-  }
+// 模拟回测数据
+const backtestData = ref({
+  strategyName: 'DualMovingAverageCross_V2',
+  timePeriod: '2021-01-01 至 2023-12-31',
+  initialCapital: '1,000,000.00',
+  finalEquity: '1,324,412.00',
+  totalReturn: '+32.44%',
+  benchmark: '跑赢基准'
+})
+
+// 模拟交易明细数据
+const transactionLog = ref([
+  { time: '2023-12-28 14:35', code: '600519.SH', type: 'SELL', price: '1,728.50', quantity: '-200', profit: '+12,227.15' },
+  { time: '2023-12-27 10:15', code: '300750.SZ', type: 'BUY', price: '163.20', quantity: '+1,000', profit: '---' },
+  { time: '2023-12-25 09:30', code: '002371.SZ', type: 'SELL', price: '245.80', quantity: '-500', profit: '-2,211.45' },
+  { time: '2023-12-24 13:45', code: '600036.SH', type: 'BUY', price: '28.45', quantity: '+5,000', profit: '---' },
+  { time: '2023-12-20 11:20', code: '601318.SH', type: 'SELL', price: '41.12', quantity: '-1,500', profit: '+1,450.20' }
 ])
 
-const selectedStrategy = ref<{
-  id: number
-  name: string
-  type: string
-  status: string
-  returns: string
-  winRate: string
-  maxDrawdown: string
-  sharpe: number
-} | null>(null)
+// 模拟系统日志
+const systemLog = ref([
+  { time: '2023-12-31 23:59:59', level: 'INFO', message: 'Cerebro engine initialized.' },
+  { time: '2023-12-31 23:59:59', level: 'INFO', message: 'Loading data feeds for 15 assets...' },
+  { time: '2024-01-01 00:00:01', level: 'INFO', message: "Adding Strategy 'DualMovingAverageCross_V2' to Brain." },
+  { time: '2024-01-01 00:00:02', level: 'INFO', message: 'Starting backtest loop...' },
+  { time: '2024-01-01 00:00:05', level: 'WARN', message: 'Missing data points for 002371.SZ on 2021-05-12. Interpolating.' },
+  { time: '2024-01-01 00:00:08', level: 'INFO', message: 'Multi-asset optimization enabled. Level 2.' },
+  { time: '2024-01-01 00:00:12', level: 'WARN', message: 'Margin call threshold reached on 2022-04-15. No action taken.' },
+  { time: '2024-01-01 00:00:15', level: 'SUCCESS', message: 'Backtest completed in 14.2s.' },
+  { time: '2024-01-01 00:00:15', level: 'INFO', message: 'Final Value: 1,324,412.00 (Cash: 245,820.45)' }
+])
 </script>
 
 <template>
-  <div class="min-h-screen bg-bgMain p-6">
-    <div class="max-w-6xl mx-auto">
-      <!-- Header -->
-      <div class="flex justify-between items-center mb-6">
+  <div class="min-h-screen bg-white p-4">
+    <!-- Top Section: Essential Parameters -->
+    <header class="grid grid-cols-1 md:grid-cols-4 gap-4 border border-slate-200 rounded p-4 bg-white shadow-sm mb-4">
+      <div class="border-r border-slate-100 last:border-0">
+        <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">回测策略名称</p>
+        <div class="flex items-center gap-2">
+          <Icon icon="mdi:code-braces" :size="20" class="text-primary" />
+          <h1 class="text-sm font-bold truncate">{{ backtestData.strategyName }}</h1>
+        </div>
+      </div>
+      <div class="border-r border-slate-100 last:border-0 px-2">
+        <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">测试时间周期</p>
+        <p class="text-sm font-mono font-medium">{{ backtestData.timePeriod }}</p>
+      </div>
+      <div class="border-r border-slate-100 last:border-0 px-2">
+        <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">初始资金 / 期末权益</p>
+        <div class="flex items-baseline gap-2">
+          <span class="text-sm font-mono">{{ backtestData.initialCapital }}</span>
+          <span class="text-slate-300 text-xs">→</span>
+          <span class="text-sm font-mono font-bold text-success">{{ backtestData.finalEquity }}</span>
+        </div>
+      </div>
+      <div class="px-2 flex justify-between items-center">
         <div>
-          <h1 class="text-xl font-bold text-textMain">策略回测</h1>
-          <p class="text-sm text-textMute">回测历史数据，验证策略有效性</p>
-        </div>
-        <button class="px-4 py-2 bg-primary text-white text-sm font-bold rounded hover:bg-blue-600 transition-colors">
-          新建回测
-        </button>
-      </div>
-
-      <!-- Strategy List -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-        <div class="px-4 py-3 border-b flex justify-between items-center">
-          <h3 class="font-bold text-sm">策略列表</h3>
-          <div class="flex gap-2">
-            <button class="px-3 py-1 text-xs text-textMute hover:text-primary">全部</button>
-            <button class="px-3 py-1 text-xs text-textMute hover:text-primary">运行中</button>
-            <button class="px-3 py-1 text-xs text-textMute hover:text-primary">暂停</button>
+          <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">总收益率</p>
+          <div class="flex items-center gap-2">
+            <span class="text-xl font-bold text-success">{{ backtestData.totalReturn }}</span>
+            <span class="px-1.5 py-0.5 bg-success/10 text-success text-[10px] font-bold rounded ring-1 ring-success/20">{{ backtestData.benchmark }}</span>
           </div>
         </div>
-        
-        <table class="w-full density-table">
-          <thead class="bg-gray-50 text-textMute">
-            <tr>
-              <th class="text-left">策略名称</th>
-              <th class="text-left">类型</th>
-              <th class="text-center">状态</th>
-              <th class="text-right">累计收益</th>
-              <th class="text-right">胜率</th>
-              <th class="text-right">最大回撤</th>
-              <th class="text-right">Sharpe</th>
-              <th class="text-right">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr 
-              v-for="strategy in strategies"
-              :key="strategy.id"
-              class="hover:bg-gray-50 cursor-pointer"
-              :class="{ 'bg-blue-50/30': selectedStrategy?.id === strategy.id }"
-              @click="selectedStrategy = strategy"
-            >
-              <td class="font-medium">{{ strategy.name }}</td>
-              <td class="text-textMute">{{ strategy.type }}</td>
-              <td class="text-center">
-                <span 
-                  :class="[
-                    'px-2 py-0.5 text-xs rounded-full',
-                    strategy.status === '运行中' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                  ]"
-                >
-                  {{ strategy.status }}
-                </span>
-              </td>
-              <td 
-                :class="[
-                  'text-right font-numeric font-bold',
-                  strategy.returns.startsWith('+') ? 'text-up' : 'text-down'
-                ]"
+        <div class="flex gap-2">
+          <button class="p-1.5 hover:bg-slate-50 text-slate-400 rounded transition-colors" title="设置">
+            <Icon icon="mdi:cog" :size="20" />
+          </button>
+          <button class="bg-primary text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 hover:bg-blue-700">
+            <Icon icon="mdi:play" :size="16" />
+            重新运行
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Middle Section: Main Equity Chart -->
+    <section class="border border-slate-200 rounded bg-white shadow-sm flex flex-col overflow-hidden min-h-[400px] mb-4">
+      <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <h3 class="text-sm font-bold flex items-center gap-2">
+            <Icon icon="mdi:chart-line" :size="20" class="text-primary" />
+            策略净值曲线 vs 沪深300基准
+          </h3>
+          <div class="flex items-center gap-3 text-[11px]">
+            <div class="flex items-center gap-1.5">
+              <span class="w-3 h-0.5 bg-primary"></span>
+              <span class="text-slate-600 font-medium">策略组合 (Strategy)</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-3 h-0.5 bg-slate-300"></span>
+              <span class="text-slate-400 font-medium">沪深300 (CSI 300)</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="text-[11px] px-2 py-1 border border-slate-200 rounded bg-white hover:bg-slate-50">日线</button>
+          <button class="text-[11px] px-2 py-1 bg-slate-100 font-bold border border-slate-200 rounded">周线</button>
+          <div class="w-px h-4 bg-slate-200 mx-1"></div>
+          <button class="p-1 text-slate-400 hover:text-slate-600">
+            <Icon icon="mdi:fullscreen" :size="20" />
+          </button>
+        </div>
+      </div>
+      <div class="flex-1 relative p-6">
+        <!-- Chart Placeholder -->
+        <div class="w-full h-full bg-slate-50 rounded flex items-center justify-center text-slate-400">
+          策略净值曲线图 (Canvas)
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom Section: Transaction Log & System Log -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[350px]">
+      <!-- Transaction Log -->
+      <div class="border border-slate-200 rounded bg-white shadow-sm flex flex-col overflow-hidden">
+        <div class="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+          <h3 class="text-[12px] font-bold text-slate-600 flex items-center gap-1.5">
+            <Icon icon="mdi:list-status" :size="16" />
+            Cerebro 交易明细
+          </h3>
+          <span class="text-[10px] text-slate-400 font-mono">Total: 1,284 Trades</span>
+        </div>
+        <div class="flex-1 overflow-auto log-container">
+          <table class="w-full text-left text-[11px] border-collapse font-mono">
+            <thead class="sticky top-0 bg-white shadow-sm text-slate-400 font-bold uppercase">
+              <tr>
+                <th class="px-4 py-2 border-b border-slate-50">成交时间</th>
+                <th class="px-4 py-2 border-b border-slate-50">代码</th>
+                <th class="px-4 py-2 border-b border-slate-50">类型</th>
+                <th class="px-4 py-2 border-b border-slate-50 text-right">价格</th>
+                <th class="px-4 py-2 border-b border-slate-50 text-right">数量</th>
+                <th class="px-4 py-2 border-b border-slate-50 text-right">净盈亏</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+              <tr 
+                v-for="(trade, index) in transactionLog"
+                :key="index"
+                class="hover:bg-slate-50/50"
               >
-                {{ strategy.returns }}
-              </td>
-              <td class="text-right font-numeric">{{ strategy.winRate }}</td>
-              <td class="text-right font-numeric">{{ strategy.maxDrawdown }}</td>
-              <td class="text-right font-numeric">{{ strategy.sharpe }}</td>
-              <td class="text-right">
-                <button class="text-primary hover:underline text-xs">查看</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <td class="px-4 py-2 text-slate-500">{{ trade.time }}</td>
+                <td class="px-4 py-2 font-bold text-slate-800">{{ trade.code }}</td>
+                <td class="px-4 py-2">
+                  <span :class="trade.type === 'BUY' ? 'text-primary font-bold' : 'text-success font-bold'">
+                    {{ trade.type }}
+                  </span>
+                </td>
+                <td class="px-4 py-2 text-right">{{ trade.price }}</td>
+                <td class="px-4 py-2 text-right text-slate-500">{{ trade.quantity }}</td>
+                <td class="px-4 py-2 text-right" :class="trade.profit.startsWith('+') ? 'text-success font-bold' : trade.profit.startsWith('-') ? 'text-danger font-bold' : 'text-slate-300'">
+                  {{ trade.profit }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <!-- Strategy Detail Panel -->
-      <div v-if="selectedStrategy" class="mt-6 grid grid-cols-3 gap-4">
-        <div class="col-span-2 bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-          <h3 class="font-bold text-sm mb-4">策略详情 - {{ selectedStrategy.name }}</h3>
-          <div class="grid grid-cols-4 gap-4 mb-4">
-            <div class="text-center">
-              <p class="text-xs text-textMute">累计收益</p>
-              <p class="text-lg font-bold font-numeric" :class="selectedStrategy.returns.startsWith('+') ? 'text-up' : 'text-down'">
-                {{ selectedStrategy.returns }}
-              </p>
-            </div>
-            <div class="text-center">
-              <p class="text-xs text-textMute">胜率</p>
-              <p class="text-lg font-bold font-numeric">{{ selectedStrategy.winRate }}</p>
-            </div>
-            <div class="text-center">
-              <p class="text-xs text-textMute">最大回撤</p>
-              <p class="text-lg font-bold font-numeric">{{ selectedStrategy.maxDrawdown }}</p>
-            </div>
-            <div class="text-center">
-              <p class="text-xs text-textMute">Sharpe比率</p>
-              <p class="text-lg font-bold font-numeric">{{ selectedStrategy.sharpe }}</p>
-            </div>
-          </div>
-          <!-- Chart placeholder -->
-          <div class="h-48 bg-gray-50 rounded flex items-center justify-center text-textMute">
-            策略收益曲线图
+      <!-- System Log -->
+      <div class="border border-slate-200 rounded bg-white shadow-sm flex flex-col overflow-hidden">
+        <div class="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+          <h3 class="text-[12px] font-bold text-slate-600 flex items-center gap-1.5">
+            <Icon icon="mdi:terminal" :size="16" />
+            系统运行日志 (System Log)
+          </h3>
+          <div class="flex items-center gap-2">
+            <span class="flex items-center gap-1 text-[10px] text-danger">
+              <span class="w-1.5 h-1.5 rounded-full bg-danger"></span> 0 Errors
+            </span>
+            <span class="flex items-center gap-1 text-[10px] text-amber-500">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> 2 Warnings
+            </span>
           </div>
         </div>
-        
-        <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-          <h3 class="font-bold text-sm mb-4">操作</h3>
-          <div class="space-y-2">
-            <button class="w-full px-4 py-2 bg-primary text-white text-sm font-bold rounded hover:bg-blue-600 transition-colors">
-              编辑策略
-            </button>
-            <button class="w-full px-4 py-2 border border-gray-200 text-textMain text-sm font-bold rounded hover:bg-gray-50 transition-colors">
-              查看详细报告
-            </button>
-            <button class="w-full px-4 py-2 border border-gray-200 text-textMain text-sm font-bold rounded hover:bg-gray-50 transition-colors">
-              导出数据
-            </button>
-            <button class="w-full px-4 py-2 border border-red-200 text-red-600 text-sm font-bold rounded hover:bg-red-50 transition-colors">
-              删除策略
-            </button>
+        <div class="flex-1 bg-slate-900 p-4 font-mono text-[11px] text-slate-300 overflow-auto log-container">
+          <div 
+            v-for="(log, index) in systemLog"
+            :key="index"
+            class="mb-1"
+          >
+            <span class="text-slate-500">[{{ log.time }}]</span>
+            <span :class="{
+              'text-blue-400': log.level === 'INFO',
+              'text-amber-500': log.level === 'WARN',
+              'text-success': log.level === 'SUCCESS'
+            }">
+              {{ log.level }}:
+            </span>
+            {{ log.message }}
           </div>
+          <div class="animate-pulse text-primary">_</div>
         </div>
       </div>
     </div>
+
+    <!-- Footer Status Bar -->
+    <footer class="bg-white border-t border-slate-200 px-4 py-1.5 flex items-center justify-between text-[10px] text-slate-400 font-medium mt-4">
+      <div class="flex items-center gap-4">
+        <span class="flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-success"></span> Connected to DataServer
+        </span>
+        <span>Backtrader v1.9.78.123</span>
+      </div>
+      <div>
+        Memory Usage: 428MB / 4096MB
+      </div>
+    </footer>
   </div>
 </template>
+
+<style scoped>
+.log-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.log-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.log-container::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+</style>

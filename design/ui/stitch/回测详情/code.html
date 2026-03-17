@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0066FF",
+                        "success": "#ef4444", // Finance Red for gains in China
+                        "danger": "#22c55e",  // Finance Green for losses in China
+                        "background-light": "#f8f9fa",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "PingFang SC", "Microsoft YaHei", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.375rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<title>股智Pro - Backtrader 策略回测</title>
+<style>
+        body { font-family: 'Public Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif; -webkit-font-smoothing: antialiased; }
+        .log-container::-webkit-scrollbar { width: 4px; }
+        .log-container::-webkit-scrollbar-track { background: transparent; }
+        .log-container::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .chart-grid-line { stroke: #f1f5f9; stroke-width: 1; }
+    </style>
+</head>
+<body class="bg-white text-slate-900 min-h-screen flex flex-col">
+<!-- Main Wrapper -->
+<div class="flex-1 flex flex-col max-w-[1600px] mx-auto w-full px-4 py-4 gap-4">
+<!-- 1. Top Section: Essential Parameters -->
+<header class="grid grid-cols-1 md:grid-cols-4 gap-4 border border-slate-200 rounded p-4 bg-white shadow-sm">
+<div class="border-r border-slate-100 last:border-0">
+<p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">回测策略名称</p>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl">deployed_code</span>
+<h1 class="text-sm font-bold truncate">DualMovingAverageCross_V2</h1>
+</div>
+</div>
+<div class="border-r border-slate-100 last:border-0 px-2">
+<p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">测试时间周期</p>
+<p class="text-sm font-mono font-medium">2021-01-01 至 2023-12-31</p>
+</div>
+<div class="border-r border-slate-100 last:border-0 px-2">
+<p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">初始资金 / 期末权益</p>
+<div class="flex items-baseline gap-2">
+<span class="text-sm font-mono">1,000,000.00</span>
+<span class="text-slate-300 text-xs">→</span>
+<span class="text-sm font-mono font-bold text-success">1,324,412.00</span>
+</div>
+</div>
+<div class="px-2 flex justify-between items-center">
+<div>
+<p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">总收益率</p>
+<div class="flex items-center gap-2">
+<span class="text-xl font-bold text-success">+32.44%</span>
+<span class="px-1.5 py-0.5 bg-success/10 text-success text-[10px] font-bold rounded ring-1 ring-success/20">跑赢基准</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="p-1.5 hover:bg-slate-50 text-slate-400 rounded transition-colors" title="设置">
+<span class="material-symbols-outlined text-lg">settings</span>
+</button>
+<button class="bg-primary text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 hover:bg-blue-700">
+<span class="material-symbols-outlined text-sm">play_arrow</span>
+                        重新运行
+                    </button>
+</div>
+</div>
+</header>
+<!-- 2. Middle Section: Main Equity Chart -->
+<section class="flex-1 border border-slate-200 rounded bg-white shadow-sm flex flex-col overflow-hidden min-h-[400px]">
+<div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<h3 class="text-sm font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg">monitoring</span>
+                        策略净值曲线 vs 沪深300基准
+                    </h3>
+<div class="flex items-center gap-3 text-[11px]">
+<div class="flex items-center gap-1.5">
+<span class="w-3 h-0.5 bg-primary"></span>
+<span class="text-slate-600 font-medium">策略组合 (Strategy)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-3 h-0.5 bg-slate-300"></span>
+<span class="text-slate-400 font-medium">沪深300 (CSI 300)</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="text-[11px] px-2 py-1 border border-slate-200 rounded bg-white hover:bg-slate-50">日线</button>
+<button class="text-[11px] px-2 py-1 bg-slate-100 font-bold border border-slate-200 rounded">周线</button>
+<div class="w-px h-4 bg-slate-200 mx-1"></div>
+<button class="p-1 text-slate-400 hover:text-slate-600">
+<span class="material-symbols-outlined text-lg">fullscreen</span>
+</button>
+</div>
+</div>
+<div class="flex-1 relative p-6">
+<!-- Simple SVG Placeholder for Chart -->
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 1000 300">
+<!-- Grid Lines -->
+<line class="chart-grid-line" x1="0" x2="1000" y1="50" y2="50"></line>
+<line class="chart-grid-line" x1="0" x2="1000" y1="100" y2="100"></line>
+<line class="chart-grid-line" x1="0" x2="1000" y1="150" y2="150"></line>
+<line class="chart-grid-line" x1="0" x2="1000" y1="200" y2="200"></line>
+<line class="chart-grid-line" x1="0" x2="1000" y1="250" y2="250"></line>
+<!-- Benchmark Line -->
+<path d="M0,200 L100,210 L200,195 L300,205 L400,180 L500,190 L600,210 L700,200 L800,215 L900,210 L1000,220" fill="none" stroke="#cbd5e1" stroke-dasharray="4" stroke-width="2"></path>
+<!-- Strategy Line -->
+<path d="M0,200 L50,190 L100,170 L150,175 L200,140 L250,150 L300,120 L350,130 L400,100 L450,110 L500,80 L550,90 L600,70 L650,80 L700,50 L750,60 L800,30 L850,45 L900,20 L950,35 L1000,10" fill="none" stroke="#0066FF" stroke-linejoin="round" stroke-width="3"></path>
+<!-- Gradient Fill -->
+<defs>
+<lineargradient id="equityGrad" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" style="stop-color:#0066FF;stop-opacity:0.1"></stop>
+<stop offset="100%" style="stop-color:#0066FF;stop-opacity:0"></stop>
+</lineargradient>
+</defs>
+<path d="M0,200 L50,190 L100,170 L150,175 L200,140 L250,150 L300,120 L350,130 L400,100 L450,110 L500,80 L550,90 L600,70 L650,80 L700,50 L750,60 L800,30 L850,45 L900,20 L950,35 L1000,10 L1000,300 L0,300 Z" fill="url(#equityGrad)"></path>
+</svg>
+<!-- Axis Labels -->
+<div class="absolute bottom-2 left-6 right-6 flex justify-between text-[10px] text-slate-400 font-mono">
+<span>2021-01</span>
+<span>2021-07</span>
+<span>2022-01</span>
+<span>2022-07</span>
+<span>2023-01</span>
+<span>2023-07</span>
+<span>2023-12</span>
+</div>
+</div>
+</section>
+<!-- 3 & 4. Bottom Grid: Transaction Log & System Log -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[350px]">
+<!-- Bottom Left: Transaction Log -->
+<div class="border border-slate-200 rounded bg-white shadow-sm flex flex-col overflow-hidden">
+<div class="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+<h3 class="text-[12px] font-bold text-slate-600 flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">list_alt</span>
+                        Cerebro 交易明细
+                    </h3>
+<span class="text-[10px] text-slate-400 font-mono">Total: 1,284 Trades</span>
+</div>
+<div class="flex-1 overflow-auto log-container">
+<table class="w-full text-left text-[11px] border-collapse font-mono">
+<thead class="sticky top-0 bg-white shadow-sm text-slate-400 font-bold uppercase">
+<tr>
+<th class="px-4 py-2 border-b border-slate-50">成交时间</th>
+<th class="px-4 py-2 border-b border-slate-50">代码</th>
+<th class="px-4 py-2 border-b border-slate-50">类型</th>
+<th class="px-4 py-2 border-b border-slate-50 text-right">价格</th>
+<th class="px-4 py-2 border-b border-slate-50 text-right">数量</th>
+<th class="px-4 py-2 border-b border-slate-50 text-right">净盈亏</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-50">
+<tr class="hover:bg-slate-50/50">
+<td class="px-4 py-2 text-slate-500">2023-12-28 14:35</td>
+<td class="px-4 py-2 font-bold text-slate-800">600519.SH</td>
+<td class="px-4 py-2"><span class="text-success font-bold">SELL</span></td>
+<td class="px-4 py-2 text-right">1,728.50</td>
+<td class="px-4 py-2 text-right text-slate-500">-200</td>
+<td class="px-4 py-2 text-right text-success font-bold">+12,227.15</td>
+</tr>
+<tr class="hover:bg-slate-50/50">
+<td class="px-4 py-2 text-slate-500">2023-12-27 10:15</td>
+<td class="px-4 py-2 font-bold text-slate-800">300750.SZ</td>
+<td class="px-4 py-2"><span class="text-primary font-bold">BUY</span></td>
+<td class="px-4 py-2 text-right">163.20</td>
+<td class="px-4 py-2 text-right text-slate-500">+1,000</td>
+<td class="px-4 py-2 text-right text-slate-300">---</td>
+</tr>
+<tr class="hover:bg-slate-50/50">
+<td class="px-4 py-2 text-slate-500">2023-12-25 09:30</td>
+<td class="px-4 py-2 font-bold text-slate-800">002371.SZ</td>
+<td class="px-4 py-2"><span class="text-success font-bold">SELL</span></td>
+<td class="px-4 py-2 text-right">245.80</td>
+<td class="px-4 py-2 text-right text-slate-500">-500</td>
+<td class="px-4 py-2 text-right text-danger font-bold">-2,211.45</td>
+</tr>
+<tr class="hover:bg-slate-50/50">
+<td class="px-4 py-2 text-slate-500">2023-12-24 13:45</td>
+<td class="px-4 py-2 font-bold text-slate-800">600036.SH</td>
+<td class="px-4 py-2"><span class="text-primary font-bold">BUY</span></td>
+<td class="px-4 py-2 text-right">28.45</td>
+<td class="px-4 py-2 text-right text-slate-500">+5,000</td>
+<td class="px-4 py-2 text-right text-slate-300">---</td>
+</tr>
+<tr class="hover:bg-slate-50/50">
+<td class="px-4 py-2 text-slate-500">2023-12-20 11:20</td>
+<td class="px-4 py-2 font-bold text-slate-800">601318.SH</td>
+<td class="px-4 py-2"><span class="text-success font-bold">SELL</span></td>
+<td class="px-4 py-2 text-right">41.12</td>
+<td class="px-4 py-2 text-right text-slate-500">-1,500</td>
+<td class="px-4 py-2 text-right text-success font-bold">+1,450.20</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Bottom Right: System Output Log -->
+<div class="border border-slate-200 rounded bg-white shadow-sm flex flex-col overflow-hidden">
+<div class="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+<h3 class="text-[12px] font-bold text-slate-600 flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">terminal</span>
+                        系统运行日志 (System Log)
+                    </h3>
+<div class="flex items-center gap-2">
+<span class="flex items-center gap-1 text-[10px] text-danger"><span class="w-1.5 h-1.5 rounded-full bg-danger"></span> 0 Errors</span>
+<span class="flex items-center gap-1 text-[10px] text-amber-500"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> 2 Warnings</span>
+</div>
+</div>
+<div class="flex-1 bg-slate-900 p-4 font-mono text-[11px] text-slate-300 overflow-auto log-container">
+<div class="mb-1"><span class="text-slate-500">[2023-12-31 23:59:59]</span> <span class="text-blue-400">INFO:</span> Cerebro engine initialized.</div>
+<div class="mb-1"><span class="text-slate-500">[2023-12-31 23:59:59]</span> <span class="text-blue-400">INFO:</span> Loading data feeds for 15 assets...</div>
+<div class="mb-1"><span class="text-slate-500">[2024-01-01 00:00:01]</span> <span class="text-blue-400">INFO:</span> Adding Strategy 'DualMovingAverageCross_V2' to Brain.</div>
+<div class="mb-1"><span class="text-slate-500">[2024-01-01 00:00:02]</span> <span class="text-blue-400">INFO:</span> Starting backtest loop...</div>
+<div class="mb-1"><span class="text-slate-500">[2024-01-01 00:00:05]</span> <span class="text-amber-500">WARN:</span> Missing data points for 002371.SZ on 2021-05-12. Interpolating.</div>
+<div class="mb-1"><span class="text-slate-500">[2024-01-01 00:00:08]</span> <span class="text-blue-400">INFO:</span> Multi-asset optimization enabled. Level 2.</div>
+<div class="mb-1"><span class="text-slate-500">[2024-01-01 00:00:12]</span> <span class="text-amber-500">WARN:</span> Margin call threshold reached on 2022-04-15. No action taken.</div>
+<div class="mb-1"><span class="text-slate-500">[2024-01-01 00:00:15]</span> <span class="text-success">SUCCESS:</span> Backtest completed in 14.2s.</div>
+<div class="mb-1"><span class="text-slate-500">[2024-01-01 00:00:15]</span> <span class="text-blue-400">INFO:</span> Final Value: 1,324,412.00 (Cash: 245,820.45)</div>
+<div class="animate-pulse text-primary">_</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Status Bar -->
+<footer class="bg-white border-t border-slate-200 px-4 py-1.5 flex items-center justify-between text-[10px] text-slate-400 font-medium">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-success"></span> Connected to DataServer</span>
+<span>Backtrader v1.9.78.123</span>
+</div>
+<div>
+            Memory Usage: 428MB / 4096MB
+        </div>
+</footer>
+</body></html>
