@@ -160,24 +160,68 @@ async def push_to_all(data: dict):
 def load_sample_data():
     """加载示例数据（从message.json）"""
     try:
-        with open("message.json", "r", encoding="utf-8") as f:
+        import os
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(base_dir, "message.json")
+        with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-            return data[0] if data else None
+            return data
     except Exception as e:
         logger.error(f"加载示例数据失败: {e}")
-        return None
+        return []
+
+
+async def push_sample_periodically(interval: int = 10):
+    """定时推送示例数据"""
+    samples = load_sample_data()
+    if not samples:
+        logger.warning("没有示例数据可推送")
+        return
+    
+    index = 0
+    while True:
+        if connected_clients:
+            sample = samples[index % len(samples)]
+            news = sample.get("news", {})
+            news["publish_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            await push_to_all(sample)
+            logger.info(f"推送第 {index + 1} 条数据: {news.get('title', '')[:30]}...")
+            index += 1
+        await asyncio.sleep(interval)
+
+
+async def start_server_with_pusher(push_interval: int = 10):
+    """启动服务器并定时推送数据"""
+    logger.info(f"启动WebSocket服务: ws://{HOST}:{PORT}")
+    
+    server_task = asyncio.create_task(start_server())
+    pusher_task = asyncio.create_task(push_sample_periodically(push_interval))
+    
+    try:
+        await asyncio.gather(server_task, pusher_task)
+    except asyncio.CancelledError:
+        logger.info("服务器停止")
 
 
 async def test_push_sample():
     """测试推送示例数据"""
-    sample = load_sample_data()
-    if sample:
-        await push_to_all(sample)
+    samples = load_sample_data()
+    if samples:
+        await push_to_all(samples[0])
         logger.info("示例数据推送完成")
 
 
 if __name__ == "__main__":
+    import sys
+    
+    interval = 10
+    if len(sys.argv) > 1:
+        try:
+            interval = int(sys.argv[1])
+        except ValueError:
+            pass
+    
     try:
-        asyncio.run(start_server())
+        asyncio.run(start_server_with_pusher(interval))
     except KeyboardInterrupt:
         logger.info("服务器停止")

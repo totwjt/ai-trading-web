@@ -1,5 +1,16 @@
 import { ref, onUnmounted } from 'vue'
 
+function generateClientId(): string {
+  const stored = localStorage.getItem('ws_client_id')
+  if (stored) return stored
+  
+  const newId = 'client_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36)
+  localStorage.setItem('ws_client_id', newId)
+  return newId
+}
+
+const CLIENT_ID = generateClientId()
+
 export type MessageType = 
   | 'recommendation' 
   | 'heartbeat' 
@@ -86,14 +97,18 @@ class WebSocketClient {
         }
       }
 
-      this.ws.onclose = () => {
+      this.ws.onclose = (event) => {
         this.isConnected.value = false
         this.stopHeartbeat()
         this.disconnectHandler?.()
-        console.log('[WS] 连接关闭')
+        console.log('[WS] 连接关闭, code:', event.code, 'reason:', event.reason)
         
         if (!this.isManualClose) {
-          setTimeout(() => this.connect(), this.reconnectInterval)
+          console.log('[WS] 准备重连...')
+          setTimeout(() => {
+            console.log('[WS] 正在重连...')
+            this.connect()
+          }, this.reconnectInterval)
         }
       }
 
@@ -137,6 +152,7 @@ class WebSocketClient {
     this.send({
       type: 'connect',
       payload: {
+        client_id: CLIENT_ID,
         client_type: 'web',
         user_agent: navigator.userAgent
       },
