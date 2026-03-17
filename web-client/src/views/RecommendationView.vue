@@ -1,6 +1,40 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import Icon from '@/components/common/Icon.vue'
+import { useWebSocket, parseStockInfo, type RecommendationData } from '@/utils/websocket'
+
+interface Stock {
+  name: string
+  code: string
+  score: number
+}
+
+interface Recommendation {
+  id: number
+  type: string
+  typeColor: string
+  source: string
+  time: string
+  title: string
+  analysis: string
+  sectors: string[]
+  stocks: Stock[]
+}
+
+const { 
+  wsClient, 
+  isConnected, 
+  connect, 
+  disconnect, 
+  subscribe,
+  onMessage,
+  onConnect,
+  onDisconnect,
+  onError
+} = useWebSocket()
+
+const isWsConnected = ref(false)
+const connectionStatus = ref('disconnected')
 
 // 模拟统计数据
 const stats = ref([
@@ -68,11 +102,90 @@ const recommendations = ref([
   }
 ])
 
+function convertWsDataToRecommendation(data: RecommendationData): Recommendation {
+  const news = data.news
+  const analysis = data.analysis
+  
+  const stocks: Stock[] = (analysis.利好股票 || []).map((stockStr: string) => {
+    const parsed = parseStockInfo(stockStr)
+    return parsed || { name: stockStr, code: '-', score: 0 }
+  })
+  
+  const typeColors: Record<string, string> = {
+    '深度解析': 'red',
+    '研报精选': 'blue',
+    '资金流向': 'green',
+    '政策解读': 'purple'
+  }
+  
+  const typeColor = typeColors[news.title.slice(0, 4)] || 'blue'
+  
+  return {
+    id: Date.now(),
+    type: '实时推送',
+    typeColor,
+    source: news.source,
+    time: news.publish_time,
+    title: news.title,
+    analysis: analysis.详细分析,
+    sectors: analysis.利好版块 || [],
+    stocks
+  }
+}
+
+function addRecommendation(data: RecommendationData) {
+  const newRec = convertWsDataToRecommendation(data)
+  recommendations.value.unshift(newRec)
+  
+  if (recommendations.value.length > 50) {
+    recommendations.value.pop()
+  }
+}
+
+onMounted(() => {
+  onConnect(() => {
+    isWsConnected.value = true
+    connectionStatus.value = 'connected'
+    subscribe(['recommendation'])
+  })
+  
+  onDisconnect(() => {
+    isWsConnected.value = false
+    connectionStatus.value = 'disconnected'
+  })
+  
+  onError((error) => {
+    console.error('WebSocket错误:', error)
+    connectionStatus.value = 'error'
+  })
+  
+  onMessage(addRecommendation)
+  
+  connect()
+})
+
+onUnmounted(() => {
+  disconnect()
+})
+
 
 </script>
 
 <template>
   <div class="min-h-screen bg-bgMain">
+    <!-- Connection Status -->
+    <div class="px-6 pt-4 flex items-center gap-2">
+      <span 
+        :class="[
+          'w-2 h-2 rounded-full',
+          isWsConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
+        ]"
+      ></span>
+      <span class="text-xs font-bold text-textMute">
+        {{ isWsConnected ? '实时连接' : '连接中...' }}
+      </span>
+    </div>
+
     <!-- Stats Summary -->
     <div class="grid grid-cols-4 gap-4 p-6 pb-0">
       <div 

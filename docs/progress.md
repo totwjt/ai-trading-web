@@ -163,3 +163,50 @@ App.vue
 
 ### 下一步：
 - Phase 3: 业务模块开发（用户模块、智能荐股、策略回测、实盘模拟）
+
+## Phase 3: 业务模块开发
+
+### 3.1 智能荐股模块 - WebSocket 实时推送 ✅
+
+#### 已完成：
+1. ✅ 创建 Python WebSocket 服务器 (`backend/ai/websocket_server.py`)
+   - 端口：8765
+   - 支持消息类型：recommendation, heartbeat, system, subscribe
+   - 广播消息给所有连接的客户端
+
+2. ✅ 创建 WebSocket 消息模型 (`backend/ai/models.py`)
+   - News, Analysis, RecommendationMessage 数据结构
+   - WSMessage 传输格式
+   - MessageType 消息类型常量
+
+3. ✅ 创建 Python 客户端示例 (`backend/ai/websocket_client.py`)
+   - RecommendationWebSocketClient 类
+   - 供其他咨询项目接入使用
+
+4. ✅ 前端 WebSocket 工具类 (`web-client/src/utils/websocket.ts`)
+   - WebSocketClient 类
+   - 自动重连、心跳机制
+   - 与 Vue 生命周期集成
+
+5. ✅ 更新 RecommendationView.vue
+   - 添加 WebSocket 连接
+   - 实时接收推送数据
+   - 显示连接状态
+
+6. ✅ 目录结构调整
+   - `backend/ai/` 作为 AI 模块目录
+   - 统一 `backend/requirements.txt`
+
+#### 启动方式：
+```bash
+# 后端
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python -m recommendation.websocket_server
+
+# 前端
+cd web-client
+npm run dev
+```

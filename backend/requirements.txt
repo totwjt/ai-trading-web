@@ -1,0 +1,9 @@
+# AI Trading Web Backend
+
+# AI Service
+websockets>=12.0
+
+# 其他服务需要的依赖后续添加...
+# gateway
+# fastapi>=0.100.0
+# uvicorn>=0.23.0
