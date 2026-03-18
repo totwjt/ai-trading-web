@@ -38,7 +38,13 @@ const iconMap: Record<string, string> = {
   'arrow_up': 'mdi:arrow-up',
   'arrow_down': 'mdi:arrow-down',
   'check': 'mdi:check',
-  'close': 'mdi:close'
+  'close': 'mdi:close',
+
+  // 主题图标
+  'light_mode': 'mdi:weather-sunny',
+  'dark_mode': 'mdi:weather-night',
+  'theme': 'mdi:palette',
+  'color_lens': 'mdi:palette-outline'
 }
 
 // 获取实际的图标名称

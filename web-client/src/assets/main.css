@@ -3,27 +3,31 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: 0 102 255;
-  --color-up: 255 0 0;
-  --color-down: 0 176 80;
+  --color-primary: 47 107 255;
+  --color-up: 255 77 79;
+  --color-down: 0 192 135;
+  --color-warning: 250 173 20;
   --color-border: 229 231 235;
-  --color-bg-main: 249 250 251;
+  --color-bg-main: 245 247 250;
   --color-card: 255 255 255;
+  --color-bg-float: 255 255 255;
   --color-text-main: 31 41 55;
   --color-text-sub: 107 114 128;
   --color-text-mute: 156 163 175;
 }
 
 .dark {
-  --color-primary: 59 130 246;
-  --color-up: 239 68 68;
-  --color-down: 34 197 94;
-  --color-border: 55 65 81;
-  --color-bg-main: 17 24 39;
-  --color-card: 31 41 55;
-  --color-text-main: 249 250 251;
-  --color-text-sub: 156 163 175;
-  --color-text-mute: 107 114 128;
+  --color-primary: 47 107 255;
+  --color-up: 255 77 79;
+  --color-down: 0 192 135;
+  --color-warning: 250 173 20;
+  --color-border: 45 58 77;
+  --color-bg-main: 11 26 42;
+  --color-card: 16 36 58;
+  --color-bg-float: 22 50 77;
+  --color-text-main: 214 228 255;
+  --color-text-sub: 138 164 194;
+  --color-text-mute: 90 122 154;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -43,9 +47,13 @@
 }
 
 .sidebar-item-active {
-  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  background-color: rgb(var(--color-primary) / 0.15);
   color: var(--color-primary);
-  border-right: 4px solid var(--color-primary);
+  border-right: 3px solid var(--color-primary);
+}
+
+.dark .sidebar-item-active {
+  background-color: rgb(var(--color-primary) / 0.25);
 }
 
 .chart-container {
@@ -55,9 +63,11 @@
 @layer components {
   .bg-bgMain { background-color: var(--color-bg-main); }
   .bg-card { background-color: var(--color-card); }
+  .bg-float { background-color: var(--color-bg-float); }
   .bg-primary { background-color: var(--color-primary); }
   .bg-up { background-color: var(--color-up); }
   .bg-down { background-color: var(--color-down); }
+  .bg-warning { background-color: var(--color-warning); }
   
   .text-textMain { color: var(--color-text-main); }
   .text-textSub { color: var(--color-text-sub); }
@@ -65,6 +75,7 @@
   .text-primary { color: var(--color-primary); }
   .text-up { color: var(--color-up); }
   .text-down { color: var(--color-down); }
+  .text-warning { color: var(--color-warning); }
   
   .border-border { border-color: var(--color-border); }
   .border-primary { border-color: var(--color-primary); }

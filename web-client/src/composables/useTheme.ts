@@ -7,10 +7,12 @@ function loadFromStorage(): { scheme: ThemeScheme; mode: ThemeMode } {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
-      const parsed = JSON.parse(stored)
+      const parsed = JSON.parse(stored) as { scheme?: string; mode?: string }
+      const validScheme: ThemeScheme = themes[parsed.scheme as ThemeScheme] ? (parsed.scheme as ThemeScheme) : defaultTheme
+      const validMode: ThemeMode = (parsed.mode === 'dark' || parsed.mode === 'light') ? (parsed.mode as ThemeMode) : defaultMode
       return {
-        scheme: parsed.scheme || defaultTheme,
-        mode: parsed.mode || defaultMode
+        scheme: validScheme,
+        mode: validMode
       }
     }
   } catch {}
@@ -32,15 +34,22 @@ function hexToRgb(hex: string): string {
 }
 
 function applyTheme(scheme: ThemeScheme, mode: ThemeMode) {
-  const colors = themes[scheme].colors[mode]
+  const themeConfig = themes[scheme]
+  if (!themeConfig || !themeConfig.colors[mode]) {
+    return
+  }
+  
+  const colors = themeConfig.colors[mode]
   const root = document.documentElement
   
   root.style.setProperty('--color-primary', hexToRgb(colors.primary))
   root.style.setProperty('--color-up', hexToRgb(colors.up))
   root.style.setProperty('--color-down', hexToRgb(colors.down))
+  root.style.setProperty('--color-warning', hexToRgb(colors.warning))
   root.style.setProperty('--color-border', hexToRgb(colors.border))
   root.style.setProperty('--color-bg-main', hexToRgb(colors.bgMain))
-  root.style.setProperty('--color-card', hexToRgb(colors.card))
+  root.style.setProperty('--color-card', hexToRgb(colors.bgCard))
+  root.style.setProperty('--color-bg-float', hexToRgb(colors.bgFloat))
   root.style.setProperty('--color-text-main', hexToRgb(colors.textMain))
   root.style.setProperty('--color-text-sub', hexToRgb(colors.textSub))
   root.style.setProperty('--color-text-mute', hexToRgb(colors.textMute))
@@ -55,9 +64,13 @@ function applyTheme(scheme: ThemeScheme, mode: ThemeMode) {
 applyTheme(currentScheme.value, currentMode.value)
 
 export function useTheme() {
-  const currentColors = computed(() => 
-    themes[currentScheme.value].colors[currentMode.value]
-  )
+  const currentColors = computed(() => {
+    const themeConfig = themes[currentScheme.value]
+    if (!themeConfig || !themeConfig.colors[currentMode.value]) {
+      return themes[defaultTheme].colors[defaultMode]
+    }
+    return themeConfig.colors[currentMode.value]
+  })
 
   const setScheme = (scheme: ThemeScheme) => {
     currentScheme.value = scheme
