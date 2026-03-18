@@ -43,28 +43,28 @@ const passwordForm = ref({
       </div>
 
       <!-- User Profile Section -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
-        <h3 class="font-bold text-sm mb-4">个人资料</h3>
+      <div class="bg-card rounded-lg shadow-sm border border-border p-6 mb-6">
+        <h3 class="font-bold text-sm text-textMain mb-4">个人资料</h3>
         <div class="flex items-center space-x-4">
           <img
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUFRuvDVoYwMUzc9WD6lbtldY6E2S3YU40H94c5xFAL7OKTWcd6QzPLNF-sF6b-J5-KFJAfin_7dzq0ZLEkrxaaqz1XQI1fIwB_4QgQrJXWQsfoVx10pixf2Akf7YyWxIDqe9vcPERa0dFSOqZc01gi-sDWoDRc8R9aFLACUfuHPfEUCHlve-WAXyhnpGIvwIi1aCJIdywpuj1Yn_rCCPXY3f0yKZA6bwW6vZbG7BYu-hCQlkT4S8Ya5p_-UHLozijfzB-FcTyFdUF"
             alt="Avatar"
-            class="w-16 h-16 rounded-full border border-gray-200"
+            class="w-16 h-16 rounded-full border border-border"
           />
           <div>
             <p class="font-bold text-textMain">{{ userInfo.name }}</p>
             <p class="text-xs text-textMute">{{ userInfo.level }}</p>
             <p class="text-xs text-textMute mt-1">{{ userInfo.email }}</p>
           </div>
-          <button class="ml-auto px-4 py-2 border border-gray-200 text-textMain text-sm font-bold rounded hover:bg-gray-50 transition-colors">
+          <button class="ml-auto px-4 py-2 border border-border text-textMain text-sm font-bold rounded hover:bg-primary/5 transition-colors">
             编辑资料
           </button>
         </div>
       </div>
 
       <!-- Appearance Section -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
-        <h3 class="font-bold text-sm mb-4">外观设置</h3>
+      <div class="bg-card rounded-lg shadow-sm border border-border p-6 mb-6">
+        <h3 class="font-bold text-sm text-textMain mb-4">外观设置</h3>
         <div class="space-y-4">
           <div class="flex justify-between items-center">
             <div>
@@ -75,7 +75,7 @@ const passwordForm = ref({
               <button
                 :class="[
                   'px-4 py-2 text-sm font-bold rounded transition-all',
-                  settings.theme === 'light' ? 'bg-primary text-white' : 'bg-gray-100 text-textMain'
+                  settings.theme === 'light' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-textMain'
                 ]"
               >
                 浅色
@@ -83,7 +83,7 @@ const passwordForm = ref({
               <button
                 :class="[
                   'px-4 py-2 text-sm font-bold rounded transition-all',
-                  settings.theme === 'dark' ? 'bg-primary text-white' : 'bg-gray-100 text-textMain'
+                  settings.theme === 'dark' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 text-textMain'
                 ]"
               >
                 深色
@@ -98,7 +98,7 @@ const passwordForm = ref({
             </div>
             <select
               v-model="settings.language"
-              class="px-4 py-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              class="px-4 py-2 border border-border rounded text-sm bg-card text-textMain focus:ring-2 focus:ring-primary/20 focus:border-primary"
             >
               <option value="zh-CN">简体中文</option>
               <option value="en-US">English</option>
@@ -108,8 +108,8 @@ const passwordForm = ref({
       </div>
 
       <!-- Notifications Section -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
-        <h3 class="font-bold text-sm mb-4">通知设置</h3>
+      <div class="bg-card rounded-lg shadow-sm border border-border p-6 mb-6">
+        <h3 class="font-bold text-sm text-textMain mb-4">通知设置</h3>
         <div class="space-y-4">
           <div class="flex justify-between items-center">
             <div>
@@ -118,7 +118,7 @@ const passwordForm = ref({
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" v-model="settings.notifications.priceAlert" class="sr-only peer">
-              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
 
@@ -129,7 +129,7 @@ const passwordForm = ref({
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" v-model="settings.notifications.newsAlert" class="sr-only peer">
-              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
 
@@ -140,15 +140,15 @@ const passwordForm = ref({
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" v-model="settings.notifications.tradeAlert" class="sr-only peer">
-              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
         </div>
       </div>
 
       <!-- Trading Settings Section -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
-        <h3 class="font-bold text-sm mb-4">交易设置</h3>
+      <div class="bg-card rounded-lg shadow-sm border border-border p-6 mb-6">
+        <h3 class="font-bold text-sm text-textMain mb-4">交易设置</h3>
         <div class="space-y-4">
           <div class="flex justify-between items-center">
             <div>
@@ -158,7 +158,7 @@ const passwordForm = ref({
             <input
               type="number"
               v-model="settings.trading.defaultQuantity"
-              class="w-24 px-3 py-2 border border-gray-200 rounded text-sm text-right focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              class="w-24 px-3 py-2 border border-border rounded text-sm text-right bg-card text-textMain focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
           </div>
 
@@ -169,7 +169,7 @@ const passwordForm = ref({
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" v-model="settings.trading.autoConfirm" class="sr-only peer">
-              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
 
@@ -180,15 +180,15 @@ const passwordForm = ref({
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" v-model="settings.trading.soundAlert" class="sr-only peer">
-              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              <div class="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
         </div>
       </div>
 
       <!-- Security Section -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-        <h3 class="font-bold text-sm mb-4">安全设置</h3>
+      <div class="bg-card rounded-lg shadow-sm border border-border p-6">
+        <h3 class="font-bold text-sm text-textMain mb-4">安全设置</h3>
         <div class="space-y-4">
           <div>
             <p class="font-medium text-textMain mb-2">修改密码</p>
@@ -197,22 +197,22 @@ const passwordForm = ref({
                 type="password"
                 v-model="passwordForm.currentPassword"
                 placeholder="当前密码"
-                class="px-3 py-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                class="px-3 py-2 border border-border rounded text-sm bg-card text-textMain focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
               <input
                 type="password"
                 v-model="passwordForm.newPassword"
                 placeholder="新密码"
-                class="px-3 py-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                class="px-3 py-2 border border-border rounded text-sm bg-card text-textMain focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
               <input
                 type="password"
                 v-model="passwordForm.confirmPassword"
                 placeholder="确认新密码"
-                class="px-3 py-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                class="px-3 py-2 border border-border rounded text-sm bg-card text-textMain focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
-            <button class="mt-3 px-4 py-2 bg-primary text-white text-sm font-bold rounded hover:bg-blue-600 transition-colors">
+            <button class="mt-3 px-4 py-2 bg-primary text-white text-sm font-bold rounded hover:opacity-90 transition-opacity">
               修改密码
             </button>
           </div>

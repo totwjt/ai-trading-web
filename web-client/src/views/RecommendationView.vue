@@ -191,11 +191,11 @@ onUnmounted(() => {
       <div 
         v-for="(stat, index) in stats" 
         :key="index"
-        class="bg-white p-4 border border-gray-100 flex justify-between items-end"
+        class="bg-card p-4 border border-border flex justify-between items-end"
       >
         <div>
           <p class="text-[10px] text-textMute font-bold uppercase tracking-wider">{{ stat.label }}</p>
-          <p class="text-2xl font-bold">{{ stat.value }}</p>
+          <p class="text-2xl font-bold text-textMain">{{ stat.value }}</p>
         </div>
         <span 
           :class="[
@@ -218,7 +218,7 @@ onUnmounted(() => {
           'px-4 py-1.5 text-xs font-bold rounded transition-all',
           tab.active 
             ? 'bg-primary text-white' 
-            : 'bg-white border border-gray-200 text-textSub hover:border-primary hover:text-primary'
+            : 'bg-card border border-border text-textSub hover:border-primary hover:text-primary'
         ]"
       >
         {{ tab.name }}
@@ -230,18 +230,18 @@ onUnmounted(() => {
       <div 
         v-for="rec in recommendations"
         :key="rec.id"
-        class="bg-white border border-gray-100 hover:border-primary/50 transition-colors shadow-sm overflow-hidden flex"
+        class="bg-card border border-border hover:border-primary/50 transition-colors shadow-sm overflow-hidden flex"
       >
         <!-- Left: Analysis Logic -->
-        <div class="w-[65%] p-4 border-r border-gray-100">
+        <div class="w-[65%] p-4 border-r border-border">
           <div class="flex items-center gap-3 mb-2">
             <span 
               :class="[
                 'text-[10px] font-bold px-1.5 py-0.5 rounded',
-                rec.typeColor === 'red' ? 'bg-red-100 text-red-700' :
-                rec.typeColor === 'blue' ? 'bg-blue-100 text-blue-700' :
-                rec.typeColor === 'green' ? 'bg-green-100 text-green-700' :
-                'bg-purple-100 text-purple-700'
+                rec.typeColor === 'red' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                rec.typeColor === 'blue' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                rec.typeColor === 'green' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
               ]"
             >
               {{ rec.type }}
@@ -251,7 +251,7 @@ onUnmounted(() => {
           <h2 class="text-lg font-bold text-textMain mb-2 leading-snug hover:text-primary cursor-pointer transition-colors">
             {{ rec.title }}
           </h2>
-          <div class="bg-gray-50 p-3 mb-3 border-l-2 border-primary">
+          <div class="bg-gray-50 dark:bg-gray-800 p-3 mb-3 border-l-2 border-primary">
             <p class="text-xs leading-relaxed text-textSub">
               <span class="font-bold text-textMain">AI解析逻辑：</span>
               {{ rec.analysis }}
@@ -270,9 +270,9 @@ onUnmounted(() => {
         </div>
         
         <!-- Right: Stocks Table -->
-        <div class="w-[35%] bg-gray-50/30">
+        <div class="w-[35%] bg-gray-50/30 dark:bg-gray-800/30">
           <table class="w-full h-full density-table">
-            <thead class="bg-gray-50">
+            <thead class="bg-gray-50 dark:bg-gray-800">
               <tr>
                 <th class="text-left font-bold text-textMute">利好股票</th>
                 <th class="text-left font-bold text-textMute">代码</th>
@@ -284,7 +284,7 @@ onUnmounted(() => {
               <tr 
                 v-for="stock in rec.stocks"
                 :key="stock.code"
-                class="hover:bg-blue-50"
+                class="hover:bg-primary/5"
               >
                 <td class="font-bold text-textMain">{{ stock.name }}</td>
                 <td class="text-textMute">{{ stock.code }}</td>
@@ -303,7 +303,7 @@ onUnmounted(() => {
 
     <!-- Load More -->
     <div class="pb-8 flex justify-center">
-      <button class="px-12 py-2 border-2 border-gray-200 text-textMute text-xs font-bold hover:border-primary hover:text-primary transition-all rounded">
+      <button class="px-12 py-2 border-2 border-border text-textMute text-xs font-bold hover:border-primary hover:text-primary transition-all rounded">
         加载更多分析数据
       </button>
     </div>

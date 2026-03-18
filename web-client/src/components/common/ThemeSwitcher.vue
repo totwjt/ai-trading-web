@@ -24,7 +24,7 @@ const schemeList = Object.entries(themes).map(([key, value]) => ({
 
     <button
       @click="toggleMode"
-      class="p-1.5 rounded border border-border bg-card hover:bg-gray-50 dark:hover:bg-gray-800"
+      class="p-1.5 rounded border border-border bg-card hover:bg-primary/5"
     >
       <Icon :icon="mode === 'light' ? 'dark_mode' : 'light_mode'" :size="16" />
     </button>

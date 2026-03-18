@@ -54,47 +54,47 @@ const viewDetail = (id: number) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white p-8 space-y-10">
+  <div class="min-h-screen bg-bgMain p-8 space-y-10">
     <!-- 策略监控台 -->
     <div class="space-y-4">
       <div class="flex justify-between items-center">
-        <h3 class="font-bold text-lg tracking-tight">策略监控台</h3>
-        <div class="flex items-center gap-4 text-xs text-slate-500 font-medium">
+        <h3 class="font-bold text-lg tracking-tight text-textMain">策略监控台</h3>
+        <div class="flex items-center gap-4 text-xs text-textMute font-medium">
           <div class="flex items-center gap-1.5">
             <span class="size-2 rounded-full bg-green-600"></span> 运行中: 2
           </div>
           <div class="flex items-center gap-1.5">
-            <span class="size-2 rounded-full bg-slate-300"></span> 暂停: 1
+            <span class="size-2 rounded-full bg-gray-300"></span> 暂停: 1
           </div>
         </div>
       </div>
 
       <!-- 策略列表表格 -->
-      <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      <div class="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse">
             <thead>
-              <tr class="bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wider">
-                <th class="px-6 py-4 font-semibold">策略名称</th>
-                <th class="px-6 py-4 font-semibold">状态</th>
-                <th class="px-6 py-4 font-semibold">持仓标的</th>
-                <th class="px-6 py-4 font-semibold text-right">当前收益率</th>
-                <th class="px-6 py-4 font-semibold text-right">胜率</th>
-                <th class="px-6 py-4 font-semibold text-right">交易次数</th>
-                <th class="px-6 py-4 font-semibold text-center">风险等级</th>
-                <th class="px-6 py-4 font-semibold text-right">操作</th>
+              <tr class="bg-gray-50 dark:bg-gray-800 text-textMute text-[11px] uppercase tracking-wider">
+                <th class="px-6 py-4 font-semibold text-textMain">策略名称</th>
+                <th class="px-6 py-4 font-semibold text-textMain">状态</th>
+                <th class="px-6 py-4 font-semibold text-textMain">持仓标的</th>
+                <th class="px-6 py-4 font-semibold text-right text-textMain">当前收益率</th>
+                <th class="px-6 py-4 font-semibold text-right text-textMain">胜率</th>
+                <th class="px-6 py-4 font-semibold text-right text-textMain">交易次数</th>
+                <th class="px-6 py-4 font-semibold text-center text-textMain">风险等级</th>
+                <th class="px-6 py-4 font-semibold text-right text-textMain">操作</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
+            <tbody class="divide-y divide-border">
               <tr 
                 v-for="strategy in strategies"
                 :key="strategy.id"
-                class="hover:bg-slate-50 transition-colors"
+                class="hover:bg-primary/5 transition-colors"
               >
                 <td class="px-6 py-4">
                   <div class="flex flex-col">
-                    <span class="text-sm font-bold">{{ strategy.name }}</span>
-                    <span class="text-[10px] text-slate-400">{{ strategy.type }}</span>
+                    <span class="text-sm font-bold text-textMain">{{ strategy.name }}</span>
+                    <span class="text-[10px] text-textMute">{{ strategy.type }}</span>
                   </div>
                 </td>
                 <td class="px-6 py-4">
@@ -102,8 +102,8 @@ const viewDetail = (id: number) => {
                     :class="[
                       'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold',
                       strategy.status === '运行中' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-slate-100 text-slate-600'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                        : 'bg-gray-100 dark:bg-gray-800 text-textSub'
                     ]"
                   >
                     {{ strategy.status }}
@@ -114,19 +114,19 @@ const viewDetail = (id: number) => {
                     <span 
                       v-for="holding in strategy.holdings"
                       :key="holding"
-                      class="text-[11px] px-1.5 py-0.5 bg-slate-100 rounded"
+                      class="text-[11px] px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-textSub"
                     >
                       {{ holding }}
                     </span>
                   </div>
                 </td>
-                <td class="px-6 py-4 text-right font-bold" :class="strategy.returns.startsWith('+') ? 'text-red-600' : 'text-green-600'">
+                <td class="px-6 py-4 text-right font-bold" :class="strategy.returns.startsWith('+') ? 'text-up' : 'text-down'">
                   {{ strategy.returns }}
                 </td>
-                <td class="px-6 py-4 text-right text-sm">{{ strategy.winRate }}</td>
-                <td class="px-6 py-4 text-right text-sm font-medium">{{ strategy.tradeCount }}</td>
+                <td class="px-6 py-4 text-right text-sm text-textSub">{{ strategy.winRate }}</td>
+                <td class="px-6 py-4 text-right text-sm font-medium text-textSub">{{ strategy.tradeCount }}</td>
                 <td class="px-6 py-4 text-center">
-                  <span class="text-[11px] font-semibold text-orange-500">{{ strategy.riskLevel }}</span>
+                  <span class="text-[11px] font-semibold text-yellow-500">{{ strategy.riskLevel }}</span>
                 </td>
                 <td class="px-6 py-4 text-right space-x-3">
                   <button 
@@ -136,7 +136,7 @@ const viewDetail = (id: number) => {
                     详情
                   </button>
                   <button 
-                    class="text-slate-500 hover:text-slate-900 text-xs font-semibold"
+                    class="text-textMute hover:text-textMain text-xs font-semibold"
                     @click="editStrategy(strategy.id)"
                   >
                     编辑
@@ -154,11 +154,11 @@ const viewDetail = (id: number) => {
 
     <!-- 快速操作 -->
     <div class="flex justify-between items-center">
-      <div class="text-xs text-slate-500">
+      <div class="text-xs text-textMute">
         共 {{ strategies.length }} 个策略
       </div>
       <button 
-        class="bg-primary text-white px-4 py-2 rounded text-sm font-semibold hover:bg-blue-700 flex items-center gap-2"
+        class="bg-primary text-white px-4 py-2 rounded text-sm font-semibold hover:opacity-90 flex items-center gap-2"
         @click="editStrategy(0)"
       >
         <Icon icon="mdi:plus" :size="16" />
@@ -168,10 +168,10 @@ const viewDetail = (id: number) => {
 
     <!-- 策略中心/市场 -->
     <div class="space-y-6 mt-10">
-      <div class="flex justify-between items-end border-b border-slate-100 pb-4">
+      <div class="flex justify-between items-end border-b border-border pb-4">
         <div>
-          <h3 class="font-bold text-lg tracking-tight">策略中心</h3>
-          <p class="text-xs text-slate-500 mt-1">发现经过回测验证的高效量化模型</p>
+          <h3 class="font-bold text-lg tracking-tight text-textMain">策略中心</h3>
+          <p class="text-xs text-textMute mt-1">发现经过回测验证的高效量化模型</p>
         </div>
         <button class="text-xs text-primary font-semibold flex items-center gap-1">
           查看更多 <Icon icon="mdi:arrow-right" :size="16" />
@@ -179,97 +179,97 @@ const viewDetail = (id: number) => {
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <!-- 策略卡片 1 -->
-        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
+        <div class="bg-card border border-border rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
           <div class="flex justify-between items-start mb-4">
-            <div class="p-2 bg-blue-50 rounded-lg text-primary">
+            <div class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-primary">
               <Icon icon="mdi:chart-line" :size="24" />
             </div>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">股票</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-textSub">股票</span>
           </div>
-          <h4 class="font-bold text-sm mb-2 group-hover:text-primary transition-colors">风格轮动</h4>
-          <p class="text-xs text-slate-500 leading-relaxed mb-4 flex-1">
-            基于价值、成长、质量等多因子，自动捕捉当前市场强势风格并进行行业均衡配置。
+          <h4 class="font-bold text-sm mb-2 text-textMain group-hover:text-primary transition-colors">风格轮动</h4>
+          <p class="text-xs text-textMute leading-relaxed mb-4 flex-1">
+            基于价值、成长，质量等多因子，自动捕捉当前市场强势风格并进行行业均衡配置。
           </p>
-          <div class="pt-4 border-t border-slate-50 flex flex-col gap-3">
+          <div class="pt-4 border-t border-border flex flex-col gap-3">
             <div class="flex justify-between items-center">
-              <span class="text-[10px] text-slate-400 uppercase font-semibold">历史年化收益</span>
-              <span class="text-sm font-bold text-red-600">24.8%</span>
+              <span class="text-[10px] text-textMute uppercase font-semibold">历史年化收益</span>
+              <span class="text-sm font-bold text-up">24.8%</span>
             </div>
             <div class="grid grid-cols-2 gap-2">
-              <button class="text-[11px] py-1.5 border border-slate-200 rounded-lg font-semibold hover:bg-slate-50">查看详情</button>
-              <button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">引用策略</button>
+              <button class="text-[11px] py-1.5 border border-border rounded-lg font-semibold hover:bg-primary/5 text-textMain">查看详情</button>
+              <button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:opacity-90 transition-opacity">引用策略</button>
             </div>
           </div>
         </div>
 
         <!-- 策略卡片 2 -->
-        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
+        <div class="bg-card border border-border rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
           <div class="flex justify-between items-start mb-4">
-            <div class="p-2 bg-orange-50 rounded-lg text-orange-500">
+            <div class="p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg text-orange-500">
               <Icon icon="mdi:history" :size="24" />
             </div>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">股票</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-textSub">股票</span>
           </div>
-          <h4 class="font-bold text-sm mb-2 group-hover:text-primary transition-colors">日内回转交易 (T+0)</h4>
-          <p class="text-xs text-slate-500 leading-relaxed mb-4 flex-1">
+          <h4 class="font-bold text-sm mb-2 text-textMain group-hover:text-primary transition-colors">日内回转交易 (T+0)</h4>
+          <p class="text-xs text-textMute leading-relaxed mb-4 flex-1">
             针对高波动性标的，通过高频价格监控实现日内低买高卖，不留底仓风险。
           </p>
-          <div class="pt-4 border-t border-slate-50 flex flex-col gap-3">
+          <div class="pt-4 border-t border-border flex flex-col gap-3">
             <div class="flex justify-between items-center">
-              <span class="text-[10px] text-slate-400 uppercase font-semibold">历史胜率</span>
-              <span class="text-sm font-bold text-slate-900">62.1%</span>
+              <span class="text-[10px] text-textMute uppercase font-semibold">历史胜率</span>
+              <span class="text-sm font-bold text-textMain">62.1%</span>
             </div>
             <div class="grid grid-cols-2 gap-2">
-              <button class="text-[11px] py-1.5 border border-slate-200 rounded-lg font-semibold hover:bg-slate-50">查看详情</button>
-              <button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">引用策略</button>
+              <button class="text-[11px] py-1.5 border border-border rounded-lg font-semibold hover:bg-primary/5 text-textMain">查看详情</button>
+              <button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:opacity-90 transition-opacity">引用策略</button>
             </div>
           </div>
         </div>
 
         <!-- 策略卡片 3 -->
-        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
+        <div class="bg-card border border-border rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
           <div class="flex justify-between items-start mb-4">
-            <div class="p-2 bg-emerald-50 rounded-lg text-emerald-500">
+            <div class="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-600">
               <Icon icon="mdi:chart-bar" :size="24" />
             </div>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">股票</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-textSub">股票</span>
           </div>
-          <h4 class="font-bold text-sm mb-2 group-hover:text-primary transition-colors">小市值因子策略</h4>
-          <p class="text-xs text-slate-500 leading-relaxed mb-4 flex-1">
+          <h4 class="font-bold text-sm mb-2 text-textMain group-hover:text-primary transition-colors">小市值因子策略</h4>
+          <p class="text-xs text-textMute leading-relaxed mb-4 flex-1">
             筛选低估值、高成长潜力的小市值标的，利用市场非对称信息获取长期超额回报。
           </p>
-          <div class="pt-4 border-t border-slate-50 flex flex-col gap-3">
+          <div class="pt-4 border-t border-border flex flex-col gap-3">
             <div class="flex justify-between items-center">
-              <span class="text-[10px] text-slate-400 uppercase font-semibold">Sharpe比率</span>
-              <span class="text-sm font-bold text-slate-900">2.1</span>
+              <span class="text-[10px] text-textMute uppercase font-semibold">Sharpe比率</span>
+              <span class="text-sm font-bold text-textMain">2.1</span>
             </div>
             <div class="grid grid-cols-2 gap-2">
-              <button class="text-[11px] py-1.5 border border-slate-200 rounded-lg font-semibold hover:bg-slate-50">查看详情</button>
-              <button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">引用策略</button>
+              <button class="text-[11px] py-1.5 border border-border rounded-lg font-semibold hover:bg-primary/5 text-textMain">查看详情</button>
+              <button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:opacity-90 transition-opacity">引用策略</button>
             </div>
           </div>
         </div>
 
         <!-- 策略卡片 4 -->
-        <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
+        <div class="bg-card border border-border rounded-xl p-6 shadow-sm flex flex-col hover:border-primary/30 transition-all group">
           <div class="flex justify-between items-start mb-4">
-            <div class="p-2 bg-purple-50 rounded-lg text-purple-500">
+            <div class="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-purple-500">
               <Icon icon="mdi:finance" :size="24" />
             </div>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">ETF</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-textSub">ETF</span>
           </div>
-          <h4 class="font-bold text-sm mb-2 group-hover:text-primary transition-colors">行业轮动ETF</h4>
-          <p class="text-xs text-slate-500 leading-relaxed mb-4 flex-1">
+          <h4 class="font-bold text-sm mb-2 text-textMain group-hover:text-primary transition-colors">行业轮动ETF</h4>
+          <p class="text-xs text-textMute leading-relaxed mb-4 flex-1">
             基于行业景气度轮动，配置不同行业ETF，实现行业alpha收益。
           </p>
-          <div class="pt-4 border-t border-slate-50 flex flex-col gap-3">
+          <div class="pt-4 border-t border-border flex flex-col gap-3">
             <div class="flex justify-between items-center">
-              <span class="text-[10px] text-slate-400 uppercase font-semibold">最大回撤</span>
-              <span class="text-sm font-bold text-slate-900">8.5%</span>
+              <span class="text-[10px] text-textMute uppercase font-semibold">最大回撤</span>
+              <span class="text-sm font-bold text-textMain">8.5%</span>
             </div>
             <div class="grid grid-cols-2 gap-2">
-              <button class="text-[11px] py-1.5 border border-slate-200 rounded-lg font-semibold hover:bg-slate-50">查看详情</button>
-              <button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors">引用策略</button>
+              <button class="text-[11px] py-1.5 border border-border rounded-lg font-semibold hover:bg-primary/5 text-textMain">查看详情</button>
+              <button class="text-[11px] py-1.5 bg-primary text-white rounded-lg font-semibold hover:opacity-90 transition-opacity">引用策略</button>
             </div>
           </div>
         </div>

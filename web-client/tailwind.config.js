@@ -7,16 +7,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        // 默认主题 - 股票交易风格
-        primary: '#0066FF',
-        up: '#FF0000',
-        down: '#00B050',
-        border: '#E5E7EB',
-        bgMain: '#F9FAFB',
-        card: '#FFFFFF',
-        textMain: '#1F2937',
-        textSub: '#6B7280',
-        textMute: '#9CA3AF',
+        // 使用 CSS 变量，支持主题切换
+        primary: 'rgb(var(--color-primary) / <alpha-value>)',
+        up: 'rgb(var(--color-up) / <alpha-value>)',
+        down: 'rgb(var(--color-down) / <alpha-value>)',
+        border: 'rgb(var(--color-border) / <alpha-value>)',
+        bgMain: 'rgb(var(--color-bg-main) / <alpha-value>)',
+        card: 'rgb(var(--color-card) / <alpha-value>)',
+        textMain: 'rgb(var(--color-text-main) / <alpha-value>)',
+        textSub: 'rgb(var(--color-text-sub) / <alpha-value>)',
+        textMute: 'rgb(var(--color-text-mute) / <alpha-value>)',
       },
       fontSize: {
         xxs: '0.7rem',

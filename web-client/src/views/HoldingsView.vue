@@ -84,7 +84,7 @@ const selectedHolding = ref<{
           <p class="text-sm text-textMute">查看和管理您的持仓股票</p>
         </div>
         <div class="flex gap-2">
-          <button class="px-4 py-2 border border-gray-200 text-textMain text-sm font-bold rounded hover:bg-gray-50 transition-colors">
+          <button class="px-4 py-2 border border-border text-textMain text-sm font-bold rounded hover:bg-primary/5 transition-colors">
             导出持仓
           </button>
         </div>
@@ -92,15 +92,15 @@ const selectedHolding = ref<{
 
       <!-- Portfolio Summary -->
       <div class="grid grid-cols-4 gap-4 mb-6">
-        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="bg-card p-4 rounded-lg shadow-sm border border-border">
           <p class="text-xs text-textMute mb-1">持仓市值</p>
-          <p class="text-xl font-bold font-numeric">{{ totalStats.totalMarketValue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</p>
+          <p class="text-xl font-bold font-numeric text-textMain">{{ totalStats.totalMarketValue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</p>
         </div>
-        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="bg-card p-4 rounded-lg shadow-sm border border-border">
           <p class="text-xs text-textMute mb-1">总成本</p>
-          <p class="text-xl font-bold font-numeric">{{ totalStats.totalCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</p>
+          <p class="text-xl font-bold font-numeric text-textMain">{{ totalStats.totalCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</p>
         </div>
-        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="bg-card p-4 rounded-lg shadow-sm border border-border">
           <p class="text-xs text-textMute mb-1">总盈亏</p>
           <div class="flex items-baseline space-x-2">
             <p class="text-xl font-bold font-numeric" :class="totalStats.totalPL > 0 ? 'text-up' : 'text-down'">
@@ -108,7 +108,7 @@ const selectedHolding = ref<{
             </p>
           </div>
         </div>
-        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="bg-card p-4 rounded-lg shadow-sm border border-border">
           <p class="text-xs text-textMute mb-1">收益率</p>
           <p class="text-xl font-bold font-numeric" :class="totalStats.totalPLPercent > 0 ? 'text-up' : 'text-down'">
             {{ totalStats.totalPLPercent > 0 ? '+' : '' }}{{ totalStats.totalPLPercent }}%
@@ -117,9 +117,9 @@ const selectedHolding = ref<{
       </div>
 
       <!-- Holdings List -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-        <div class="px-4 py-3 border-b flex justify-between items-center">
-          <h3 class="font-bold text-sm">持仓列表</h3>
+      <div class="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+        <div class="px-4 py-3 border-b border-border flex justify-between items-center">
+          <h3 class="font-bold text-sm text-textMain">持仓列表</h3>
           <div class="flex gap-2">
             <button class="px-3 py-1 text-xs text-textMute hover:text-primary">全部</button>
             <button class="px-3 py-1 text-xs text-textMute hover:text-primary">A股</button>
@@ -129,7 +129,7 @@ const selectedHolding = ref<{
         </div>
         
         <table class="w-full density-table">
-          <thead class="bg-gray-50 text-textMute">
+          <thead class="bg-gray-50 dark:bg-gray-800 text-textMute">
             <tr>
               <th class="text-left">股票名称</th>
               <th class="text-left">代码</th>
@@ -147,21 +147,21 @@ const selectedHolding = ref<{
             <tr 
               v-for="holding in holdings"
               :key="holding.id"
-              class="hover:bg-blue-50 cursor-pointer"
-              :class="{ 'bg-blue-50/30': selectedHolding?.id === holding.id }"
+              class="hover:bg-primary/5 cursor-pointer"
+              :class="{ 'bg-primary/5': selectedHolding?.id === holding.id }"
               @click="selectedHolding = holding"
             >
-              <td class="font-medium">{{ holding.name }}</td>
+              <td class="font-medium text-textMain">{{ holding.name }}</td>
               <td class="text-textMute">{{ holding.code }}</td>
               <td>
-                <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-[11px] rounded">
+                <span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-textSub text-[11px] rounded">
                   {{ holding.sector }}
                 </span>
               </td>
-              <td class="text-right font-numeric">{{ holding.quantity }}</td>
-              <td class="text-right font-numeric">{{ holding.avgCost.toFixed(2) }}</td>
-              <td class="text-right font-numeric">{{ holding.currentPrice.toFixed(2) }}</td>
-              <td class="text-right font-numeric">{{ holding.marketValue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</td>
+              <td class="text-right font-numeric text-textSub">{{ holding.quantity }}</td>
+              <td class="text-right font-numeric text-textSub">{{ holding.avgCost.toFixed(2) }}</td>
+              <td class="text-right font-numeric text-textSub">{{ holding.currentPrice.toFixed(2) }}</td>
+              <td class="text-right font-numeric text-textSub">{{ holding.marketValue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</td>
               <td 
                 :class="[
                   'text-right font-numeric font-bold',
@@ -180,7 +180,7 @@ const selectedHolding = ref<{
               </td>
               <td class="text-right">
                 <button class="text-primary hover:underline text-xs mr-2">买</button>
-                <button class="text-red-500 hover:underline text-xs">卖</button>
+                <button class="text-down hover:underline text-xs">卖</button>
               </td>
             </tr>
           </tbody>
@@ -189,20 +189,20 @@ const selectedHolding = ref<{
 
       <!-- Holding Detail Panel -->
       <div v-if="selectedHolding" class="mt-6 grid grid-cols-3 gap-4">
-        <div class="col-span-2 bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-          <h3 class="font-bold text-sm mb-4">持仓详情 - {{ selectedHolding.name }}</h3>
+        <div class="col-span-2 bg-card rounded-lg shadow-sm border border-border p-4">
+          <h3 class="font-bold text-sm text-textMain mb-4">持仓详情 - {{ selectedHolding.name }}</h3>
           <div class="grid grid-cols-4 gap-4 mb-4">
             <div class="text-center">
               <p class="text-xs text-textMute">持仓数量</p>
-              <p class="text-lg font-bold font-numeric">{{ selectedHolding.quantity }}</p>
+              <p class="text-lg font-bold font-numeric text-textMain">{{ selectedHolding.quantity }}</p>
             </div>
             <div class="text-center">
               <p class="text-xs text-textMute">成本价</p>
-              <p class="text-lg font-bold font-numeric">{{ selectedHolding.avgCost.toFixed(2) }}</p>
+              <p class="text-lg font-bold font-numeric text-textMain">{{ selectedHolding.avgCost.toFixed(2) }}</p>
             </div>
             <div class="text-center">
               <p class="text-xs text-textMute">现价</p>
-              <p class="text-lg font-bold font-numeric">{{ selectedHolding.currentPrice.toFixed(2) }}</p>
+              <p class="text-lg font-bold font-numeric text-textMain">{{ selectedHolding.currentPrice.toFixed(2) }}</p>
             </div>
             <div class="text-center">
               <p class="text-xs text-textMute">盈亏</p>
@@ -215,24 +215,24 @@ const selectedHolding = ref<{
             </div>
           </div>
           <!-- Chart placeholder -->
-          <div class="h-48 bg-gray-50 rounded flex items-center justify-center text-textMute">
+          <div class="h-48 bg-gray-50 dark:bg-gray-800 rounded flex items-center justify-center text-textMute">
             持仓收益曲线图
           </div>
         </div>
         
-        <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-          <h3 class="font-bold text-sm mb-4">快速操作</h3>
+        <div class="bg-card rounded-lg shadow-sm border border-border p-4">
+          <h3 class="font-bold text-sm text-textMain mb-4">快速操作</h3>
           <div class="space-y-2">
-            <button class="w-full px-4 py-2 bg-up text-white text-sm font-bold rounded hover:bg-red-600 transition-colors">
+            <button class="w-full px-4 py-2 bg-up text-white text-sm font-bold rounded hover:opacity-90 transition-opacity">
               买入
             </button>
-            <button class="w-full px-4 py-2 bg-down text-white text-sm font-bold rounded hover:bg-green-600 transition-colors">
+            <button class="w-full px-4 py-2 bg-down text-white text-sm font-bold rounded hover:opacity-90 transition-opacity">
               卖出
             </button>
-            <button class="w-full px-4 py-2 border border-gray-200 text-textMain text-sm font-bold rounded hover:bg-gray-50 transition-colors">
+            <button class="w-full px-4 py-2 border border-border text-textMain text-sm font-bold rounded hover:bg-primary/5 transition-colors">
               查看详情
             </button>
-            <button class="w-full px-4 py-2 border border-gray-200 text-textMain text-sm font-bold rounded hover:bg-gray-50 transition-colors">
+            <button class="w-full px-4 py-2 border border-border text-textMain text-sm font-bold rounded hover:bg-primary/5 transition-colors">
               加入自选
             </button>
           </div>

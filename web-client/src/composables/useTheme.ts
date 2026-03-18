@@ -24,19 +24,26 @@ function saveToStorage(scheme: ThemeScheme, mode: ThemeMode) {
 const currentScheme = ref<ThemeScheme>(loadFromStorage().scheme)
 const currentMode = ref<ThemeMode>(loadFromStorage().mode)
 
+function hexToRgb(hex: string): string {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result 
+    ? `${parseInt(result[1], 16)} ${parseInt(result[2], 16)} ${parseInt(result[3], 16)}`
+    : '0 0 0'
+}
+
 function applyTheme(scheme: ThemeScheme, mode: ThemeMode) {
   const colors = themes[scheme].colors[mode]
   const root = document.documentElement
   
-  root.style.setProperty('--color-primary', colors.primary)
-  root.style.setProperty('--color-up', colors.up)
-  root.style.setProperty('--color-down', colors.down)
-  root.style.setProperty('--color-border', colors.border)
-  root.style.setProperty('--color-bg-main', colors.bgMain)
-  root.style.setProperty('--color-card', colors.card)
-  root.style.setProperty('--color-text-main', colors.textMain)
-  root.style.setProperty('--color-text-sub', colors.textSub)
-  root.style.setProperty('--color-text-mute', colors.textMute)
+  root.style.setProperty('--color-primary', hexToRgb(colors.primary))
+  root.style.setProperty('--color-up', hexToRgb(colors.up))
+  root.style.setProperty('--color-down', hexToRgb(colors.down))
+  root.style.setProperty('--color-border', hexToRgb(colors.border))
+  root.style.setProperty('--color-bg-main', hexToRgb(colors.bgMain))
+  root.style.setProperty('--color-card', hexToRgb(colors.card))
+  root.style.setProperty('--color-text-main', hexToRgb(colors.textMain))
+  root.style.setProperty('--color-text-sub', hexToRgb(colors.textSub))
+  root.style.setProperty('--color-text-mute', hexToRgb(colors.textMute))
   
   if (mode === 'dark') {
     root.classList.add('dark')

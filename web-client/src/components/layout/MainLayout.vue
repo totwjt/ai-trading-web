@@ -32,27 +32,27 @@ const showSidebar = computed(() => {
 <template>
   <div class="h-screen flex flex-col overflow-hidden">
     <!-- Header -->
-    <header class="h-14 bg-white border-b flex items-center justify-between px-4 z-50 shrink-0">
+    <header class="h-14 bg-card border-b border-border flex items-center justify-between px-4 z-50 shrink-0">
       <div class="flex items-center space-x-8">
         <div class="flex items-center space-x-2">
           <div class="bg-primary p-1 rounded">
             <Icon icon="mdi:chart-line" :size="24" class="text-white" />
           </div>
-          <span class="text-xl font-bold text-gray-800 tracking-tight">AI Trading Pro</span>
+          <span class="text-xl font-bold text-textMain tracking-tight">AI Trading Pro</span>
         </div>
         <!-- Global Search -->
         <div class="relative w-96">
           <input
-            class="w-full h-9 bg-gray-100 border-none rounded-full px-10 text-sm focus:ring-2 focus:ring-primary/20 transition-all"
+            class="w-full h-9 bg-gray-100 dark:bg-gray-800 border-none rounded-full px-10 text-sm bg-card text-textMain focus:ring-2 focus:ring-primary/20 transition-all"
             placeholder="搜索股票代码 / 名称 / 简拼"
             type="text"
           />
-          <svg class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4 absolute left-3 top-2.5 text-textMute" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
           </svg>
         </div>
       </div>
-      <div class="flex items-center space-x-6 text-gray-600">
+      <div class="flex items-center space-x-6 text-textSub">
         <ThemeSwitcher />
         <div class="flex items-center space-x-1 cursor-pointer hover:text-primary transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,36 +64,36 @@ const showSidebar = computed(() => {
 
     <div class="flex flex-1 overflow-hidden">
       <!-- Sidebar - 根据路由 meta 决定是否显示 -->
-      <aside v-if="showSidebar" class="w-48 bg-white border-r flex flex-col shrink-0">
+      <aside v-if="showSidebar" class="w-48 bg-card border-r border-border flex flex-col shrink-0">
         <nav class="flex-1 py-4">
           <router-link
             v-for="item in menuItems"
             :key="item.path"
             :to="item.path"
             class="flex items-center px-6 py-3 space-x-3 text-sm font-medium transition-all"
-            :class="route.path === item.path ? 'sidebar-item-active' : 'text-gray-600 hover:bg-gray-50 hover:text-primary'"
+            :class="route.path === item.path ? 'sidebar-item-active' : 'text-textSub hover:bg-primary/5 hover:text-primary'"
           >
             <Icon :icon="item.icon" :size="20" />
             <span>{{ item.name }}</span>
           </router-link>
         </nav>
-        <div class="p-4 border-t">
+        <div class="p-4 border-t border-border">
           <!-- 用户栏（包含设置 icon） -->
           <router-link
             to="/settings"
-            class="flex items-center space-x-3 px-2 py-2 cursor-pointer group hover:bg-gray-50 rounded transition-colors"
+            class="flex items-center space-x-3 px-2 py-2 cursor-pointer group hover:bg-primary/5 rounded transition-colors"
           >
             <Icon 
               :icon="userInfo.avatar" 
               :size="32" 
-              class="text-gray-600"
+              class="text-textSub"
             />
             <div class="text-xs flex-1">
-              <p class="font-medium text-gray-700 leading-none">{{ userInfo.name }}</p>
-              <p class="text-xxs text-gray-400 mt-1">{{ userInfo.level }}</p>
+              <p class="font-medium text-textMain leading-none">{{ userInfo.name }}</p>
+              <p class="text-xxs text-textMute mt-1">{{ userInfo.level }}</p>
             </div>
             <!-- 设置 icon -->
-            <Icon icon="settings" :size="20" class="text-gray-400 group-hover:text-primary" />
+            <Icon icon="settings" :size="20" class="text-textMute group-hover:text-primary" />
           </router-link>
         </div>
       </aside>

@@ -3,27 +3,27 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: #0066FF;
-  --color-up: #FF0000;
-  --color-down: #00B050;
-  --color-border: #E5E7EB;
-  --color-bg-main: #F9FAFB;
-  --color-card: #FFFFFF;
-  --color-text-main: #1F2937;
-  --color-text-sub: #6B7280;
-  --color-text-mute: #9CA3AF;
+  --color-primary: 0 102 255;
+  --color-up: 255 0 0;
+  --color-down: 0 176 80;
+  --color-border: 229 231 235;
+  --color-bg-main: 249 250 251;
+  --color-card: 255 255 255;
+  --color-text-main: 31 41 55;
+  --color-text-sub: 107 114 128;
+  --color-text-mute: 156 163 175;
 }
 
 .dark {
-  --color-primary: #3B82F6;
-  --color-up: #EF4444;
-  --color-down: #22C55E;
-  --color-border: #374151;
-  --color-bg-main: #111827;
-  --color-card: #1F2937;
-  --color-text-main: #F9FAFB;
-  --color-text-sub: #9CA3AF;
-  --color-text-mute: #6B7280;
+  --color-primary: 59 130 246;
+  --color-up: 239 68 68;
+  --color-down: 34 197 94;
+  --color-border: 55 65 81;
+  --color-bg-main: 17 24 39;
+  --color-card: 31 41 55;
+  --color-text-main: 249 250 251;
+  --color-text-sub: 156 163 175;
+  --color-text-mute: 107 114 128;
 }
 
 .custom-scrollbar::-webkit-scrollbar {

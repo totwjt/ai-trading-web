@@ -102,22 +102,22 @@ const orders = ref([
 
       <!-- Account Summary -->
       <div class="grid grid-cols-4 gap-4 mb-6">
-        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="bg-card p-4 rounded-lg shadow-sm border border-border">
           <p class="text-xs text-textMute mb-1">模拟账户余额</p>
-          <p class="text-xl font-bold font-numeric">{{ accountInfo.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</p>
+          <p class="text-xl font-bold font-numeric text-textMain">{{ accountInfo.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</p>
         </div>
-        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="bg-card p-4 rounded-lg shadow-sm border border-border">
           <p class="text-xs text-textMute mb-1">总资产</p>
-          <p class="text-xl font-bold font-numeric">{{ accountInfo.totalAssets.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</p>
+          <p class="text-xl font-bold font-numeric text-textMain">{{ accountInfo.totalAssets.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</p>
         </div>
-        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="bg-card p-4 rounded-lg shadow-sm border border-border">
           <p class="text-xs text-textMute mb-1">今日盈亏</p>
           <div class="flex items-baseline space-x-2">
             <p class="text-xl font-bold font-numeric text-up">{{ accountInfo.todayPL > 0 ? '+' : '' }}{{ accountInfo.todayPL.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</p>
             <span class="text-sm font-semibold text-up">+{{ accountInfo.todayPLPercent }}%</span>
           </div>
         </div>
-        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div class="bg-card p-4 rounded-lg shadow-sm border border-border">
           <p class="text-xs text-textMute mb-1">持仓市值</p>
           <p class="text-xl font-bold font-numeric text-textMain">
             {{ holdings.reduce((sum, h) => sum + h.marketValue, 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}
@@ -128,13 +128,13 @@ const orders = ref([
       <!-- Main Content Grid -->
       <div class="grid grid-cols-3 gap-4">
         <!-- Left: Holdings -->
-        <div class="col-span-2 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-          <div class="px-4 py-3 border-b flex justify-between items-center">
-            <h3 class="font-bold text-sm">持仓列表</h3>
+        <div class="col-span-2 bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+          <div class="px-4 py-3 border-b border-border flex justify-between items-center">
+            <h3 class="font-bold text-sm text-textMain">持仓列表</h3>
             <button class="text-xs text-primary hover:underline">一键清仓</button>
           </div>
           <table class="w-full density-table">
-            <thead class="bg-gray-50 text-textMute">
+            <thead class="bg-gray-50 dark:bg-gray-800 text-textMute">
               <tr>
                 <th class="text-left">股票名称</th>
                 <th class="text-left">代码</th>
@@ -150,14 +150,14 @@ const orders = ref([
               <tr 
                 v-for="holding in holdings"
                 :key="holding.id"
-                class="hover:bg-blue-50"
+                class="hover:bg-primary/5"
               >
-                <td class="font-medium">{{ holding.name }}</td>
+                <td class="font-medium text-textMain">{{ holding.name }}</td>
                 <td class="text-textMute">{{ holding.code }}</td>
-                <td class="text-right font-numeric">{{ holding.quantity }}</td>
-                <td class="text-right font-numeric">{{ holding.avgCost.toFixed(2) }}</td>
-                <td class="text-right font-numeric">{{ holding.currentPrice.toFixed(2) }}</td>
-                <td class="text-right font-numeric">{{ holding.marketValue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</td>
+                <td class="text-right font-numeric text-textSub">{{ holding.quantity }}</td>
+                <td class="text-right font-numeric text-textSub">{{ holding.avgCost.toFixed(2) }}</td>
+                <td class="text-right font-numeric text-textSub">{{ holding.currentPrice.toFixed(2) }}</td>
+                <td class="text-right font-numeric text-textSub">{{ holding.marketValue.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</td>
                 <td 
                   :class="[
                     'text-right font-numeric font-bold',
@@ -168,7 +168,7 @@ const orders = ref([
                 </td>
                 <td class="text-right">
                   <button class="text-primary hover:underline text-xs mr-2">买</button>
-                  <button class="text-red-500 hover:underline text-xs">卖</button>
+                  <button class="text-down hover:underline text-xs">卖</button>
                 </td>
               </tr>
             </tbody>
@@ -176,8 +176,8 @@ const orders = ref([
         </div>
 
         <!-- Right: Order Panel -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-          <h3 class="font-bold text-sm mb-4">下单面板</h3>
+        <div class="bg-card rounded-lg shadow-sm border border-border p-4">
+          <h3 class="font-bold text-sm text-textMain mb-4">下单面板</h3>
           
           <!-- Trade Form -->
           <div class="space-y-3 mb-6">
@@ -186,14 +186,14 @@ const orders = ref([
               <input 
                 type="text" 
                 placeholder="输入股票代码"
-                class="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                class="w-full px-3 py-2 border border-border rounded text-sm bg-card text-textMain focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
             <div class="flex gap-2">
-              <button class="flex-1 py-2 bg-up text-white text-sm font-bold rounded hover:bg-red-600 transition-colors">
+              <button class="flex-1 py-2 bg-up text-white text-sm font-bold rounded hover:opacity-90 transition-opacity">
                 买入
               </button>
-              <button class="flex-1 py-2 bg-down text-white text-sm font-bold rounded hover:bg-green-600 transition-colors">
+              <button class="flex-1 py-2 bg-down text-white text-sm font-bold rounded hover:opacity-90 transition-opacity">
                 卖出
               </button>
             </div>
@@ -202,7 +202,7 @@ const orders = ref([
               <input 
                 type="number" 
                 placeholder="委托价格"
-                class="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                class="w-full px-3 py-2 border border-border rounded text-sm bg-card text-textMain focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
             <div>
@@ -210,10 +210,10 @@ const orders = ref([
               <input 
                 type="number" 
                 placeholder="委托数量"
-                class="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                class="w-full px-3 py-2 border border-border rounded text-sm bg-card text-textMain focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
-            <button class="w-full py-2 bg-primary text-white text-sm font-bold rounded hover:bg-blue-600 transition-colors">
+            <button class="w-full py-2 bg-primary text-white text-sm font-bold rounded hover:opacity-90 transition-opacity">
               确认下单
             </button>
           </div>
@@ -225,18 +225,18 @@ const orders = ref([
               <div 
                 v-for="order in orders"
                 :key="order.id"
-                class="flex justify-between items-center text-xs py-2 border-b border-gray-50"
+                class="flex justify-between items-center text-xs py-2 border-b border-border"
               >
                 <div>
-                  <p class="font-medium">{{ order.name }}</p>
+                  <p class="font-medium text-textMain">{{ order.name }}</p>
                   <p class="text-textMute">{{ order.time }} {{ order.type }}</p>
                 </div>
                 <div class="text-right">
-                  <p class="font-numeric">{{ order.price.toFixed(2) }} * {{ order.quantity }}</p>
+                  <p class="font-numeric text-textSub">{{ order.price.toFixed(2) }} * {{ order.quantity }}</p>
                   <p 
                     :class="[
-                      order.status === '已成交' ? 'text-green-600' : 
-                      order.status === '部分成交' ? 'text-yellow-600' : 'text-gray-500'
+                      order.status === '已成交' ? 'text-down' : 
+                      order.status === '部分成交' ? 'text-yellow-500 dark:text-yellow-400' : 'text-textMute'
                     ]"
                   >
                     {{ order.status }}
