@@ -27,6 +27,12 @@ export interface WSMessage {
   message_id: string
 }
 
+export interface StockInfo {
+  stock_code: string
+  stock_name: string
+  score: string
+}
+
 export interface News {
   title: string
   content: string
@@ -38,7 +44,7 @@ export interface News {
 
 export interface Analysis {
   利好版块: string[]
-  利好股票: string[]
+  利好股票: (string | StockInfo)[]
   分析因素: string[]
   详细分析: string
 }
@@ -66,8 +72,9 @@ class WebSocketClient {
   public disconnectHandler: DisconnectHandler | null = null
   public errorHandler: ErrorHandler | null = null
 
-  constructor(url: string = 'ws://localhost:8765') {
-    this.url = url
+  constructor(url: string = '') {
+    // 默认使用当前页面的 hostname，兼容局域网访问
+    this.url = url || `ws://${window.location.hostname}:8765`
   }
 
   connect(): void {
@@ -142,6 +149,9 @@ class WebSocketClient {
         break
       case 'system':
         console.log('[WS] 系统消息:', message.payload)
+        if (message.payload.status === 'connected') {
+          console.log('[WS] 已认证:', message.payload)
+        }
         break
       default:
         break
@@ -154,6 +164,7 @@ class WebSocketClient {
       payload: {
         client_id: CLIENT_ID,
         client_type: 'web',
+        action: 'default',
         user_agent: navigator.userAgent
       },
       timestamp: new Date().toISOString(),
@@ -202,7 +213,7 @@ let wsClient: WebSocketClient | null = null
 
 export function useWebSocket() {
   if (!wsClient) {
-    wsClient = new WebSocketClient('ws://localhost:8765')
+    wsClient = new WebSocketClient()
   }
 
   onUnmounted(() => {
@@ -229,8 +240,17 @@ export function useWebSocket() {
   }
 }
 
-export function parseStockInfo(stockStr: string): { code: string; name: string; score: number } | null {
-  const match = stockStr.match(/(\d{6})\(([^)]+?)(\d+)?\)/)
+export function parseStockInfo(stock: string | StockInfo): { code: string; name: string; score: number } | null {
+  if (typeof stock === 'object') {
+    const codeNum = parseInt(stock.stock_code)
+    return {
+      code: stock.stock_code + (codeNum < 500000 ? '.SH' : '.SZ'),
+      name: stock.stock_name,
+      score: parseInt(stock.score) || 0
+    }
+  }
+  
+  const match = stock.match(/(\d{6})\(([^)]+?)(\d+)?\)/)
   if (!match) return null
   
   return {

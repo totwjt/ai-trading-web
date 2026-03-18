@@ -59,16 +59,23 @@ async def handle_client_message(websocket: WebSocketServerProtocol, message: str
     try:
         ws_msg = WSMessage.from_json(message)
         
+        logger.info(f"📥 收到客户端消息: type={ws_msg.type}, payload={json.dumps(ws_msg.payload, ensure_ascii=False)[:200]}")
+        
         if ws_msg.type == MessageType.HEARTBEAT:
             response = WSMessage(
                 type=MessageType.HEARTBEAT,
                 payload={"status": "pong", "server_time": datetime.now().isoformat()}
             )
             await websocket.send(response.to_json())
+            logger.info("📤 发送心跳响应")
             
         elif ws_msg.type == MessageType.SUBSCRIBE:
-            client_info[websocket]["client_type"] = ws_msg.payload.get("client_type", "web")
-            logger.info(f"客户端订阅: {ws_msg.payload}")
+            client_info[websocket].update({
+                "client_type": ws_msg.payload.get("client_type", "web"),
+                "client_id": ws_msg.payload.get("client_id", ""),
+                "action": ws_msg.payload.get("action", "default")
+            })
+            logger.info(f"📥 客户端订阅: {ws_msg.payload}")
             response = WSMessage(
                 type=MessageType.SYSTEM,
                 payload={"status": "subscribed", "topics": ws_msg.payload.get("topics", [])}
@@ -76,8 +83,39 @@ async def handle_client_message(websocket: WebSocketServerProtocol, message: str
             await websocket.send(response.to_json())
             
         elif ws_msg.type == MessageType.CONNECT:
-            client_info[websocket]["client_type"] = ws_msg.payload.get("client_type", "unknown")
-            logger.info(f"客户端标识: {ws_msg.payload}")
+            client_info[websocket].update({
+                "client_type": ws_msg.payload.get("client_type", "web"),
+                "client_id": ws_msg.payload.get("client_id", ""),
+                "action": ws_msg.payload.get("action", "default")
+            })
+            logger.info(f"📥 客户端连接: {ws_msg.payload}")
+            
+            response = WSMessage(
+                type=MessageType.SYSTEM,
+                payload={
+                    "status": "connected",
+                    "client_id": ws_msg.payload.get("client_id", ""),
+                    "client_type": ws_msg.payload.get("client_type", "web"),
+                    "action": ws_msg.payload.get("action", "default"),
+                    "server_time": datetime.now().isoformat()
+                }
+            )
+            await websocket.send(response.to_json())
+            logger.info(f"📤 发送连接响应给客户端")
+            
+        elif ws_msg.type == MessageType.PUSH:
+            target_type = ws_msg.payload.get("target_type", "web")
+            target_action = ws_msg.payload.get("target_action", "default")
+            data = ws_msg.payload.get("data", {})
+            logger.info(f"📤 推送给 {target_type}/{target_action}: {data.get('news', {}).get('title', '')[:30]}")
+            
+            await push_to_client(target_type, target_action, data)
+            
+            response = WSMessage(
+                type=MessageType.SYSTEM,
+                payload={"status": "pushed", "target": f"{target_type}/{target_action}"}
+            )
+            await websocket.send(response.to_json())
             
     except json.JSONDecodeError:
         logger.error(f"收到无效JSON: {message[:100]}")
@@ -85,8 +123,7 @@ async def handle_client_message(websocket: WebSocketServerProtocol, message: str
         logger.error(f"处理消息错误: {e}")
 
 
-async def broadcast_to_clients(message: WSMessage, client_type: str = None):
-    """广播消息给所有客户端或指定类型客户端"""
+async def broadcast_to_clients(message: WSMessage, client_type: str = None, action: str = None):
     if not connected_clients:
         return
         
@@ -94,7 +131,10 @@ async def broadcast_to_clients(message: WSMessage, client_type: str = None):
     disconnected = set()
     
     for client in connected_clients:
-        if client_type and client_info.get(client, {}).get("client_type") != client_type:
+        info = client_info.get(client, {})
+        if client_type and info.get("client_type") != client_type:
+            continue
+        if action and info.get("action") != action:
             continue
         try:
             await client.send(json_msg)
@@ -104,6 +144,14 @@ async def broadcast_to_clients(message: WSMessage, client_type: str = None):
     
     for client in disconnected:
         await unregister_client(client)
+
+
+async def push_to_client(target_type: str, target_action: str, data: dict):
+    ws_msg = WSMessage(
+        type=MessageType.RECOMMENDATION,
+        payload=data
+    )
+    await broadcast_to_clients(ws_msg, client_type=target_type, action=target_action)
 
 
 async def send_to_specific_client(websocket: WebSocketServerProtocol, message: WSMessage):
@@ -158,14 +206,25 @@ async def push_to_all(data: dict):
 
 
 def load_sample_data():
-    """加载示例数据（从message.json）"""
     try:
         import os
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(base_dir, "message.json")
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data
+        
+        v2_path = os.path.join(base_dir, "message-v2.json")
+        if os.path.exists(v2_path):
+            with open(v2_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                logger.info(f"加载 message-v2.json 格式数据: {len(data)} 条")
+                return data
+        
+        old_path = os.path.join(base_dir, "message.json")
+        if os.path.exists(old_path):
+            with open(old_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                logger.info(f"加载 message.json 格式数据: {len(data)} 条")
+                return data
+        
+        return []
     except Exception as e:
         logger.error(f"加载示例数据失败: {e}")
         return []
@@ -214,7 +273,7 @@ async def test_push_sample():
 if __name__ == "__main__":
     import sys
     
-    interval = 10
+    interval = None
     if len(sys.argv) > 1:
         try:
             interval = int(sys.argv[1])
@@ -222,6 +281,9 @@ if __name__ == "__main__":
             pass
     
     try:
-        asyncio.run(start_server_with_pusher(interval))
+        if interval is not None and interval > 0:
+            asyncio.run(start_server_with_pusher(interval))
+        else:
+            asyncio.run(start_server())
     except KeyboardInterrupt:
         logger.info("服务器停止")
