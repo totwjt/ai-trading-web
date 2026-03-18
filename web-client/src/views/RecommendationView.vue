@@ -21,11 +21,11 @@ interface Recommendation {
   stocks: Stock[]
 }
 
-const { 
-  wsClient, 
-  isConnected, 
-  connect, 
-  disconnect, 
+const {
+  wsClient,
+  isConnected,
+  connect,
+  disconnect,
   subscribe,
   onMessage,
   onConnect,
@@ -46,7 +46,7 @@ const stats = ref([
 
 // 模拟筛选标签
 const filterTabs = ref([
-  { name: '全部推荐', active: true },
+  { name: '实时推送', active: true },
   { name: '机构调研', active: false },
   { name: '研报精选', active: false },
   { name: '北向资金', active: false },
@@ -99,27 +99,65 @@ const recommendations = ref([
       { name: '泸州老窖', code: '000568.SZ', score: 88 },
       { name: '山西汾酒', code: '600809.SH', score: 84 }
     ]
+  },
+  {
+    id: 4,
+    type: '资金流向',
+    typeColor: 'green',
+    source: 'Wind资讯',
+    time: '2023-10-24 11:45',
+    title: '北向资金大幅净买入白酒板块，消费复苏预期重新点燃',
+    analysis: '今日早盘陆股通资金异常流入核心蓝筹，其中白酒龙头个股流入量占全天预计交易量的15%。AI大数据回测显示，白酒板块在资金连续3天净买入后，未来一周出现阶段性底部的概率为82%。建议关注高端及次高端白酒龙头。',
+    sectors: ['白酒', '核心资产', '消费升级'],
+    stocks: [
+      { name: '贵州茅台', code: '600519.SH', score: 91 },
+      { name: '泸州老窖', code: '000568.SZ', score: 88 },
+      { name: '山西汾酒', code: '600809.SH', score: 84 }
+    ]
+  },
+  {
+    id: 5,
+    type: '资金流向',
+    typeColor: 'green',
+    source: 'Wind资讯',
+    time: '2023-10-24 11:45',
+    title: '北向资金大幅净买入白酒板块，消费复苏预期重新点燃',
+    analysis: '今日早盘陆股通资金异常流入核心蓝筹，其中白酒龙头个股流入量占全天预计交易量的15%。AI大数据回测显示，白酒板块在资金连续3天净买入后，未来一周出现阶段性底部的概率为82%。建议关注高端及次高端白酒龙头。',
+    sectors: ['白酒', '核心资产', '消费升级'],
+    stocks: [
+      { name: '贵州茅台', code: '600519.SH', score: 91 },
+      { name: '泸州老窖', code: '000568.SZ', score: 88 },
+      { name: '山西汾酒', code: '600809.SH', score: 84 }
+    ]
   }
 ])
 
 function convertWsDataToRecommendation(data: RecommendationData): Recommendation {
   const news = data.news
   const analysis = data.analysis
-  
-  const stocks: Stock[] = (analysis.利好股票 || []).map((stockStr: string) => {
-    const parsed = parseStockInfo(stockStr)
-    return parsed || { name: stockStr, code: '-', score: 0 }
+
+  const stocks: Stock[] = (analysis.利好股票 || []).map((stock: string | { stock_code: string; stock_name: string; score: string }) => {
+    if (typeof stock === 'object') {
+      const codeNum = parseInt(stock.stock_code)
+      return {
+        name: stock.stock_name,
+        code: stock.stock_code + (codeNum < 500000 ? '.SH' : '.SZ'),
+        score: parseInt(stock.score) || 0
+      }
+    }
+    const parsed = parseStockInfo(stock)
+    return parsed || { name: stock, code: '-', score: 0 }
   })
-  
+
   const typeColors: Record<string, string> = {
     '深度解析': 'red',
     '研报精选': 'blue',
     '资金流向': 'green',
     '政策解读': 'purple'
   }
-  
+
   const typeColor = typeColors[news.title.slice(0, 4)] || 'blue'
-  
+
   return {
     id: Date.now(),
     type: '实时推送',
@@ -136,7 +174,7 @@ function convertWsDataToRecommendation(data: RecommendationData): Recommendation
 function addRecommendation(data: RecommendationData) {
   const newRec = convertWsDataToRecommendation(data)
   recommendations.value.unshift(newRec)
-  
+
   if (recommendations.value.length > 50) {
     recommendations.value.pop()
   }
@@ -148,19 +186,19 @@ onMounted(() => {
     connectionStatus.value = 'connected'
     subscribe(['recommendation'])
   })
-  
+
   onDisconnect(() => {
     isWsConnected.value = false
     connectionStatus.value = 'disconnected'
   })
-  
+
   onError((error) => {
     console.error('WebSocket错误:', error)
     connectionStatus.value = 'error'
   })
-  
+
   onMessage(addRecommendation)
-  
+
   connect()
 })
 
@@ -175,7 +213,7 @@ onUnmounted(() => {
   <div class="min-h-screen bg-bgMain">
     <!-- Connection Status -->
     <div class="px-6 pt-4 flex items-center gap-2">
-      <span 
+      <span
         :class="[
           'w-2 h-2 rounded-full',
           isWsConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
@@ -188,8 +226,8 @@ onUnmounted(() => {
 
     <!-- Stats Summary -->
     <div class="grid grid-cols-4 gap-4 p-6 pb-0">
-      <div 
-        v-for="(stat, index) in stats" 
+      <div
+        v-for="(stat, index) in stats"
         :key="index"
         class="bg-card p-4 border border-border flex justify-between items-end"
       >
@@ -197,10 +235,10 @@ onUnmounted(() => {
           <p class="text-[10px] text-textMute font-bold uppercase tracking-wider">{{ stat.label }}</p>
           <p class="text-2xl font-bold text-textMain">{{ stat.value }}</p>
         </div>
-        <span 
+        <span
           :class="[
             'text-xs font-bold',
-            stat.trend === 'up' ? 'text-up' : 
+            stat.trend === 'up' ? 'text-up' :
             stat.trend === 'down' ? 'text-down' : 'text-primary'
           ]"
         >
@@ -211,13 +249,13 @@ onUnmounted(() => {
 
     <!-- Filter Tabs -->
     <div class="flex gap-2 px-6 pt-4">
-      <button 
+      <button
         v-for="tab in filterTabs"
         :key="tab.name"
         :class="[
           'px-4 py-1.5 text-xs font-bold rounded transition-all',
-          tab.active 
-            ? 'bg-primary text-white' 
+          tab.active
+            ? 'bg-primary text-white'
             : 'bg-card border border-border text-textSub hover:border-primary hover:text-primary'
         ]"
       >
@@ -227,15 +265,15 @@ onUnmounted(() => {
 
     <!-- Recommendation List -->
     <div class="p-6 space-y-4">
-      <div 
+      <div
         v-for="rec in recommendations"
         :key="rec.id"
-        class="bg-card border border-border hover:border-primary/50 transition-colors shadow-sm overflow-hidden flex"
+        class="bg-card border border-border transition-colors shadow-sm overflow-hidden flex"
       >
         <!-- Left: Analysis Logic -->
-        <div class="w-[65%] p-4 border-r border-border">
+        <div class="p-4 border-r border-border flex-1">
           <div class="flex items-center gap-3 mb-2">
-            <span 
+            <span
               :class="[
                 'text-[10px] font-bold px-1.5 py-0.5 rounded',
                 rec.typeColor === 'red' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
@@ -259,7 +297,7 @@ onUnmounted(() => {
           </div>
           <div class="flex flex-wrap gap-2 items-center">
             <span class="text-xs font-bold text-textMute">利好板块:</span>
-            <span 
+            <span
               v-for="sector in rec.sectors"
               :key="sector"
               class="px-2 py-0.5 bg-primary/10 text-primary text-[11px] font-bold rounded"
@@ -268,31 +306,40 @@ onUnmounted(() => {
             </span>
           </div>
         </div>
-        
+
         <!-- Right: Stocks Table -->
-        <div class="w-[35%] bg-gray-50/30 dark:bg-gray-800/30">
-          <table class="w-full h-full density-table">
-            <thead class="bg-gray-50 dark:bg-gray-800">
+        <div class="w-[300px] min-w-[300px] bg-gray-50/30 dark:bg-gray-800/30 p-3">
+          <table class="w-full table-fixed">
+            <thead class="bg-transparent">
               <tr>
-                <th class="text-left font-bold text-textMute">利好股票</th>
-                <th class="text-left font-bold text-textMute">代码</th>
-                <th class="text-right font-bold text-textMute">AI评分</th>
-                <th class="text-right font-bold text-textMute">操作</th>
+                <th class="text-left font-bold text-textMute text-xs py-1 w-[100px]">利好股票</th>
+                <th class="text-left font-bold text-textMute text-xs py-1 w-[80px]">代码</th>
+                <th class="text-right font-bold text-textMute text-xs py-1">AI评分</th>
               </tr>
             </thead>
             <tbody>
-              <tr 
+              <tr
                 v-for="stock in rec.stocks"
                 :key="stock.code"
-                class="hover:bg-primary/5"
+                class="cursor-pointer"
               >
-                <td class="font-bold text-textMain">{{ stock.name }}</td>
-                <td class="text-textMute">{{ stock.code }}</td>
-                <td class="text-right text-up font-bold text-sm font-numeric">{{ stock.score }}</td>
-                <td class="text-right">
-                  <button class="text-sm text-primary">
-                    <Icon icon="add_circle" :size="16" />
-                  </button>
+                <td class="py-2 truncate">
+                  <span class="font-bold text-primary">{{ stock.name }}</span>
+                </td>
+                <td class="py-2">
+                  <span class="text-textSub text-xs font-numeric">{{ stock.code }}</span>
+                </td>
+                <td class="py-2 text-right">
+                  <span
+                    :class="[
+                      'inline-flex items-center justify-center min-w-[36px] h-5 px-1.5 rounded text-xs font-bold font-numeric',
+                      stock.score >= 90 ? 'bg-up/20 text-up' :
+                      stock.score >= 80 ? 'bg-up/10 text-up/80' :
+                      'bg-gray-200 text-textSub dark:bg-gray-700'
+                    ]"
+                  >
+                    {{ stock.score }}
+                  </span>
                 </td>
               </tr>
             </tbody>
@@ -302,10 +349,10 @@ onUnmounted(() => {
     </div>
 
     <!-- Load More -->
-    <div class="pb-8 flex justify-center">
+    <!-- <div class="pb-8 flex justify-center">
       <button class="px-12 py-2 border-2 border-border text-textMute text-xs font-bold hover:border-primary hover:text-primary transition-all rounded">
         加载更多分析数据
       </button>
-    </div>
+    </div> -->
   </div>
 </template>
