@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>AI 接入协议</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+    pre { background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; }
+    code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+    h1 { border-bottom: 1px solid #eee; padding-bottom: 10px; }
+  </style>
+</head>
+<body>
+<h1>AI 接入协议</h1>
+
+<h2>服务器</h2>
+<pre>ws://192.168.66.186:8765</pre>
+
+<h2>推送 JSON</h2>
+<pre>{
+  "type": "recommendation",
+  "payload": {
+    "news": {
+      "title": "string",
+      "content": "string",
+      "publish_time": "YYYY-MM-DD HH:MM:SS",
+      "crawl_time": "YYYY-MM-DD HH:MM:SS",
+      "source": "string",
+      "url": "string"
+    },
+    "analysis": {
+      "利好版块": ["string"],
+      "利好股票": ["600000(名称90)"],
+      "分析因素": ["string"],
+      "详细分析": "string"
+    }
+  }
+}</pre>
+
+<h2>Python</h2>
+<pre>import asyncio, json, websockets
+from datetime import datetime
+
+URI = "ws://192.168.66.186:8765"
+
+async def push(news, analysis):
+    async with websockets.connect(URI) as ws:
+        await ws.send(json.dumps({
+            "type": "recommendation",
+            "payload": {"news": news, "analysis": analysis},
+            "timestamp": datetime.now().isoformat(),
+            "message_id": f"msg_{datetime.now().timestamp()}"
+        }, ensure_ascii=False))</pre>
+
+<h2>利好股票</h2>
+<pre>代码(名称评分)
+例: 600519(贵州茅台91)</pre>
+
+<h2>流程</h2>
+<p>抓取新闻 → AI分析 → push()</p>
+</body>
+</html>
