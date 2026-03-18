@@ -2,12 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-primary: #0066FF;
+  --color-up: #FF0000;
+  --color-down: #00B050;
+  --color-border: #E5E7EB;
+  --color-bg-main: #F9FAFB;
+  --color-card: #FFFFFF;
+  --color-text-main: #1F2937;
+  --color-text-sub: #6B7280;
+  --color-text-mute: #9CA3AF;
+}
+
+.dark {
+  --color-primary: #3B82F6;
+  --color-up: #EF4444;
+  --color-down: #22C55E;
+  --color-border: #374151;
+  --color-bg-main: #111827;
+  --color-card: #1F2937;
+  --color-text-main: #F9FAFB;
+  --color-text-sub: #9CA3AF;
+  --color-text-mute: #6B7280;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #D1D5DB;
+  background: var(--color-border);
   border-radius: 10px;
 }
 
@@ -15,15 +39,33 @@
 .density-table td {
   padding: 6px 8px;
   font-size: 12px;
-  border-bottom: 1px solid #F3F4F6;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .sidebar-item-active {
-  background-color: #EFF6FF;
-  color: #0066FF;
-  border-right: 4px solid #0066FF;
+  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  border-right: 4px solid var(--color-primary);
 }
 
 .chart-container {
   height: 400px;
+}
+
+@layer components {
+  .bg-bgMain { background-color: var(--color-bg-main); }
+  .bg-card { background-color: var(--color-card); }
+  .bg-primary { background-color: var(--color-primary); }
+  .bg-up { background-color: var(--color-up); }
+  .bg-down { background-color: var(--color-down); }
+  
+  .text-textMain { color: var(--color-text-main); }
+  .text-textSub { color: var(--color-text-sub); }
+  .text-textMute { color: var(--color-text-mute); }
+  .text-primary { color: var(--color-primary); }
+  .text-up { color: var(--color-up); }
+  .text-down { color: var(--color-down); }
+  
+  .border-border { border-color: var(--color-border); }
+  .border-primary { border-color: var(--color-primary); }
 }

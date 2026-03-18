@@ -3,9 +3,11 @@ export default {
     "./index.html",
     "./src/**/*.{vue,js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
+        // 默认主题 - 股票交易风格
         primary: '#0066FF',
         up: '#FF0000',
         down: '#00B050',
@@ -14,7 +16,7 @@ export default {
         card: '#FFFFFF',
         textMain: '#1F2937',
         textSub: '#6B7280',
-        textMute: '#9CA3AF'
+        textMute: '#9CA3AF',
       },
       fontSize: {
         xxs: '0.7rem',
