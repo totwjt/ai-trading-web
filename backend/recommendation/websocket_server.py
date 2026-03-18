@@ -148,13 +148,13 @@ async def push_recommendation(data: dict):
 
 
 async def push_to_all(data: dict):
-    """推送消息给所有客户端"""
+    """推送消息给前端Web客户端"""
     ws_msg = WSMessage(
         type=MessageType.RECOMMENDATION,
         payload=data
     )
-    await broadcast_to_clients(ws_msg)
-    logger.info(f"广播消息: {data.get('news', {}).get('title', '')[:50]}")
+    await broadcast_to_clients(ws_msg, client_type="web")
+    logger.info(f"推送消息给前端: {data.get('news', {}).get('title', '')[:50]}")
 
 
 def load_sample_data():
