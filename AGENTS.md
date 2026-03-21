@@ -21,7 +21,7 @@ This file contains guidelines for AI agents working on the AI Trading Web projec
   - `strategy/` - 策略管理服务
   - `backtest/` - 回测服务
   - `trading/` - 交易服务
-  - `ai/` - AI 分析服务
+  - `recommendation/` - 智能荐股服务
 
 ## 1.1 布局架构（重要）
 
@@ -66,10 +66,11 @@ App.vue
 
 ## 2. Build & Development Commands
 
-Since no `package.json` exists yet, these commands will be used once initialized:
+Frontend commands should be run in `web-client/`, because the active `package.json` is there.
 
 **Development:**
 ```bash
+cd web-client
 pnpm dev
 # or
 npm run dev
@@ -77,6 +78,7 @@ npm run dev
 
 **Build:**
 ```bash
+cd web-client
 pnpm build
 # or
 npm run build
@@ -84,6 +86,7 @@ npm run build
 
 **Preview:**
 ```bash
+cd web-client
 pnpm preview
 # or
 npm run preview
@@ -91,12 +94,14 @@ npm run preview
 
 **Linting & Formatting:**
 ```bash
+cd web-client
 pnpm lint
 pnpm format
 ```
 
 **Testing:**
 ```bash
+cd web-client
 pnpm test
 # Run single test file:
 pnpm test path/to/test.spec.ts
@@ -104,6 +109,12 @@ pnpm test path/to/test.spec.ts
 pnpm test -t "test name"
 # Run tests in watch mode:
 pnpm test --watch
+```
+
+**Backend Start:**
+```bash
+cd backend
+python server.py
 ```
 
 ## 3. Code Style Guidelines
@@ -203,15 +214,19 @@ export const useStockStore = defineStore('stock', () => {
 
 ### 3.7 File Organization
 
-Follow the modular structure outlined in `docs/init.md`:
+Follow the actual frontend source structure under `web-client/src/`:
 
-```
-src/
+```text
+web-client/src/
+├── api/
 ├── assets/
 ├── components/
+│   ├── backtest/
 │   ├── common/
-│   └── features/
+│   ├── features/
+│   └── layout/
 ├── composables/
+├── config/
 ├── router/
 ├── stores/
 ├── types/
@@ -223,13 +238,15 @@ src/
 
 1.  **Read `AI_CONTEXT.md`** before starting any task.
 2.  **Read `design/UI_RULES.md`** for all UI-related tasks.
-3.  **Do not assume database structure**; consult `docs/DATABASE.md` if it exists.
+3.  **Do not assume database structure**; `docs/DATABASE.md` is currently absent, so confirm from code or ask the user.
 4.  **Do not create undefined modules**.
 5.  **If requirements are ambiguous**, pause and ask the user.
 6.  **Achieve 100% clarity** before implementation.
 7.  **Follow `docs/plan.md`** for phased development.
 8.  **Update `docs/progress.md`** upon completing a phase.
 9.  **Commit frequently** with descriptive messages.
+10. **For API tasks**, consult the relevant file under `docs/API/` instead of assuming a root `docs/API.md`.
+11. **For backend startup**, use the unified entrypoint `backend/server.py` with `cd backend && python server.py`.
 
 ### 4.1 Cursor/Copilot Integration
 

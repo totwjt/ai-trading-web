@@ -68,23 +68,34 @@ tailwind.config = {
 ai-trading-web
 │
 ├─ AI_CONTEXT.md
+├─ AGENTS.md
 ├─ README.md
+├─ css-prompt.md
 │
 ├─ docs
 │   ├─ ARCHITECTURE.md
-│   ├─ DATABASE.md
-│   └─ API.md
+│   ├─ init.md
+│   ├─ plan.md
+│   ├─ progress.md
+│   ├─ backtest.md
+│   └─ API/
 │
 ├─ design
-│   └─ UI_RULES.md
-├─ agents
-│   └─ AGENTS.md
-│
-├─ skills
-│   └─ SKILLS.md
+│   ├─ UI_RULES.md
+│   └─ ui/stitch/
 │
 ├─ web-client                # 前端系统
 │   ├─ src/
+│   │   ├─ api/
+│   │   ├─ assets/
+│   │   ├─ components/
+│   │   ├─ composables/
+│   │   ├─ config/
+│   │   ├─ router/
+│   │   ├─ stores/
+│   │   ├─ types/
+│   │   ├─ utils/
+│   │   └─ views/
 │   ├─ package.json
 │   └─ vite.config.ts
 │
@@ -94,4 +105,5 @@ ai-trading-web
     ├─ strategy/             # 策略管理服务
     ├─ backtest/             # 回测服务
     ├─ trading/              # 交易服务
-    └─ ai/                   # AI 分析服务
+    ├─ recommendation/       # 智能荐股服务
+    └─ common/               # 公共后端模块

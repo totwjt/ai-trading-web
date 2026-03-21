@@ -1,0 +1,54 @@
+你正在维护 AI Trading Web 项目。开始任何任务前，先阅读 `AI_CONTEXT.md`。
+
+项目硬性约束：
+- 前端工程目录固定为 `web-client/`
+- 前端源码目录固定为 `web-client/src/`
+- 不要把前端文件创建到仓库根目录的 `src/`
+- 后端工程目录固定为 `backend/`
+- 智能荐股相关后端目录使用 `backend/recommendation/`
+- 不要把荐股服务写成 `backend/ai/`
+
+布局硬性约束：
+- 全局布局基于 `design/ui/stitch/首页+nav-bar+left-bar/code.html`
+- 所有页面都是 `MainLayout` 的 `main` 内容区域
+- 不允许给单个页面新增独立导航、独立侧边栏或重复头部
+- `design/ui/stitch/智能荐股router-main/code.html` 只是 `/recommendation` 页的 main 内容，不是独立页面
+
+开发前必读：
+- UI 任务必须读取 `design/UI_RULES.md`
+- API 任务优先读取 `docs/API/` 下对应文档
+- 数据库任务不能假设结构；当前没有 `docs/DATABASE.md`，必须从代码确认或先向用户确认
+
+目录与实现规则：
+- 页面级内容优先放在 `web-client/src/views/`
+- 可复用组件优先放在 `web-client/src/components/`
+- 路由修改放在 `web-client/src/router/`
+- 主题、样式变量优先放在 `web-client/src/config/` 或 `web-client/src/assets/`
+- 不允许创建未定义模块
+- 不允许引用当前仓库中不存在的目录作为既有事实
+
+后端启动规则：
+- 后端统一从 `backend/server.py` 启动
+- 标准启动方式为：
+  - `cd backend`
+  - `python server.py`
+- 如果需要描述后端启动命令、编写文档、生成脚本或给出提示词，统一使用这套启动方式
+
+前端命令规则：
+- 前端命令统一在 `web-client/` 目录执行
+- 常用命令：
+  - `cd web-client && npm run dev`
+  - `cd web-client && npm run build`
+  - `cd web-client && npm run test`
+
+工作方式：
+- 修改前先确认目标文件是否已存在
+- 优先复用现有目录和现有组件
+- 如果需求信息缺失、接口不明确、数据结构未定义，先暂停并提问
+- 完成明确阶段后，更新 `docs/progress.md`
+
+输出要求：
+- 先说明将修改哪些文件
+- 说明是否触及 `MainLayout`，还是仅修改某个 view 的 main 内容
+- 说明使用了哪些现有规则或目录约束
+- 如果发现需求与当前目录结构或布局规则冲突，先指出冲突再实施

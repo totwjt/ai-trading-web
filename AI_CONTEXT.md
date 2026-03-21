@@ -1,131 +1,162 @@
 # AI_CONTEXT
 
-项目名称
-AI股票交易平台 Web端
+## 项目名称
+AI 股票交易平台 Web 端
 
-项目目标
-为用户提供策略开发、策略回测、模拟交易、持仓管理和智能选股能力。
+## 项目目标
+为用户提供策略开发、策略回测、模拟交易、持仓管理和智能荐股能力。
 
-系统模块
+## 当前仓库目录要求
 
-user
-用户系统
+### 根目录
+```text
+ai-trading-web/
+├── AI_CONTEXT.md
+├── AGENTS.md
+├── README.md
+├── css-prompt.md
+├── docs/
+├── design/
+├── web-client/
+└── backend/
+```
 
-market
-股票市场数据展示
+### 前端目录
+- 前端工程固定在 `web-client/`
+- 包管理与构建文件在 `web-client/package.json`、`web-client/vite.config.ts`
+- 前端源码固定在 `web-client/src/`
 
-strategy
-策略生成与策略管理
+```text
+web-client/src/
+├── api/
+├── assets/
+├── components/
+│   ├── backtest/
+│   ├── common/
+│   ├── features/
+│   └── layout/
+├── composables/
+├── config/
+├── router/
+├── stores/
+├── types/
+├── utils/
+├── views/
+├── App.vue
+└── main.ts
+```
 
-backtest
-策略回测系统
+### 后端目录
+- 后端代码固定在 `backend/`
+- 已存在的服务目录：
+  - `backend/gateway/`
+  - `backend/data_sync/`
+  - `backend/strategy/`
+  - `backend/backtest/`
+  - `backend/trading/`
+  - `backend/recommendation/`
+- 当前仓库中的荐股能力以 `backend/recommendation/` 为准，不要写成 `backend/ai/`
+- 根目录下还存在若干兼容/启动文件，例如：
+  - `backend/server.py`
+  - `backend/backtest_server.py`
+  - `backend/websocket_manager.py`
+  - `backend/common/`
+- 当前后端统一启动入口为 `backend/server.py`
+- 标准启动方式：
+  - `cd backend`
+  - `python server.py`
 
-portfolio
-用户持仓与资产
-
-simulator
-模拟交易系统
+## 系统模块
+- `user` 用户系统
+- `market` 股票市场数据展示
+- `strategy` 策略生成与策略管理
+- `backtest` 策略回测系统
+- `portfolio` 用户持仓与资产
+- `simulator` 模拟交易系统
+- `recommendation` 智能荐股系统
 
 ## 布局架构（重要）
 
 ### 主结构
-- **文件**: `design/ui/stitch/首页+nav-bar+left-bar/code.html`
-- **包含**: 左侧导航 + 头部导航 + 首页 main 内容
-- **用途**: 全局布局，所有页面共用
+- 文件：`design/ui/stitch/首页+nav-bar+left-bar/code.html`
+- 包含：左侧导航 + 头部导航 + 首页 main 内容
+- 用途：全局布局，所有页面共用
 
 ### 页面结构
-- **所有页面**都是 **main 内容**（在主结构的 main 区域内显示）
-- **必须**使用主结构的导航（左侧导航 + 头部导航）
-- **不能**有自己的独立导航
+- 所有页面都是主结构 `main` 区域中的内容
+- 所有业务页面必须复用全局导航
+- 不允许为单个页面再创建独立导航框架
 
 ### 智能荐股页面
-- **文件**: `design/ui/stitch/智能荐股router-main/code.html`
-- **理解**: 这是 **main 内容的一部分**，不是独立页面
-- **注意**: 它的头部（"智能选股中心"）是**页面标题**，不是独立导航
-- **路由**: `/recommendation`
+- 文件：`design/ui/stitch/智能荐股router-main/code.html`
+- 该设计稿只是 `main` 内容，不是独立站点
+- “智能选股中心”是页面标题，不是页面级导航
+- 路由：`/recommendation`
 
 ### 项目路由
-```
-/              -> 首页 (使用 MainLayout)
-/recommendation -> 智能荐股 (使用 MainLayout)
-/backtest       -> 策略回测 (使用 MainLayout)
-/simulation     -> 模拟交易 (使用 MainLayout)
-/holdings       -> 我的持仓 (使用 MainLayout)
-/settings       -> 设置 (使用 MainLayout)
+```text
+/               -> 首页
+/recommendation -> 智能荐股
+/backtest       -> 策略回测
+/simulation     -> 模拟交易
+/holdings       -> 我的持仓
+/settings       -> 设置
 ```
 
-### 组件结构
-```
+### 页面组件结构
+```text
 App.vue
-└── MainLayout.vue (全局导航：左侧导航 + 头部导航)
+└── MainLayout.vue
     └── RouterView
-        ├── HomeView.vue (首页)
-        ├── RecommendationView.vue (智能荐股 - main 内容)
-        ├── BacktestView.vue (策略回测 - main 内容)
-        ├── SimulationView.vue (模拟交易 - main 内容)
-        ├── HoldingsView.vue (我的持仓 - main 内容)
-        └── SettingsView.vue (设置 - main 内容)
+        ├── HomeView.vue
+        ├── RecommendationView.vue
+        ├── BacktestView.vue
+        ├── SimulationView.vue
+        ├── HoldingsView.vue
+        └── SettingsView.vue
 ```
 
-文档索引
+## 文档索引
 
-架构
-docs/ARCHITECTURE.md
+### 已存在文档
+- 架构：`docs/ARCHITECTURE.md`
+- UI 规则：`design/UI_RULES.md`
+- 初始化说明：`docs/init.md`
+- 开发计划：`docs/plan.md`
+- 进度记录：`docs/progress.md`
+- 回测说明：`docs/backtest.md`
+- API 文档目录：`docs/API/`
 
-数据库
-docs/DATABASE.md
+### 当前仓库中不存在的文档
+- `docs/DATABASE.md`
+- `docs/API.md`
+- `skills/SKILLS.md`
+- `agents/AGENTS.md`
 
-API规范
-docs/API.md
+如果任务依赖这些文件，必须先确认是否需要新建文档或向用户澄清，不能假设它们已经存在。
 
-回测功能
-docs/backtest.md
+## AI 提示词更新基线
 
-UI设计规范
-design/UI_RULES.md
+以后凡是为本项目编写提示词、规则或 AI 协作文档，必须同时满足以下要求：
 
-docs/plan.md
-当前项目进度
-docs/progress.md
+1. 明确前端工作目录是 `web-client/`，不是仓库根目录
+2. 明确前端源码目录是 `web-client/src/`
+3. 明确后端荐股服务目录使用 `backend/recommendation/`
+4. 涉及布局时，必须说明所有页面都挂载在 `MainLayout` 的 `main` 内容区域
+5. 涉及 UI 时，必须引用 `design/UI_RULES.md`
+6. 涉及 API 时，优先查看 `docs/API/` 下已有文档，而不是引用不存在的 `docs/API.md`
+7. 涉及数据库时，不能假设 `docs/DATABASE.md` 已存在；若缺失，必须向用户确认
+8. 不允许在提示词中引用当前仓库不存在的目录作为既有事实
+9. 涉及后端启动命令时，统一使用 `cd backend` 后执行 `python server.py`
 
-AI能力
-skills/SKILLS.md
+## AI 工作规则
 
-Agent角色
-agents/AGENTS.md
-
-临时、项目初期
-
-初始化版本
-docs/init.md
-
-# 重要提示：
-涉及到后端API能力功能时必须构建单元测试
-在必要时可以新增本项目skill，来提升AI识别效率
-
-AI工作规则
-
-1 任何任务开始前读取 AI_CONTEXT.md
-
-2 如果任务涉及 API
-   读取 docs/API.md
-
-3 如果任务涉及数据库
-   读取 docs/DATABASE.md
-
-4 不允许假设数据库结构
-
-5 不允许创建未定义模块
-
-6 如果需求存在以下情况
-   - 信息缺失
-   - 接口不明确
-   - 数据结构未定义
-
-   必须暂停执行并向用户提问
-
-7 任何需求必须达到 100% 明确后才允许开始实现
-
-8 通常项目会按照docs/plan.md来按照步骤开发
-
-9 在每次确定完成一个阶段后，完善 docs/progress.md记录当前完成的步骤，然后git提交代码（add+commit+push），remote：git@github.com:totwjt/ai-trading-web.git
+1. 任何任务开始前读取 `AI_CONTEXT.md`
+2. UI 相关任务必须读取 `design/UI_RULES.md`
+3. API 相关任务优先读取 `docs/API/` 下对应文档
+4. 数据库结构不能假设；若没有明确文档或模型定义，必须先确认
+5. 不允许创建未定义模块或凭空扩展服务边界
+6. 如果存在信息缺失、接口不明确、数据结构未定义，必须先澄清
+7. 通常按照 `docs/plan.md` 的阶段推进
+8. 完成明确阶段后，更新 `docs/progress.md`
+9. 新增 AI 提示词时，要同步校验是否符合本文件的目录要求

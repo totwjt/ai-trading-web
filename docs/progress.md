@@ -164,6 +164,31 @@ App.vue
 ### 下一步：
 - Phase 3: 业务模块开发（用户模块、智能荐股、策略回测、实盘模拟）
 
+## 文档同步：AI 目录提示词对齐（2026-03-21） ✅
+
+### 已完成：
+1. ✅ 更新 `AI_CONTEXT.md`
+   - 明确根目录、`web-client/`、`backend/` 的真实结构
+   - 明确荐股服务目录以 `backend/recommendation/` 为准
+   - 标注 `docs/API.md`、`docs/DATABASE.md` 等不存在文件不能被默认引用
+
+2. ✅ 更新 `AGENTS.md`
+   - 修正后端服务目录描述
+   - 修正前端命令的实际执行目录为 `web-client/`
+   - 修正前端源码组织说明为 `web-client/src/`
+
+3. ✅ 更新 `css-prompt.md`
+   - 将临时 CSS 提示词升级为可复用的项目级 UI/CSS 提示词
+   - 增加目录约束、布局约束和输出要求
+
+4. ✅ 更新 `docs/init.md` 与 `README.md`
+   - 统一项目目录示意，移除不存在目录的既有描述
+   - 让初始化说明与仓库现状保持一致
+
+5. ✅ 新增 `.cursorrules`
+   - 固化项目目录、布局约束、提示词输出要求
+   - 明确后端统一通过 `backend/server.py` 启动
+
 ## Phase 3: 业务模块开发
 
 ### 3.1 智能荐股模块 - WebSocket 实时推送 ✅

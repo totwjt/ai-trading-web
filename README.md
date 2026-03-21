@@ -13,8 +13,8 @@ ai-trading-web/
 │   └── ui/stitch/       # UI 设计文件
 │       ├── 首页+nav-bar+left-bar/  # 主结构（全局导航）
 │       └── 智能荐股router-main/    # 智能荐股页面内容
-├── agents/              # AI 代理配置
-├── skills/              # AI 技能配置
+├── AGENTS.md            # AI 协作规则
+├── css-prompt.md        # UI/CSS 优化提示词
 └── AI_CONTEXT.md        # AI 上下文配置
 ```
 
@@ -67,9 +67,9 @@ npm run dev
 ### 后端开发
 
 ```bash
-cd backend/gateway
+cd backend
 pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+python server.py
 ```
 
 ## 开发命令
@@ -82,7 +82,7 @@ uvicorn main:app --reload --port 8000
 - `npm run format` - 代码格式化
 
 ### 后端
-- `uvicorn main:app --reload` - 启动开发服务器
+- `cd backend && python server.py` - 启动统一后端服务
 - `pytest` - 运行测试
 
 ## 文档
