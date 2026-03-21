@@ -2,6 +2,7 @@
 回测管理 API 路由
 """
 
+import asyncio
 from datetime import datetime
 from typing import Optional
 
@@ -9,13 +10,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.common.database import get_db
-from backend.backtest.src.models import Backtest, Strategy, BacktestStatus
-from backend.backtest.src.schemas import (
-    ApiResponse, BacktestCreate, BacktestProgressCreate,
-    BacktestItem, BacktestListResponse, BacktestDetailResponse,
-    BacktestProgressResponse, TradeListResponse, LogListResponse,
-    EquityCurveResponse, PerformanceResponse
+from common.database import get_db
+from backtest.src.models import Backtest, Strategy, BacktestStatus
+from backtest.src.schemas import (
+    ApiResponse, BacktestListResponse, BacktestCreate, BacktestDetailResponse, BacktestResult,
+    BacktestCancelRequest, BacktestProgressResponse, BacktestPerformanceResponse,
+    BacktestTradesResponse, BacktestLogsResponse, BacktestEquityResponse,
+    TradeListResponse, LogListResponse, EquityCurveResponse, PerformanceResponse
 )
 
 router = APIRouter(prefix="/backtests", tags=["回测管理"])
@@ -195,6 +196,58 @@ async def get_backtest_progress(
     )
 
 
+@router.post("/{backtest_id}/run", response_model=ApiResponse)
+async def run_backtest(
+    backtest_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """运行回测（异步）"""
+    result = await db.execute(select(Backtest).where(Backtest.id == backtest_id))
+    backtest = result.scalar_one_or_none()
+    
+    if not backtest:
+        raise HTTPException(status_code=404, detail="回测不存在")
+    
+    if backtest.status not in [BacktestStatus.PENDING, BacktestStatus.RUNNING]:
+        raise HTTPException(status_code=400, detail=f"回测状态不允许运行: {backtest.status.value}")
+    
+    result = await db.execute(select(Strategy).where(Strategy.id == backtest.strategy_id))
+    strategy = result.scalar_one_or_none()
+    
+    if not strategy:
+        raise HTTPException(status_code=404, detail="关联策略不存在")
+    
+    params = {
+        "start_date": backtest.start_date,
+        "end_date": backtest.end_date,
+        "initial_capital": backtest.initial_capital,
+        "frequency": backtest.frequency
+    }
+    
+    backtest.status = BacktestStatus.RUNNING
+    backtest.started_at = datetime.now()
+    await db.commit()
+    
+    from backtest.src.engine import executor
+    asyncio.create_task(
+        executor.execute(
+            backtest_id=backtest_id,
+            strategy_code=strategy.code,
+            params=params,
+            db_session=db
+        )
+    )
+    
+    return ApiResponse(
+        code=0,
+        message="回测已启动",
+        data={
+            "backtest_id": backtest_id,
+            "status": "running"
+        }
+    )
+
+
 @router.post("/{backtest_id}/cancel", response_model=ApiResponse)
 async def cancel_backtest(
     backtest_id: int,
@@ -231,7 +284,7 @@ async def get_backtest_trades(
     db: AsyncSession = Depends(get_db)
 ):
     """获取回测交易明细"""
-    from backend.backtest.src.models import BacktestTrade
+    from backtest.src.models import BacktestTrade
     
     result = await db.execute(select(Backtest).where(Backtest.id == backtest_id))
     backtest = result.scalar_one_or_none()
@@ -285,7 +338,7 @@ async def get_backtest_logs(
     db: AsyncSession = Depends(get_db)
 ):
     """获取回测系统日志"""
-    from backend.backtest.src.models import BacktestLog, LogLevel
+    from backtest.src.models import BacktestLog, LogLevel
     
     result = await db.execute(select(Backtest).where(Backtest.id == backtest_id))
     backtest = result.scalar_one_or_none()
@@ -330,7 +383,7 @@ async def get_equity_curve(
     db: AsyncSession = Depends(get_db)
 ):
     """获取净值曲线数据"""
-    from backend.backtest.src.models import EquityCurve
+    from backtest.src.models import EquityCurve
     
     result = await db.execute(select(Backtest).where(Backtest.id == backtest_id))
     backtest = result.scalar_one_or_none()

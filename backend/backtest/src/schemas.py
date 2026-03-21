@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import BaseModel, Field
 
-from backend.backtest.src.models import StrategyStatus, BacktestStatus, TradeDirection, LogLevel
+from backtest.src.models import StrategyStatus, BacktestStatus, TradeDirection, LogLevel
 
 
 class ApiResponse(BaseModel):
@@ -167,9 +167,48 @@ class BacktestListResponse(ApiResponse):
     }
 
 
+class BacktestCancelRequest(BaseModel):
+    """取消回测请求"""
+    backtest_id: int
+
+
 class BacktestProgressResponse(ApiResponse):
     """回测进度响应"""
     data: Optional[BacktestProgress] = None
+
+
+class BacktestPerformanceResponse(ApiResponse):
+    """回测性能指标响应"""
+    data: Optional[Dict[str, Any]] = None
+
+
+class BacktestTradesResponse(ApiResponse):
+    """回测交易明细响应"""
+    data: Dict[str, Any] = {
+        "total": 0,
+        "page": 1,
+        "page_size": 50,
+        "items": []
+    }
+
+
+class BacktestLogsResponse(ApiResponse):
+    """回测日志响应"""
+    data: Dict[str, Any] = {
+        "error_count": 0,
+        "warning_count": 0,
+        "logs": []
+    }
+
+
+class BacktestEquityResponse(ApiResponse):
+    """回测净值曲线响应"""
+    data: Dict[str, Any] = {
+        "backtest_id": 0,
+        "benchmark": "CSI300",
+        "frequency": "1d",
+        "data_points": []
+    }
 
 
 # ============ Trade Schemas ============

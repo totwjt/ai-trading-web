@@ -12,7 +12,7 @@ from typing import Optional, Callable, Dict, Any, List
 
 import backtrader as bt
 
-from backend.backtest.src.models import (
+from backtest.src.models import (
     Backtest, BacktestStatus, BacktestTrade, BacktestLog, EquityCurve, LogLevel
 )
 
@@ -105,6 +105,57 @@ class BacktestEngine:
             )
             cerebro.adddata(data)
     
+    def _load_sample_data(self, cerebro: bt.Cerebro):
+        """
+        加载示例数据（用于预览测试）
+        
+        生成模拟股票数据用于验证策略逻辑
+        """
+        from datetime import timedelta
+        import random
+        
+        start = datetime.strptime(self.start_date, "%Y-%m-%d")
+        end = datetime.strptime(self.end_date, "%Y-%m-%d")
+        
+        data_points = []
+        current_date = start
+        price = 100.0
+        
+        while current_date <= end:
+            if current_date.weekday() < 5:
+                change = random.uniform(-0.03, 0.04)
+                close = price * (1 + change)
+                high = close * (1 + random.uniform(0, 0.02))
+                low = close * (1 - random.uniform(0, 0.02))
+                open_price = price * (1 + random.uniform(-0.01, 0.01))
+                volume = random.randint(1000000, 10000000)
+                
+                data_points.append({
+                    'datetime': current_date,
+                    'open': open_price,
+                    'high': high,
+                    'low': low,
+                    'close': close,
+                    'volume': volume
+                })
+                price = close
+            current_date += timedelta(days=1)
+        
+        class SampleData(bt.feeds.PandasData):
+            params = (
+                ('datetime', 0),
+                ('open', 1),
+                ('high', 2),
+                ('low', 3),
+                ('close', 4),
+                ('volume', 5),
+                ('openinterest', -1)
+            )
+        
+        import pandas as pd
+        df = pd.DataFrame(data_points)
+        cerebro.adddata(SampleData(dataname=df, name="SAMPLE"))
+    
     def _create_strategy(self, cerebro: bt.Cerebro):
         """
         创建策略实例
@@ -148,6 +199,8 @@ class BacktestEngine:
             callbacks.progress(10, "加载数据")
             
             self.cerebro = self._create_cerebro()
+            
+            self._load_sample_data(self.cerebro)
             
             callbacks.log(LogLevel.INFO.value, "Adding Strategy to Brain.")
             callbacks.progress(20, "添加策略")
@@ -224,7 +277,7 @@ class BacktestExecutor:
             db_session: 数据库会话
             callbacks: 回调函数
         """
-        from backend.backtest.src.models import Backtest
+        from backtest.src.models import Backtest
         
         self._cancel_flags[backtest_id] = False
         

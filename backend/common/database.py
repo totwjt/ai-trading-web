@@ -8,7 +8,7 @@ from sqlalchemy.orm import DeclarativeBase
 from typing import AsyncGenerator
 
 # 数据库连接 URL (根据实际环境配置)
-DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_trading"
+DATABASE_URL = "postgresql+asyncpg://wangjiangtao:123456@localhost:5432/tushare_sync"
 
 # 创建异步引擎
 engine = create_async_engine(

@@ -21,7 +21,7 @@ from websockets import WebSocketServerProtocol
 
 from recommendation.db import get_latest_news, get_news_by_id
 from recommendation.models import WSMessage, MessageType
-from backend.backtest.src.routers import strategy_router, backtest_router, preview_router
+from backtest.src.routers import strategy_router, backtest_router, preview_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

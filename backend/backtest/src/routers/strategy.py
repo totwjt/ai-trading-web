@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.common.database import get_db
-from backend.backtest.src.models import Strategy, StrategyStatus
-from backend.backtest.src.schemas import (
+from common.database import get_db
+from backtest.src.models import Strategy, StrategyStatus
+from backtest.src.schemas import (
     ApiResponse, StrategyCreate, StrategyUpdate, StrategyAction,
     StrategyItem, StrategyListResponse, StrategyDetailResponse
 )

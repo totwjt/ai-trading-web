@@ -20,7 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from backend.common.database import Base
+from common.database import Base
 
 
 class StrategyStatus(str, Enum):
