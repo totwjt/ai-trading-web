@@ -27,7 +27,6 @@ client_info: Dict[WebSocketServerProtocol, Dict[str, Any]] = {}
 
 
 async def register_client(websocket: WebSocketServerProtocol, path: str):
-    """注册新的客户端连接"""
     connected_clients.add(websocket)
     client_info[websocket] = {
         "path": path,
@@ -48,18 +47,16 @@ async def register_client(websocket: WebSocketServerProtocol, path: str):
 
 
 async def unregister_client(websocket: WebSocketServerProtocol):
-    """注销客户端连接"""
     connected_clients.discard(websocket)
     client_info.pop(websocket, None)
     logger.info(f"客户端断开: 当前连接数: {len(connected_clients)}")
 
 
 async def handle_client_message(websocket: WebSocketServerProtocol, message: str):
-    """处理客户端消息"""
     try:
         ws_msg = WSMessage.from_json(message)
         
-        logger.info(f"📥 收到客户端消息: type={ws_msg.type}, payload={json.dumps(ws_msg.payload, ensure_ascii=False)[:200]}")
+        logger.info(f"收到客户端消息: type={ws_msg.type}")
         
         if ws_msg.type == MessageType.HEARTBEAT:
             response = WSMessage(
@@ -67,7 +64,6 @@ async def handle_client_message(websocket: WebSocketServerProtocol, message: str
                 payload={"status": "pong", "server_time": datetime.now().isoformat()}
             )
             await websocket.send(response.to_json())
-            logger.info("📤 发送心跳响应")
             
         elif ws_msg.type == MessageType.SUBSCRIBE:
             client_info[websocket].update({
@@ -75,7 +71,6 @@ async def handle_client_message(websocket: WebSocketServerProtocol, message: str
                 "client_id": ws_msg.payload.get("client_id", ""),
                 "action": ws_msg.payload.get("action", "default")
             })
-            logger.info(f"📥 客户端订阅: {ws_msg.payload}")
             response = WSMessage(
                 type=MessageType.SYSTEM,
                 payload={"status": "subscribed", "topics": ws_msg.payload.get("topics", [])}
@@ -88,8 +83,6 @@ async def handle_client_message(websocket: WebSocketServerProtocol, message: str
                 "client_id": ws_msg.payload.get("client_id", ""),
                 "action": ws_msg.payload.get("action", "default")
             })
-            logger.info(f"📥 客户端连接: {ws_msg.payload}")
-            
             response = WSMessage(
                 type=MessageType.SYSTEM,
                 payload={
@@ -101,14 +94,11 @@ async def handle_client_message(websocket: WebSocketServerProtocol, message: str
                 }
             )
             await websocket.send(response.to_json())
-            logger.info(f"📤 发送连接响应给客户端")
             
         elif ws_msg.type == MessageType.PUSH:
             target_type = ws_msg.payload.get("target_type", "web")
             target_action = ws_msg.payload.get("target_action", "default")
             data = ws_msg.payload.get("data", {})
-            logger.info(f"📤 推送给 {target_type}/{target_action}: {data.get('news', {}).get('title', '')[:30]}")
-            
             await push_to_client(target_type, target_action, data)
             
             response = WSMessage(
@@ -116,7 +106,7 @@ async def handle_client_message(websocket: WebSocketServerProtocol, message: str
                 payload={"status": "pushed", "target": f"{target_type}/{target_action}"}
             )
             await websocket.send(response.to_json())
-            
+
     except json.JSONDecodeError:
         logger.error(f"收到无效JSON: {message[:100]}")
     except Exception as e:
@@ -155,7 +145,6 @@ async def push_to_client(target_type: str, target_action: str, data: dict):
 
 
 async def send_to_specific_client(websocket: WebSocketServerProtocol, message: WSMessage):
-    """发送消息给特定客户端"""
     try:
         await websocket.send(message.to_json())
     except Exception as e:
@@ -163,7 +152,6 @@ async def send_to_specific_client(websocket: WebSocketServerProtocol, message: W
 
 
 async def websocket_handler(websocket: WebSocketServerProtocol):
-    """WebSocket 连接处理器"""
     await register_client(websocket, "")
     
     try:
@@ -178,7 +166,6 @@ async def websocket_handler(websocket: WebSocketServerProtocol):
 
 
 async def start_server():
-    """启动WebSocket服务器"""
     logger.info(f"启动WebSocket服务: ws://{HOST}:{PORT}")
     async with websockets.serve(websocket_handler, HOST, PORT):
         logger.info(f"WebSocket服务器运行中: ws://{HOST}:{PORT}")
@@ -186,7 +173,6 @@ async def start_server():
 
 
 async def push_recommendation(data: dict):
-    """推送荐股消息给所有前端客户端"""
     ws_msg = WSMessage(
         type=MessageType.RECOMMENDATION,
         payload=data
@@ -196,13 +182,53 @@ async def push_recommendation(data: dict):
 
 
 async def push_to_all(data: dict):
-    """推送消息给前端Web客户端"""
     ws_msg = WSMessage(
         type=MessageType.RECOMMENDATION,
         payload=data
     )
     await broadcast_to_clients(ws_msg, client_type="web")
     logger.info(f"推送消息给前端: {data.get('news', {}).get('title', '')[:50]}")
+
+
+async def push_backtest_progress(backtest_id: int, progress: int, current_date: str = None, equity: float = None):
+    ws_msg = WSMessage(
+        type="backtest_progress",
+        payload={
+            "backtest_id": backtest_id,
+            "progress": progress,
+            "current_date": current_date,
+            "equity": equity
+        }
+    )
+    await broadcast_to_clients(ws_msg, client_type="web")
+    logger.info(f"推送回测进度: {backtest_id} - {progress}%")
+
+
+async def push_backtest_log(backtest_id: int, level: str, message: str, log_time: str = None):
+    ws_msg = WSMessage(
+        type="backtest_log",
+        payload={
+            "backtest_id": backtest_id,
+            "level": level,
+            "message": message,
+            "time": log_time or datetime.now().strftime("%H:%M:%S")
+        }
+    )
+    await broadcast_to_clients(ws_msg, client_type="web")
+    logger.info(f"推送回测日志: {backtest_id} - [{level}] {message}")
+
+
+async def push_backtest_completed(backtest_id: int, status: str, results: dict):
+    ws_msg = WSMessage(
+        type="backtest_completed",
+        payload={
+            "backtest_id": backtest_id,
+            "status": status,
+            "results": results
+        }
+    )
+    await broadcast_to_clients(ws_msg, client_type="web")
+    logger.info(f"推送回测完成: {backtest_id} - {status}")
 
 
 def load_sample_data():
@@ -231,7 +257,6 @@ def load_sample_data():
 
 
 async def push_sample_periodically(interval: int = 10):
-    """定时推送示例数据"""
     samples = load_sample_data()
     if not samples:
         logger.warning("没有示例数据可推送")
@@ -250,7 +275,6 @@ async def push_sample_periodically(interval: int = 10):
 
 
 async def start_server_with_pusher(push_interval: int = 10):
-    """启动服务器并定时推送数据"""
     logger.info(f"启动WebSocket服务: ws://{HOST}:{PORT}")
     
     server_task = asyncio.create_task(start_server())
@@ -260,14 +284,6 @@ async def start_server_with_pusher(push_interval: int = 10):
         await asyncio.gather(server_task, pusher_task)
     except asyncio.CancelledError:
         logger.info("服务器停止")
-
-
-async def test_push_sample():
-    """测试推送示例数据"""
-    samples = load_sample_data()
-    if samples:
-        await push_to_all(samples[0])
-        logger.info("示例数据推送完成")
 
 
 if __name__ == "__main__":

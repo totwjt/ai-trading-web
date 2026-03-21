@@ -1,4 +1,14 @@
-from fastapi import FastAPI, HTTPException, Query
+"""
+AI Trading Server
+
+整合服务:
+- 资讯分析 API
+- 策略管理 API
+- 回测管理 API
+- WebSocket 实时推送 (复用 recommendation 服务)
+"""
+
+from fastapi import FastAPI, HTTPException, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -11,6 +21,7 @@ from websockets import WebSocketServerProtocol
 
 from recommendation.db import get_latest_news, get_news_by_id
 from recommendation.models import WSMessage, MessageType
+from backend.backtest.src.routers import strategy_router, backtest_router, preview_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,7 +31,7 @@ ws_client_info: dict = {}
 
 app = FastAPI(
     title="AI Trading Server",
-    description="AI 交易平台后端服务 - 资讯分析 + 实时推送",
+    description="AI 交易平台后端服务 - 资讯分析 + 策略回测 + 实时推送",
     version="1.0.0"
 )
 
@@ -31,6 +42,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(strategy_router, prefix="/api")
+app.include_router(backtest_router, prefix="/api")
+app.include_router(preview_router, prefix="/api")
 
 
 class StockItem(BaseModel):
@@ -222,8 +237,13 @@ async def main():
     config = uvicorn.Config(app, host="0.0.0.0", port=8766, log_level="info")
     server = uvicorn.Server(config)
     
+    logger.info("=" * 50)
     logger.info("HTTP API 服务启动: http://0.0.0.0:8766")
     logger.info("WebSocket 服务启动: ws://0.0.0.0:8765")
+    logger.info("API 路由已加载:")
+    logger.info("  - /api/strategies/*  (策略管理)")
+    logger.info("  - /api/backtests/*   (回测管理)")
+    logger.info("=" * 50)
     
     try:
         await asyncio.gather(

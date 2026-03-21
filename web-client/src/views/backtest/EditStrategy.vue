@@ -1,105 +1,269 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { getStrategyDetail, createStrategy, updateStrategy } from '@/api/strategy'
+import { previewStrategy, createBacktest, type BacktestParams, type PreviewResult } from '@/api/backtest'
 import Icon from '@/components/common/Icon.vue'
 
 const route = useRoute()
 const router = useRouter()
 
-// 获取策略ID
-const strategyId = route.params.id
+const strategyId = computed(() => route.params.id ? Number(route.params.id) : null)
+const isNew = computed(() => !strategyId.value)
 
-// 模拟策略数据
-const strategyData = ref({
-  name: '沪深300价值增强-V2',
-  type: '指数增强',
-  status: '运行中'
-})
+const strategyName = ref('新建策略')
+const strategyCode = ref(`import backtrader as bt
 
-// 返回策略中心
-const goBack = () => {
+class MyStrategy(bt.Strategy):
+    def __init__(self):
+        self.dataclose = self.datas[0].close
+        self.order = None
+        
+    def notify_order(self, order):
+        if order.status in [order.Submitted, order.Accepted]:
+            return
+        if order.status in [order.Completed]:
+            if order.isbuy():
+                print(f'买入: 价格 {order.executed.price:.2f}, 数量 {order.executed.size}')
+            elif order.issell():
+                print(f'卖出: 价格 {order.executed.price:.2f}, 数量 {order.executed.size}')
+        self.order = None
+        
+    def next(self):
+        if self.order:
+            return
+        if not self.position:
+            if self.dataclose[0] > self.dataclose[-1]:
+                self.order = self.buy()
+        else:
+            if self.dataclose[0] < self.dataclose[-1]:
+                self.order = self.sell()
+`)
+
+const startDate = ref(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+const endDate = ref(new Date().toISOString().split('T')[0])
+const frequency = ref('1d')
+
+const logs = ref<Array<{ time: string; level: string; message: string }>>([
+  { time: '10:00:00', level: 'INFO', message: '策略编辑器已就绪' }
+])
+const isRunning = ref(false)
+const isSaving = ref(false)
+const previewResult = ref<PreviewResult | null>(null)
+const totalReturn = ref<number | null>(null)
+const annualReturn = ref<number | null>(null)
+const maxDrawdown = ref<number | null>(null)
+const sharpeRatio = ref<number | null>(null)
+const winRate = ref<number | null>(null)
+const profitLossRatio = ref<number | null>(null)
+
+const frequencyOptions = [
+  { label: '日线', value: '1d' },
+  { label: '周线', value: '1w' },
+  { label: '1分钟', value: '1m' },
+  { label: '5分钟', value: '5m' },
+  { label: '15分钟', value: '15m' }
+]
+
+function addLog(level: string, message: string) {
+  const now = new Date()
+  const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
+  logs.value.push({ time, level, message })
+}
+
+function clearLogs() {
+  logs.value = []
+}
+
+async function loadStrategy() {
+  if (!strategyId.value) return
+  
+  try {
+    const strategy = await getStrategyDetail(strategyId.value)
+    strategyName.value = strategy.name
+    strategyCode.value = strategy.code || strategyCode.value
+    addLog('INFO', `已加载策略: ${strategy.name}`)
+  } catch (error) {
+    addLog('ERROR', `加载策略失败: ${error}`)
+  }
+}
+
+async function handleSave() {
+  isSaving.value = true
+  try {
+    const params = {
+      name: strategyName.value,
+      code: strategyCode.value
+    }
+    
+    if (isNew.value) {
+      const result = await createStrategy(params)
+      addLog('SUCCESS', `策略已创建，ID: ${result.id}`)
+      router.replace(`/backtest/edit/${result.id}`)
+    } else {
+      await updateStrategy(strategyId.value!, params)
+      addLog('SUCCESS', '策略已保存')
+    }
+  } catch (error) {
+    addLog('ERROR', `保存失败: ${error}`)
+  } finally {
+    isSaving.value = false
+  }
+}
+
+async function handlePreview() {
+  isRunning.value = true
+  addLog('INFO', '开始编译检查...')
+  
+  try {
+    const params: BacktestParams = {
+      start_date: startDate.value,
+      end_date: endDate.value,
+      frequency: frequency.value,
+      initial_capital: 1000000
+    }
+    
+    const result = await previewStrategy({
+      strategy_id: strategyId.value || undefined,
+      code: strategyCode.value,
+      params
+    })
+    
+    previewResult.value = result
+    
+    if (result.success) {
+      if (result.logs) {
+        result.logs.forEach(log => {
+          addLog(log.level, log.message)
+        })
+      }
+      
+      if (result.summary) {
+        totalReturn.value = result.summary.total_return || null
+        annualReturn.value = result.summary.annual_return || null
+        maxDrawdown.value = result.summary.max_drawdown || null
+        sharpeRatio.value = result.summary.sharpe_ratio || null
+        winRate.value = result.summary.win_rate || null
+        profitLossRatio.value = result.summary.profit_loss_ratio || null
+      }
+      
+      addLog('SUCCESS', '编译运行完成')
+    } else {
+      addLog('ERROR', result.error || '编译失败')
+    }
+  } catch (error) {
+    addLog('ERROR', `执行失败: ${error}`)
+  } finally {
+    isRunning.value = false
+  }
+}
+
+async function handleRunBacktest() {
+  if (!strategyId.value) {
+    addLog('WARNING', '请先保存策略后再运行回测')
+    return
+  }
+  
+  isRunning.value = true
+  addLog('INFO', '创建回测任务...')
+  
+  try {
+    const params: BacktestParams = {
+      start_date: startDate.value,
+      end_date: endDate.value,
+      frequency: frequency.value,
+      initial_capital: 1000000
+    }
+    
+    const result = await createBacktest(strategyId.value, params)
+    addLog('SUCCESS', `回测任务已创建: ID ${result.backtest_id}`)
+    
+    router.push(`/backtest/detail/${result.backtest_id}`)
+  } catch (error) {
+    addLog('ERROR', `创建回测失败: ${error}`)
+    isRunning.value = false
+  }
+}
+
+function goBack() {
   router.push('/backtest')
 }
 
-// 保存策略
-const saveStrategy = () => {
-  console.log('保存策略')
-}
-
-// 运行回测
-const runBacktest = () => {
-  if (strategyId) {
-    router.push(`/backtest/detail/${strategyId}`)
-  } else {
-    // 新建策略时，先保存再跳转
-    console.log('保存并运行回测')
+onMounted(() => {
+  if (!isNew.value) {
+    loadStrategy()
   }
-}
+})
 </script>
 
 <template>
   <div class="flex-1 bg-white flex flex-col overflow-hidden min-h-0 h-full">
-    <!-- 顶部导航栏 - 按照设计文件 -->
     <header class="flex items-center justify-between px-6 h-14 border-b border-slate-200 bg-white shrink-0">
-      <!-- 返回按钮移到左边 -->
       <div class="flex items-center">
         <button
           class="flex items-center gap-1 mr-6 text-sm text-slate-600 hover:text-primary transition-colors"
           @click="goBack"
         >
           <Icon icon="mdi:arrow-left" :size="20" />
-          返回策略中心
+          返回
         </button>
         <div class="h-6 w-px bg-slate-200 mr-6"></div>
-        <div class="flex items-center h-full space-x-8">
-          <div class="flex items-center h-full">
-            <button class="h-full px-4 text-sm font-bold active-tab">编辑策略</button>
-            <button
-              class="h-full px-4 text-sm font-medium text-slate-500 hover:text-primary transition-colors"
-              @click="runBacktest"
-            >
-              回测详情
-            </button>
-          </div>
-          <div class="h-6 w-px bg-slate-200"></div>
-          <span class="text-sm font-medium text-slate-600">策略: {{ strategyData.name }}</span>
-        </div>
+        <span class="text-sm font-medium text-slate-600">策略: {{ strategyName }}</span>
       </div>
-      <!-- 右侧：回测参数和操作按钮 -->
-      <div class="flex items-center space-x-3 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 mr-2">
-        <div class="flex items-center space-x-1.5">
+      
+      <div class="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
+        <div class="flex items-center gap-1.5">
           <label class="text-[11px] text-slate-500 whitespace-nowrap">开始日期</label>
-          <input class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700" type="date" value="2023-01-01"/>
+          <input
+            v-model="startDate"
+            type="date"
+            class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700"
+          />
         </div>
         <div class="w-px h-3 bg-slate-300"></div>
-        <div class="flex items-center space-x-1.5">
+        <div class="flex items-center gap-1.5">
           <label class="text-[11px] text-slate-500 whitespace-nowrap">结束日期</label>
-          <input class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700" type="date" value="2023-12-31"/>
+          <input
+            v-model="endDate"
+            type="date"
+            class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700"
+          />
         </div>
         <div class="w-px h-3 bg-slate-300"></div>
-        <div class="flex items-center space-x-1.5">
+        <div class="flex items-center gap-1.5">
           <label class="text-[11px] text-slate-500 whitespace-nowrap">数据频率</label>
-          <select class="bg-transparent border-none p-0 text-xs focus:ring-0 text-slate-700 cursor-pointer">
-            <option>日线</option>
-            <option>周线</option>
-            <option>1分钟</option>
-            <option>5分钟</option>
-            <option>15分钟</option>
+          <select
+            v-model="frequency"
+            class="bg-transparent border-none p-0 text-xs focus:ring-0 text-slate-700 cursor-pointer"
+          >
+            <option v-for="opt in frequencyOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
           </select>
         </div>
       </div>
-      <button class="bg-primary text-white px-5 py-1.5 rounded text-sm font-semibold hover:bg-blue-700 shadow-sm shadow-blue-200 transition-all" @click="runBacktest">
-        运行回测
-      </button>
-      <button class="border border-slate-200 px-5 py-1.5 rounded text-sm font-medium hover:bg-slate-50 transition-colors" @click="saveStrategy">
-        保存
-      </button>
+      
+      <div class="flex items-center gap-3">
+        <button
+          class="bg-primary text-white px-5 py-1.5 rounded text-sm font-semibold hover:bg-blue-700 shadow-sm shadow-blue-200 transition-all disabled:opacity-50"
+          :disabled="isRunning"
+          @click="handleRunBacktest"
+        >
+          <Icon v-if="isRunning" icon="mdi:loading" class="animate-spin" :size="16" />
+          <span v-else>运行回测</span>
+        </button>
+        <button
+          class="border border-slate-200 px-5 py-1.5 rounded text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
+          :disabled="isSaving"
+          @click="handleSave"
+        >
+          保存
+        </button>
+      </div>
     </header>
 
-    <!-- 主编辑区域 -->
     <main class="flex-1 flex overflow-hidden">
-      <!-- 左侧：代码编辑器 -->
-      <section class="w-[60%] bg-editor flex flex-col relative" data-purpose="code-editor-container">
+      <section class="w-[60%] bg-[#1e1e1e] flex flex-col relative">
         <div class="flex items-center justify-between px-4 py-2 border-b border-white/10 text-xs text-slate-400 bg-[#252526]">
           <span class="flex items-center">
             <span class="w-2 h-2 rounded-full bg-orange-400 mr-2"></span>
@@ -107,100 +271,109 @@ const runBacktest = () => {
           </span>
           <span>Python 3.8</span>
         </div>
-        <div class="flex-1 overflow-auto editor-scrollbar font-mono text-[13px] leading-relaxed p-4 bg-[#1E1E1E]">
-          <div class="flex">
-            <div class="w-10 text-slate-600 select-none text-right pr-4">
-              1<br/>2<br/>3<br/>4<br/>5<br/>6<br/>7<br/>8<br/>9<br/>10<br/>11<br/>12<br/>13<br/>14<br/>15<br/>16<br/>17<br/>18<br/>19<br/>20
-            </div>
-            <div class="flex-1 text-slate-300">
-              <span class="text-pink-400 italic">import</span> pandas <span class="text-pink-400 italic">as</span> pd<br/>
-              <span class="text-pink-400 italic">from</span> gzt_api <span class="text-pink-400 italic">import</span> Strategy, Order<br/><br/>
-              <span class="text-blue-300">class</span> <span class="text-yellow-200">ValueStrategy</span>(<span class="text-green-300">Strategy</span>):<br/>
-                  <span class="text-blue-300">def</span> <span class="text-yellow-200">on_init</span>(<span class="text-orange-300">self</span>):<br/>
-                      <span class="text-slate-500"># 初始化沪深300权重股池</span><br/>
-                      <span class="text-orange-300">self</span>.universe = [<span class="text-green-400">'000001.SH'</span>, <span class="text-green-400">'600519.SH'</span>]<br/>
-                      <span class="text-orange-300">self</span>.set_benchmark(<span class="text-green-400">'000300.SH'</span>)<br/><br/>
-                  <span class="text-blue-300">def</span> <span class="text-yellow-200">on_bar</span>(<span class="text-orange-300">self</span>, <span class="text-orange-300">bar</span>):<br/>
-                      <span class="text-slate-500"># 简单的均线交叉逻辑</span><br/>
-                      ma5 = <span class="text-orange-300">bar</span>.close.rolling(<span class="text-cyan-400">5</span>).mean()<br/>
-                      ma20 = <span class="text-orange-300">bar</span>.close.rolling(<span class="text-cyan-400">20</span>).mean()<br/><br/>
-                      <span class="text-pink-400 italic">if</span> ma5 &gt; ma20 <span class="text-pink-400 italic">and</span> <span class="text-orange-300">self</span>.pos == <span class="text-cyan-400">0</span>:<br/>
-                          <span class="text-orange-300">self</span>.buy(<span class="text-orange-300">bar</span>.symbol, <span class="text-orange-300">bar</span>.close, <span class="text-cyan-400">1000</span>)<br/>
-                      <span class="text-pink-400 italic">elif</span> ma5 &lt; ma20 <span class="text-pink-400 italic">and</span> <span class="text-orange-300">self</span>.pos &gt; <span class="text-cyan-400">0</span>:<br/>
-                          <span class="text-orange-300">self</span>.sell(<span class="text-orange-300">bar</span>.symbol, <span class="text-orange-300">bar</span>.close, <span class="text-orange-300">self</span>.pos)<br/>
-              <span class="text-slate-400 cursor-blink animate-pulse">|</span>
-            </div>
-          </div>
-        </div>
+        <textarea
+          v-model="strategyCode"
+          class="flex-1 w-full bg-[#1e1e1e] text-slate-300 font-mono text-[13px] leading-relaxed p-4 resize-none focus:outline-none"
+          spellcheck="false"
+        ></textarea>
       </section>
 
-      <!-- 右侧：运行日志 + 回测预览 -->
       <section class="w-[40%] flex flex-col border-l border-slate-200 bg-slate-50 overflow-hidden">
-        <!-- 运行日志 -->
         <div class="h-1/2 flex flex-col border-b border-slate-200">
           <div class="flex items-center justify-between px-4 py-2 bg-white border-b border-slate-200">
             <span class="text-xs font-bold text-slate-700 uppercase tracking-tight">运行日志 / 错误</span>
-            <button class="text-slate-400 hover:text-slate-600">
+            <button class="text-slate-400 hover:text-slate-600" @click="clearLogs">
               <Icon icon="mdi:delete" :size="16" />
             </button>
           </div>
           <div class="flex-1 overflow-auto custom-scrollbar p-4 font-mono text-[12px] space-y-2">
-            <div class="flex text-slate-500">
-              <span class="w-20 shrink-0">[10:04:22]</span>
-              <span class="text-blue-600">INFO:</span>
-              <span class="ml-2">初始化策略引擎完成...</span>
-            </div>
-            <div class="flex text-slate-500">
-              <span class="w-20 shrink-0">[10:04:23]</span>
-              <span class="text-blue-600">INFO:</span>
-              <span class="ml-2">正在下载 000300.SH 历史行情数据 [2022-01-01 -&gt; 2023-12-31]</span>
-            </div>
-            <div class="flex text-slate-500">
-              <span class="w-20 shrink-0">[10:04:25]</span>
-              <span class="text-up font-medium">ERROR:</span>
-              <span class="ml-2">模块 'talib' 未找到。请在策略配置中添加依赖。</span>
-            </div>
-            <div class="flex text-slate-500">
-              <span class="w-20 shrink-0">[10:04:28]</span>
-              <span class="text-blue-600">INFO:</span>
-              <span class="ml-2 text-slate-700">开始运行回测预览...</span>
+            <div
+              v-for="(log, index) in logs"
+              :key="index"
+              class="flex"
+            >
+              <span class="w-20 shrink-0 text-slate-500">{{ log.time }}</span>
+              <span
+                :class="{
+                  'text-blue-600': log.level === 'INFO',
+                  'text-amber-500': log.level === 'WARNING',
+                  'text-red-500': log.level === 'ERROR',
+                  'text-green-500': log.level === 'SUCCESS'
+                }"
+              >{{ log.level }}:</span>
+              <span class="ml-2 text-slate-700">{{ log.message }}</span>
             </div>
           </div>
         </div>
 
-        <!-- 实时回测预览 -->
         <div class="h-1/2 flex flex-col bg-white">
           <div class="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
             <span class="text-xs font-bold text-slate-700 uppercase tracking-tight">实时回测预览</span>
-            <div class="flex items-center space-x-3">
-              <span class="text-[10px] text-slate-400 flex items-center">
-                <span class="w-2 h-2 rounded-full bg-primary mr-1"></span>权益曲线
-              </span>
-              <span class="text-[10px] text-slate-400 flex items-center">
-                <span class="w-2 h-2 rounded-full bg-slate-300 mr-1"></span>基准
-              </span>
-            </div>
+            <button
+              class="bg-primary text-white px-3 py-1 rounded text-[11px] font-medium hover:bg-blue-700 disabled:opacity-50"
+              :disabled="isRunning"
+              @click="handlePreview"
+            >
+              {{ isRunning ? '运行中...' : '编译运行' }}
+            </button>
           </div>
-          <div class="flex-1 relative p-2 overflow-hidden flex flex-col">
-            <div class="flex-1 flex items-end justify-between space-x-[2px] opacity-80 mt-4 px-4">
-              <div class="w-2 bg-slate-200 h-[30%]"></div>
-              <div class="w-2 bg-slate-200 h-[35%]"></div>
-              <div class="w-2 bg-slate-200 h-[32%]"></div>
-              <div class="w-2 bg-up h-[45%]"></div>
-              <div class="w-2 bg-up h-[55%]"></div>
-              <div class="w-2 bg-down h-[40%]"></div>
-              <div class="w-2 bg-up h-[60%]"></div>
-              <div class="w-2 bg-up h-[75%]"></div>
-              <div class="w-2 bg-down h-[65%]"></div>
-              <div class="w-2 bg-up h-[80%]"></div>
-              <div class="w-2 bg-up h-[90%]"></div>
+          <div class="flex-1 p-4">
+            <div v-if="isRunning" class="h-full flex items-center justify-center">
+              <span class="text-slate-400 flex items-center">
+                <Icon icon="mdi:loading" class="animate-spin mr-2" :size="16" />
+                运行中...
+              </span>
             </div>
-            <div class="absolute inset-0 flex items-center justify-center">
-              <div class="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-200 shadow-md">
-                <span class="text-xs text-slate-600 flex items-center font-medium">
-                  <span class="w-3 h-3 animate-spin mr-2 text-primary"></span>
-                  预览数据加载中...
-                </span>
+            <div v-else-if="!previewResult" class="h-full flex items-center justify-center text-slate-400">
+              点击"编译运行"开始预览
+            </div>
+            <div v-else class="space-y-4">
+              <div v-if="previewResult.error" class="text-red-500 text-sm">
+                {{ previewResult.error }}
+              </div>
+              <div v-else class="grid grid-cols-2 gap-4">
+                <div>
+                  <div class="text-[10px] text-slate-400 uppercase">累计收益率</div>
+                  <div
+                    class="text-lg font-bold"
+                    :class="(totalReturn || 0) >= 0 ? 'text-up' : 'text-down'"
+                  >
+                    {{ totalReturn ? (totalReturn >= 0 ? '+' : '') + totalReturn.toFixed(2) + '%' : '-' }}
+                  </div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400 uppercase">年化收益</div>
+                  <div
+                    class="text-lg font-bold"
+                    :class="(annualReturn || 0) >= 0 ? 'text-up' : 'text-down'"
+                  >
+                    {{ annualReturn ? (annualReturn >= 0 ? '+' : '') + annualReturn.toFixed(2) + '%' : '-' }}
+                  </div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400 uppercase">最大回撤</div>
+                  <div class="text-lg font-bold text-down">
+                    {{ maxDrawdown ? maxDrawdown.toFixed(2) + '%' : '-' }}
+                  </div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400 uppercase">夏普比率</div>
+                  <div class="text-lg font-bold text-slate-800">
+                    {{ sharpeRatio?.toFixed(2) || '-' }}
+                  </div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400 uppercase">胜率</div>
+                  <div class="text-lg font-bold text-slate-800">
+                    {{ winRate ? winRate.toFixed(1) + '%' : '-' }}
+                  </div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400 uppercase">盈亏比</div>
+                  <div class="text-lg font-bold text-slate-800">
+                    {{ profitLossRatio?.toFixed(2) || '-' }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -208,49 +381,25 @@ const runBacktest = () => {
       </section>
     </main>
 
-    <!-- 底部性能指标栏 -->
-    <footer class="h-16 border-t border-slate-200 px-6 flex items-center bg-slate-50 shrink-0 mt-auto">
-      <div class="flex flex-1 items-center justify-between">
-        <div class="flex items-center space-x-12">
-          <div class="flex flex-col">
-            <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">累计收益率</span>
-            <span class="text-up font-bold text-lg">+24.52%</span>
-          </div>
-          <div class="flex flex-col">
-            <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">年化收益</span>
-            <span class="text-up font-bold text-lg">+18.20%</span>
-          </div>
-          <div class="flex flex-col">
-            <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">最大回撤</span>
-            <span class="text-down font-bold text-lg">-5.12%</span>
-          </div>
-          <div class="flex flex-col">
-            <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">夏普比率</span>
-            <span class="text-slate-800 font-bold text-lg">2.14</span>
-          </div>
-          <div class="flex flex-col">
-            <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">胜率</span>
-            <span class="text-slate-800 font-bold text-lg">62.5%</span>
-          </div>
-          <div class="flex flex-col">
-            <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">盈亏比</span>
-            <span class="text-slate-800 font-bold text-lg">1.85</span>
-          </div>
-        </div>
-        <div class="flex items-center space-x-2">
-          <span class="text-xs text-slate-500">最后更新: 2023-11-20 16:45:00</span>
-          <button class="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
-            <Icon icon="mdi:refresh" :size="16" />
-          </button>
-        </div>
+    <footer class="h-16 border-t border-slate-200 px-6 flex items-center bg-slate-50 shrink-0">
+      <div class="flex items-center space-x-2">
+        <span class="text-xs text-slate-500">
+          最后更新: {{ new Date().toLocaleString('zh-CN') }}
+        </span>
       </div>
     </footer>
   </div>
 </template>
 
 <style scoped>
-.active-tab {
-  border-bottom: 2px solid #0066FF;
-  color: #0066FF;
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
 }
 </style>

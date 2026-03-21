@@ -19,6 +19,9 @@ export type MessageType =
   | 'unsubscribe' 
   | 'connect' 
   | 'disconnect'
+  | 'backtest_progress'
+  | 'backtest_log'
+  | 'backtest_completed'
 
 export interface WSMessage {
   type: MessageType
@@ -54,7 +57,30 @@ export interface RecommendationData {
   analysis: Analysis
 }
 
+export interface BacktestProgressData {
+  backtest_id: number
+  progress: number
+  current_date?: string
+  equity?: number
+}
+
+export interface BacktestLogData {
+  backtest_id: number
+  level: string
+  message: string
+  time: string
+}
+
+export interface BacktestCompletedData {
+  backtest_id: number
+  status: string
+  results: Record<string, unknown>
+}
+
 export type MessageHandler = (data: RecommendationData) => void
+export type BacktestProgressHandler = (data: BacktestProgressData) => void
+export type BacktestLogHandler = (data: BacktestLogData) => void
+export type BacktestCompletedHandler = (data: BacktestCompletedData) => void
 export type ConnectHandler = () => void
 export type DisconnectHandler = () => void
 export type ErrorHandler = (error: Event) => void
@@ -68,6 +94,9 @@ class WebSocketClient {
   
   public isConnected = ref(false)
   public messageHandler: MessageHandler | null = null
+  public backtestProgressHandler: BacktestProgressHandler | null = null
+  public backtestLogHandler: BacktestLogHandler | null = null
+  public backtestCompletedHandler: BacktestCompletedHandler | null = null
   public connectHandler: ConnectHandler | null = null
   public disconnectHandler: DisconnectHandler | null = null
   public errorHandler: ErrorHandler | null = null
@@ -143,13 +172,20 @@ class WebSocketClient {
       case 'recommendation':
         this.messageHandler?.(message.payload as unknown as RecommendationData)
         break
+      case 'backtest_progress':
+        this.backtestProgressHandler?.(message.payload as unknown as BacktestProgressData)
+        break
+      case 'backtest_log':
+        this.backtestLogHandler?.(message.payload as unknown as BacktestLogData)
+        break
+      case 'backtest_completed':
+        this.backtestCompletedHandler?.(message.payload as unknown as BacktestCompletedData)
+        break
       case 'heartbeat':
-        console.log('[WS] 心跳')
         break
       case 'system':
-        console.log('[WS] 系统消息:', message.payload)
         if (message.payload.status === 'connected') {
-          console.log('[WS] 已认证:', message.payload)
+          console.log('[WS] 已认证')
         }
         break
       default:
@@ -226,6 +262,15 @@ export function useWebSocket() {
     subscribe: (topics: string[]) => wsClient?.subscribe(topics),
     onMessage: (handler: MessageHandler) => {
       wsClient!.messageHandler = handler
+    },
+    onBacktestProgress: (handler: BacktestProgressHandler) => {
+      wsClient!.backtestProgressHandler = handler
+    },
+    onBacktestLog: (handler: BacktestLogHandler) => {
+      wsClient!.backtestLogHandler = handler
+    },
+    onBacktestCompleted: (handler: BacktestCompletedHandler) => {
+      wsClient!.backtestCompletedHandler = handler
     },
     onConnect: (handler: ConnectHandler) => {
       wsClient!.connectHandler = handler

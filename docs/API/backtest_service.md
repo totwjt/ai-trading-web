@@ -886,9 +886,67 @@ ws://localhost:8765/ws
 
 | 路由 | 页面 | 说明 |
 |------|------|------|
-| `/backtest` | 策略中心 | 显示策略列表和模板 |
-| `/backtest/edit/:id?` | 编辑策略 | Python 代码编辑器 |
-| `/backtest/detail/:id` | 回测详情 | 净值曲线、交易明细 |
+| `/backtest` | 回测记录列表 | 显示所有历史回测记录 |
+| `/backtest/edit/:id?` | 编辑策略 | Python 代码编辑器 + 编译运行 |
+| `/backtest/detail/:id` | 回测详情 | 净值曲线、交易明细、系统日志 |
+
+---
+
+## 实现状态
+
+| API | 状态 | 说明 |
+|-----|------|------|
+| `GET /api/strategies` | ✅ 已实现 | 策略列表 |
+| `GET /api/strategies/{id}` | ✅ 已实现 | 策略详情 |
+| `POST /api/strategies` | ✅ 已实现 | 创建策略 |
+| `PUT /api/strategies/{id}` | ✅ 已实现 | 更新策略 |
+| `DELETE /api/strategies/{id}` | ✅ 已实现 | 删除策略 |
+| `POST /api/strategies/{id}/action` | ✅ 已实现 | 启停控制 |
+| `GET /api/backtests` | ✅ 已实现 | 回测记录列表 |
+| `POST /api/backtests` | ✅ 已实现 | 创建回测 |
+| `GET /api/backtests/{id}` | ✅ 已实现 | 回测详情 |
+| `GET /api/backtests/{id}/progress` | ✅ 已实现 | 回测进度 |
+| `POST /api/backtests/{id}/cancel` | ✅ 已实现 | 取消回测 |
+| `GET /api/backtests/{id}/trades` | ✅ 已实现 | 交易明细 |
+| `GET /api/backtests/{id}/logs` | ✅ 已实现 | 系统日志 |
+| `GET /api/backtests/{id}/equity-curve` | ✅ 已实现 | 净值曲线 |
+| `GET /api/backtests/{id}/performance` | ✅ 已实现 | 性能指标 |
+| `POST /api/backtests/preview` | ✅ 已实现 | 编译运行预览 |
+
+---
+
+## 文件结构
+
+```
+backend/
+├── backtest_server.py           # 主入口
+├── websocket_manager.py         # WebSocket 管理
+├── common/
+│   └── database.py             # 数据库配置
+├── backtest/
+│   └── src/
+│       ├── models.py           # SQLAlchemy 模型
+│       ├── schemas.py          # Pydantic 模型
+│       ├── engine.py           # Backtrader 引擎
+│       └── routers/
+│           ├── strategy.py     # 策略 CRUD API
+│           ├── backtest.py     # 回测管理 API
+│           └── preview.py      # 编译运行 API
+└── strategy/
+    └── src/
+        └── compiler.py         # 代码编译与安全检查
+
+web-client/src/
+├── api/
+│   ├── strategy.ts             # 策略 API 客户端
+│   └── backtest.ts             # 回测 API 客户端
+├── views/backtest/
+│   ├── BacktestList.vue        # 回测记录列表
+│   ├── EditStrategy.vue        # 编辑策略页
+│   └── BacktestDetail.vue      # 回测详情页
+└── components/backtest/
+    └── EquityChart.vue          # 净值曲线组件
+```
 
 ---
 
@@ -897,3 +955,4 @@ ws://localhost:8765/ws
 | 日期 | 版本 | 更新内容 |
 |------|------|----------|
 | 2024-03-21 | v1.0 | 初始版本 |
+| 2026-03-21 | v1.1 | 完成后端实现 + 前端页面改造 |
