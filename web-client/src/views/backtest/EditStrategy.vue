@@ -69,11 +69,7 @@ const previewFinalEquity = ref<number | null>(null)
 const previewInitialValue = ref<number | null>(null)
 
 const frequencyOptions = [
-  { label: '日线', value: '1d' },
-  { label: '周线', value: '1w' },
-  { label: '1分钟', value: '1m' },
-  { label: '5分钟', value: '5m' },
-  { label: '15分钟', value: '15m' }
+  { label: '日线', value: '1d' }
 ]
 
 function addLog(level: string, message: string) {
@@ -153,7 +149,10 @@ async function handleSave() {
     if (isNew.value) {
       const result = await createStrategy(buildStrategyPayload())
       addLog('SUCCESS', `策略已创建，ID: ${result.id}`)
-      router.replace(`/backtest/edit/${result.id}`)
+      router.replace({
+        path: `/backtest/edit/${result.id}`,
+        query: route.query
+      })
     } else {
       await updateStrategy(strategyId.value!, buildStrategyPayload())
       addLog('SUCCESS', '策略已保存')
@@ -242,7 +241,13 @@ async function handleRunBacktest() {
     await runBacktest(result.backtest_id)
     addLog('INFO', `回测任务已启动: ID ${result.backtest_id}`)
 
-    router.push(`/backtest/detail/${result.backtest_id}`)
+    router.push({
+      path: `/backtest/detail/${result.backtest_id}`,
+      query: {
+        strategyId: String(strategyId.value),
+        strategyName: strategyName.value.trim() || undefined
+      }
+    })
   } catch (error) {
     addLog('ERROR', `启动回测失败: ${error}`)
     isRunning.value = false
@@ -252,6 +257,16 @@ async function handleRunBacktest() {
 function goBack() {
   if (returnBacktestId.value) {
     router.push(`/backtest/detail/${returnBacktestId.value}`)
+    return
+  }
+  if (route.query.strategyId || route.query.strategyName) {
+    router.push({
+      path: '/backtest/records',
+      query: {
+        strategyId: typeof route.query.strategyId === 'string' ? route.query.strategyId : undefined,
+        strategyName: typeof route.query.strategyName === 'string' ? route.query.strategyName : undefined
+      }
+    })
     return
   }
   router.push('/backtest')
@@ -320,6 +335,7 @@ onMounted(() => {
             </option>
           </select>
         </div>
+        <span class="text-[10px] text-slate-400 whitespace-nowrap">当前真实回测仅支持日线</span>
       </div>
       
       <div class="flex items-center gap-3">

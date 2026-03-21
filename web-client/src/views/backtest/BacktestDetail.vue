@@ -22,6 +22,14 @@ const route = useRoute()
 const router = useRouter()
 
 const backtestId = computed(() => Number(route.params.id))
+const returnStrategyId = computed(() => {
+  const parsed = Number(route.query.strategyId ?? route.query.strategy_id)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+})
+const returnStrategyName = computed(() => {
+  const value = route.query.strategyName
+  return typeof value === 'string' && value.trim() ? value.trim() : ''
+})
 
 const detail = ref<BacktestDetail | null>(null)
 const trades = ref<TradeItem[]>([])
@@ -285,7 +293,15 @@ async function pollProgress() {
 }
 
 function goBack() {
-  router.push('/backtest/records')
+  router.push({
+    path: '/backtest/records',
+    query: returnStrategyId.value
+      ? {
+          strategyId: String(returnStrategyId.value),
+          strategyName: returnStrategyName.value || undefined
+        }
+      : undefined
+  })
 }
 
 function editStrategy() {

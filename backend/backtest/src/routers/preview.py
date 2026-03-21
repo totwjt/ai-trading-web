@@ -87,10 +87,10 @@ async def preview_backtest(
             "id": len(logs) + 1,
             "log_time": datetime.now().isoformat(),
             "level": "INFO",
-            "message": "回测引擎初始化完成"
+            "message": "回测引擎初始化完成（365天单股票快速验证）"
         })
         
-        results = await engine.run()
+        results = await engine.run(is_preview=True)
         
         logs.append({
             "id": len(logs) + 1,

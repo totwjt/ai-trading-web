@@ -22,6 +22,21 @@ from backtest.src.schemas import (
 router = APIRouter(prefix="/backtests", tags=["回测管理"])
 
 
+async def _run_backtest_task(backtest_id: int, strategy_code: str, params: dict, db: AsyncSession):
+    from backtest.src.engine import executor
+
+    try:
+        await executor.execute(
+            backtest_id=backtest_id,
+            strategy_code=strategy_code,
+            params=params,
+            db_session=db
+        )
+    except Exception:
+        # 状态与错误信息已由执行器写回数据库，这里只避免未捕获后台任务异常污染日志
+        pass
+
+
 @router.get("", response_model=BacktestListResponse)
 async def list_backtests(
     page: int = Query(default=1, ge=1, description="页码"),
@@ -228,15 +243,7 @@ async def run_backtest(
     backtest.started_at = datetime.now()
     await db.commit()
     
-    from backtest.src.engine import executor
-    asyncio.create_task(
-        executor.execute(
-            backtest_id=backtest_id,
-            strategy_code=strategy.code,
-            params=params,
-            db_session=db
-        )
-    )
+    asyncio.create_task(_run_backtest_task(backtest_id, strategy.code, params, db))
     
     return ApiResponse(
         code=0,

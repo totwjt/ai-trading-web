@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getStrategyList, type StrategyListItem } from '@/api/strategy'
+import { deleteStrategy, getStrategyList, type StrategyListItem } from '@/api/strategy'
 import Icon from '@/components/common/Icon.vue'
 
 const router = useRouter()
 
 const strategies = ref<StrategyListItem[]>([])
 const loading = ref(false)
+const deletingStrategyId = ref<number | null>(null)
 
 const statusMap: Record<string, { color: string; bgColor: string }> = {
   running: { color: 'text-green-700', bgColor: 'bg-green-100' },
@@ -43,8 +44,34 @@ function editStrategy(id: number) {
   router.push(`/backtest/edit/${id}`)
 }
 
+function viewStrategyBacktests(strategy: StrategyListItem) {
+  router.push({
+    path: '/backtest/records',
+    query: {
+      strategyId: String(strategy.id),
+      strategyName: strategy.name
+    }
+  })
+}
+
 function createNewStrategy() {
   router.push('/backtest/edit')
+}
+
+async function removeStrategy(strategy: StrategyListItem) {
+  const confirmed = window.confirm(`确认删除策略“${strategy.name}”？该策略关联的历史回测记录也会一起删除。`)
+  if (!confirmed) return
+
+  deletingStrategyId.value = strategy.id
+  try {
+    await deleteStrategy(strategy.id)
+    strategies.value = strategies.value.filter(item => item.id !== strategy.id)
+  } catch (error) {
+    console.error('删除策略失败:', error)
+    window.alert(error instanceof Error ? error.message : '删除策略失败，请稍后重试')
+  } finally {
+    deletingStrategyId.value = null
+  }
 }
 
 function formatDate(dateStr: string): string {
@@ -116,10 +143,23 @@ onMounted(() => {
               </td>
               <td class="px-6 py-4 text-right space-x-3">
                 <button
+                  class="text-textMute hover:text-textMain text-xs font-semibold"
+                  @click="viewStrategyBacktests(strategy)"
+                >
+                  历史回测
+                </button>
+                <button
                   class="text-primary hover:underline text-xs font-semibold"
                   @click="editStrategy(strategy.id)"
                 >
                   编辑
+                </button>
+                <button
+                  class="text-down hover:underline text-xs font-semibold disabled:opacity-40 disabled:no-underline"
+                  :disabled="deletingStrategyId === strategy.id"
+                  @click="removeStrategy(strategy)"
+                >
+                  {{ deletingStrategyId === strategy.id ? '删除中...' : '删除' }}
                 </button>
               </td>
             </tr>
@@ -138,7 +178,7 @@ onMounted(() => {
           @click="viewBacktestRecords"
         >
           <Icon icon="mdi:history" :size="16" />
-          回测记录
+          全部回测记录
         </button>
         <button
           class="bg-primary text-white px-4 py-2 rounded text-sm font-semibold hover:opacity-90 flex items-center gap-2"

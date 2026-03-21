@@ -291,6 +291,30 @@ npm run dev
    - `web-client` 下 `npm run build` 通过
    - `backend` 下 `.venv/bin/python -m py_compile backtest/src/engine.py server.py` 通过
 
+### 3.5 回测框架切换到真实 PostgreSQL 数据（2026-03-21） ✅
+
+#### 已完成：
+1. ✅ 核实本地 `tushare_sync` PostgreSQL 真实数据表
+   - 确认可用表：`stock_daily`、`stock_adj_factor`、`stock_daily_basic`、`stock_factor_pro`、`index_daily`、`trade_calendar`、`stock_basic`
+
+2. ✅ 修复回测执行器稳定性问题
+   - 去除共享异步 session 的并发写入方式
+   - 改为独立 session 写入日志、进度、交易、净值曲线，避免 `concurrent operations are not permitted`
+
+3. ✅ 将预览与最终回测切换到真实行情数据
+   - 预览模式：近 365 天、单股票真实行情，用于快速验证策略代码
+   - 最终回测：使用 PostgreSQL 真实日线数据执行并落库
+
+4. ✅ 验证真实演示链路
+   - 预览接口可返回真实日志与净值曲线
+   - 创建策略 -> 创建回测 -> 启动回测 -> 查询详情/日志/交易/曲线 全链路通过
+   - 验证 `backtests`、`backtest_logs`、`equity_curves`、`backtest_trades` 均有新增且未被删除
+
+#### 当前剩余风险：
+1. 当前最终回测默认接入单标的 `000001.SZ`，更复杂的多标的/自定义股票池能力仍需扩展
+2. `index_daily` 当前库内覆盖区间较短，长周期基准收益可能为空或退化为初始值基线
+3. 因子表中 `stock_daily_basic` 覆盖时间较短，长时间窗口因子策略仍需进一步做数据兼容与缺失处理
+
 #### 本轮验证与限制：
 1. 通过当前仓库 FastAPI app 的本地 ASGI 调用确认 `/health` 路由正常返回
 2. 受当前终端沙箱权限与数据库连接限制影响，无法在本轮稳定完成基于真实 PostgreSQL 的全量接口回放

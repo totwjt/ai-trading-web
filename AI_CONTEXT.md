@@ -160,3 +160,19 @@ App.vue
 7. 通常按照 `docs/plan.md` 的阶段推进
 8. 完成明确阶段后，更新 `docs/progress.md`
 9. 新增 AI 提示词时，要同步校验是否符合本文件的目录要求
+
+## 策略回测补充约束（2026-03-21）
+
+1. `编译运行 / 预览` 的目标是快速验证策略代码是否可执行，不是最终回测结果
+2. 预览模式允许缩短到近 365 天、少量股票，以便尽快返回日志和结果
+3. `运行回测` 才是最终回测框架，应基于真实数据源执行，并将结果落库保留
+4. 行情与因子数据源来自本地 PostgreSQL `tushare_sync`，禁止在回测过程中调用外部行情 API
+5. 当前 PostgreSQL 中已经确认存在以下候选表：
+   - `public.stock_daily`：股票日线 OHLCV
+   - `public.stock_adj_factor`：复权因子
+   - `public.stock_daily_basic`：估值与市值基础因子
+   - `public.stock_factor_pro`：日线 + 复权价格 + 技术指标/因子
+   - `public.index_daily`：指数日线（含 `000300.SH`）
+   - `public.trade_calendar`：交易日历
+   - `public.stock_basic`：股票基础信息
+6. 若实现与这些真实表结构不一致，必须先按库表结构修正，不能继续依赖随机样本数据作为最终回测输入

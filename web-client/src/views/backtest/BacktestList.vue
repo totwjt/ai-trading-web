@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { getBacktestList, type BacktestListItem } from '@/api/backtest'
 import Icon from '@/components/common/Icon.vue'
 
+const route = useRoute()
 const router = useRouter()
 
 const backtests = ref<BacktestListItem[]>([])
@@ -13,6 +14,26 @@ const pagination = ref({
   pageSize: 10,
   total: 0
 })
+
+const selectedStrategyId = computed(() => {
+  const parsed = Number(route.query.strategyId ?? route.query.strategy_id)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+})
+
+const selectedStrategyName = computed(() => {
+  const value = route.query.strategyName
+  return typeof value === 'string' && value.trim() ? value.trim() : ''
+})
+
+const pageTitle = computed(() => (
+  selectedStrategyName.value ? `${selectedStrategyName.value} 的回测记录` : '回测记录'
+))
+
+const pageSubtitle = computed(() => (
+  selectedStrategyId.value
+    ? '查看当前策略的历史回测执行情况'
+    : '查看所有回测历史记录'
+))
 
 const statusMap: Record<string, { color: string; bgColor: string }> = {
   pending: { color: 'text-yellow-600', bgColor: 'bg-yellow-100' },
@@ -35,7 +56,8 @@ async function fetchData() {
   try {
     const result = await getBacktestList({
       page: pagination.value.page,
-      page_size: pagination.value.pageSize
+      page_size: pagination.value.pageSize,
+      strategy_id: selectedStrategyId.value || undefined
     })
     backtests.value = result.items
     pagination.value.total = result.total
@@ -46,12 +68,29 @@ async function fetchData() {
   }
 }
 
-function viewDetail(id: number) {
-  router.push(`/backtest/detail/${id}`)
+function viewDetail(item: BacktestListItem) {
+  router.push({
+    path: `/backtest/detail/${item.id}`,
+    query: {
+      strategyId: String(item.strategy_id),
+      strategyName: item.strategy_name || selectedStrategyName.value || undefined
+    }
+  })
 }
 
-function editStrategy(strategyId: number) {
-  router.push(`/backtest/edit/${strategyId}`)
+function editStrategy(item: BacktestListItem) {
+  router.push({
+    path: `/backtest/edit/${item.strategy_id}`,
+    query: {
+      backtestId: String(item.id),
+      strategyId: String(item.strategy_id),
+      strategyName: item.strategy_name || selectedStrategyName.value || undefined
+    }
+  })
+}
+
+function resetStrategyFilter() {
+  router.push('/backtest/records')
 }
 
 function formatDate(dateStr: string): string {
@@ -71,6 +110,11 @@ function getReturnClass(value: number | undefined): string {
 onMounted(() => {
   fetchData()
 })
+
+watch(selectedStrategyId, () => {
+  pagination.value.page = 1
+  void fetchData()
+})
 </script>
 
 <template>
@@ -78,16 +122,26 @@ onMounted(() => {
     <div class="max-w-7xl mx-auto">
       <div class="flex justify-between items-center mb-6">
         <div>
-          <h2 class="text-lg font-bold text-textMain">回测记录</h2>
-          <p class="text-xs text-textMute mt-1">查看所有回测历史记录</p>
+          <h2 class="text-lg font-bold text-textMain">{{ pageTitle }}</h2>
+          <p class="text-xs text-textMute mt-1">{{ pageSubtitle }}</p>
         </div>
-        <button
-          class="bg-primary text-white px-4 py-2 rounded text-sm font-semibold hover:opacity-90 flex items-center gap-2"
-          @click="router.push('/backtest/edit')"
-        >
-          <Icon icon="mdi:plus" :size="16" />
-          新建策略
-        </button>
+        <div class="flex items-center gap-3">
+          <button
+            v-if="selectedStrategyId"
+            class="border border-border px-4 py-2 rounded text-sm font-medium hover:bg-gray-50 flex items-center gap-2"
+            @click="resetStrategyFilter"
+          >
+            <Icon icon="mdi:filter-remove-outline" :size="16" />
+            查看全部
+          </button>
+          <button
+            class="bg-primary text-white px-4 py-2 rounded text-sm font-semibold hover:opacity-90 flex items-center gap-2"
+            @click="router.push('/backtest/edit')"
+          >
+            <Icon icon="mdi:plus" :size="16" />
+            新建策略
+          </button>
+        </div>
       </div>
 
       <div class="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
@@ -96,7 +150,7 @@ onMounted(() => {
         </div>
         
         <div v-else-if="backtests.length === 0" class="p-8 text-center text-textMute">
-          暂无回测记录
+          {{ selectedStrategyId ? '当前策略暂无回测记录' : '暂无回测记录' }}
         </div>
 
         <table v-else class="w-full text-left">
@@ -160,13 +214,13 @@ onMounted(() => {
               <td class="px-6 py-4 text-right space-x-3">
                 <button
                   class="text-primary hover:underline text-xs font-semibold"
-                  @click="viewDetail(bt.id)"
+                  @click="viewDetail(bt)"
                 >
                   详情
                 </button>
                 <button
                   class="text-textMute hover:text-textMain text-xs font-semibold"
-                  @click="editStrategy(bt.strategy_id)"
+                  @click="editStrategy(bt)"
                 >
                   编辑
                 </button>
