@@ -235,3 +235,31 @@ python -m recommendation.websocket_server
 cd web-client
 npm run dev
 ```
+
+### 3.3 策略回测接入 - 连通性修复（2026-03-21） ✅
+
+#### 已完成：
+1. ✅ 修复前端构建阻塞问题
+   - 移除多处未使用变量/导入导致的 TypeScript 构建失败
+   - 将回测净值图从缺失依赖的 `echarts` 切换为项目已安装的 `lightweight-charts`
+
+2. ✅ 接通回测记录路由
+   - 在 `/backtest` 子路由下新增 `/backtest/records`
+   - 修复策略中心“回测记录”按钮跳回当前页的问题
+
+3. ✅ 完成首轮策略/回测 API 连通性核对
+   - 确认前端 `strategy.ts` / `backtest.ts` 的主要接口路径与 `backend/server.py` 已加载路由一致
+   - 确认后端已包含 `/api/strategies/*`、`/api/backtests/*`、`/api/preview/run`
+   - 清理本地 `8766` 端口占用后，确认仓库自身后端服务可正常启动并返回 `/health`
+
+4. ✅ 修复回测运行链路
+   - 编辑页“运行回测”改为先创建任务再调用 `/api/backtests/{id}/run`
+   - 详情页主操作按钮按状态区分“启动回测 / 运行中 / 刷新数据”
+   - 为 `pending/running` 状态补充回测进度轮询
+
+5. ✅ 恢复前端可构建状态
+   - `web-client` 下 `npm run build` 通过
+
+#### 当前注意事项：
+1. `docs/API/strategy_service.md` 仍是“完善中”，后续应以实际 FastAPI 路由实现为准补正文档
+2. 后端当前的 `POST /api/backtests` 实际只创建任务，不会自动执行；若未来要保持“创建即运行”，建议同步修正文档或后端实现说明

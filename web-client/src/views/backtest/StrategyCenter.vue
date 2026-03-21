@@ -36,7 +36,7 @@ async function fetchStrategies() {
 }
 
 function viewBacktestRecords() {
-  router.push('/backtest')
+  router.push('/backtest/records')
 }
 
 function editStrategy(id: number) {

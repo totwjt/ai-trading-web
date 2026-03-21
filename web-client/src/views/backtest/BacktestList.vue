@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getBacktestList, type BacktestListItem } from '@/api/backtest'
 import Icon from '@/components/common/Icon.vue'

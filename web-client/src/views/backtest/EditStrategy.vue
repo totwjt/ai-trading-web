@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getStrategyDetail, createStrategy, updateStrategy } from '@/api/strategy'
-import { previewStrategy, createBacktest, type BacktestParams, type PreviewResult } from '@/api/backtest'
+import { previewStrategy, createBacktest, runBacktest, type BacktestParams, type PreviewResult } from '@/api/backtest'
 import Icon from '@/components/common/Icon.vue'
 
 const route = useRoute()
@@ -177,10 +177,13 @@ async function handleRunBacktest() {
     
     const result = await createBacktest(strategyId.value, params)
     addLog('SUCCESS', `回测任务已创建: ID ${result.backtest_id}`)
-    
+
+    await runBacktest(result.backtest_id)
+    addLog('INFO', `回测任务已启动: ID ${result.backtest_id}`)
+
     router.push(`/backtest/detail/${result.backtest_id}`)
   } catch (error) {
-    addLog('ERROR', `创建回测失败: ${error}`)
+    addLog('ERROR', `启动回测失败: ${error}`)
     isRunning.value = false
   }
 }

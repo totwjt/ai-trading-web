@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getBacktestDetail, getBacktestTrades, getBacktestLogs, getEquityCurve, getPerformance, type BacktestDetail, type TradeItem, type LogItem, type EquityPoint } from '@/api/backtest'
+import { getBacktestDetail, getBacktestLogs, getBacktestProgress, getBacktestTrades, getEquityCurve, getPerformance, runBacktest, type BacktestDetail, type EquityPoint, type LogItem, type TradeItem } from '@/api/backtest'
 import EquityChart from '@/components/backtest/EquityChart.vue'
 import Icon from '@/components/common/Icon.vue'
 
@@ -17,7 +17,66 @@ const equityCurve = ref<EquityPoint[]>([])
 const performance = ref<any>(null)
 
 const loading = ref(true)
+const runningAction = ref(false)
 const chartFrequency = ref('1d')
+const runButtonText = computed(() => {
+  if (runningAction.value) return '启动中...'
+  if (detail.value?.status === 'pending') return '启动回测'
+  if (detail.value?.status === 'running') return '运行中'
+  return '刷新数据'
+})
+
+let progressTimer: ReturnType<typeof setInterval> | null = null
+let progressRequestInFlight = false
+
+function stopProgressPolling() {
+  if (progressTimer) {
+    clearInterval(progressTimer)
+    progressTimer = null
+  }
+}
+
+async function pollProgress() {
+  if (!detail.value || progressRequestInFlight) return
+  if (!['pending', 'running'].includes(detail.value.status)) {
+    stopProgressPolling()
+    return
+  }
+
+  progressRequestInFlight = true
+
+  try {
+    const progress = await getBacktestProgress(backtestId.value)
+    detail.value = {
+      ...detail.value,
+      status: progress.status as BacktestDetail['status'],
+      progress: progress.progress
+    }
+
+    if (!['pending', 'running'].includes(progress.status)) {
+      stopProgressPolling()
+      await fetchData()
+    }
+  } catch (error) {
+    console.error('获取回测进度失败:', error)
+    stopProgressPolling()
+  } finally {
+    progressRequestInFlight = false
+  }
+}
+
+function startProgressPolling() {
+  if (!detail.value || !['pending', 'running'].includes(detail.value.status)) {
+    stopProgressPolling()
+    return
+  }
+
+  if (progressTimer) return
+
+  progressTimer = setInterval(() => {
+    void pollProgress()
+  }, 2000)
+}
 
 async function fetchData() {
   loading.value = true
@@ -35,6 +94,12 @@ async function fetchData() {
     logs.value = logsData.logs
     equityCurve.value = equityData.data_points
     performance.value = perfData
+
+    if (['pending', 'running'].includes(detailData.status)) {
+      startProgressPolling()
+    } else {
+      stopProgressPolling()
+    }
   } catch (error) {
     console.error('获取数据失败:', error)
   } finally {
@@ -44,12 +109,6 @@ async function fetchData() {
 
 function goBack() {
   router.push('/backtest')
-}
-
-function editStrategy() {
-  if (detail.value?.strategy_id) {
-    router.push(`/backtest/edit/${detail.value.strategy_id}`)
-  }
 }
 
 function formatNumber(value: number | undefined, decimals: number = 2): string {
@@ -74,8 +133,32 @@ function changeFrequency(freq: string) {
   })
 }
 
+async function handlePrimaryAction() {
+  if (detail.value?.status === 'pending') {
+    runningAction.value = true
+
+    try {
+      await runBacktest(backtestId.value)
+      await fetchData()
+      startProgressPolling()
+    } catch (error) {
+      console.error('启动回测失败:', error)
+    } finally {
+      runningAction.value = false
+    }
+
+    return
+  }
+
+  await fetchData()
+}
+
 onMounted(() => {
   fetchData()
+})
+
+onBeforeUnmount(() => {
+  stopProgressPolling()
 })
 </script>
 
@@ -105,11 +188,12 @@ onMounted(() => {
           <Icon icon="mdi:refresh" :size="20" />
         </button>
         <button
-          class="bg-primary text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 hover:bg-blue-700"
-          @click="fetchData"
+          class="bg-primary text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 hover:bg-blue-700 disabled:opacity-50"
+          :disabled="runningAction || detail?.status === 'running'"
+          @click="handlePrimaryAction"
         >
-          <Icon icon="mdi:play" :size="16" />
-          重新运行
+          <Icon :icon="detail?.status === 'pending' ? 'mdi:play' : 'mdi:refresh'" :size="16" />
+          {{ runButtonText }}
         </button>
       </div>
     </header>

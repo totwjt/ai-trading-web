@@ -22,8 +22,6 @@ interface Recommendation {
 }
 
 const {
-  wsClient,
-  isConnected,
   connect,
   disconnect,
   subscribe,

@@ -26,6 +26,12 @@ const router = createRouter({
           name: '策略中心',
           component: () => import('@/views/backtest/StrategyCenter.vue'),
           meta: { title: '策略中心' }
+        },
+        {
+          path: 'records',
+          name: '回测记录',
+          component: () => import('@/views/backtest/BacktestList.vue'),
+          meta: { title: '回测记录' }
         }
       ]
     },

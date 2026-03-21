@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
-import * as echarts from 'echarts'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ColorType, createChart, LineStyle, type IChartApi, type ISeriesApi, type LineData } from 'lightweight-charts'
 import type { EquityPoint } from '@/api/backtest'
 
 const props = defineProps<{
@@ -9,171 +9,126 @@ const props = defineProps<{
 }>()
 
 const chartRef = ref<HTMLDivElement | null>(null)
-let chart: echarts.ECharts | null = null
 
-const initChart = () => {
-  if (!chartRef.value) return
-  
-  chart = echarts.init(chartRef.value)
-  
-  const dates = props.data.map(d => d.date)
-  const equityData = props.data.map(d => d.equity)
-  const benchmarkData = props.data.map(d => d.benchmark)
-  
-  const option: echarts.EChartsOption = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'cross'
-      },
-      formatter: (params: any) => {
-        const date = params[0]?.axisValue || ''
-        let html = `<div style="font-weight:bold">${date}</div>`
-        params.forEach((p: any) => {
-          const color = p.seriesName === '策略' ? '#0066FF' : '#cbd5e1'
-          html += `<div style="color:${color}">${p.seriesName}: ${p.value?.toLocaleString() || '-'}</div>`
-        })
-        return html
-      }
-    },
-    legend: {
-      show: false
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '10%',
-      top: '3%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      data: dates,
-      boundaryGap: false,
-      axisLine: {
-        lineStyle: {
-          color: '#e2e8f0'
-        }
-      },
-      axisLabel: {
-        color: '#94a3b8',
-        fontSize: 10,
-        formatter: (value: string) => {
-          const date = new Date(value)
-          return `${date.getMonth() + 1}-${date.getDate()}`
-        }
-      },
-      axisTick: {
-        show: false
-      }
-    },
-    yAxis: {
-      type: 'value',
-      scale: true,
-      splitLine: {
-        lineStyle: {
-          color: '#f1f5f9',
-          type: 'dashed'
-        }
-      },
-      axisLabel: {
-        color: '#94a3b8',
-        fontSize: 10,
-        formatter: (value: number) => (value / 10000).toFixed(0) + '万'
-      },
-      axisLine: {
-        show: false
-      },
-      axisTick: {
-        show: false
-      }
-    },
-    series: [
-      {
-        name: '策略',
-        type: 'line',
-        data: equityData,
-        smooth: true,
-        symbol: 'none',
-        lineStyle: {
-          color: '#0066FF',
-          width: 2
-        },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(0, 102, 255, 0.2)' },
-            { offset: 1, color: 'rgba(0, 102, 255, 0)' }
-          ])
-        }
-      },
-      {
-        name: props.benchmark || '沪深300',
-        type: 'line',
-        data: benchmarkData,
-        smooth: true,
-        symbol: 'none',
-        lineStyle: {
-          color: '#cbd5e1',
-          width: 2,
-          type: 'dashed'
-        }
-      }
-    ],
-    dataZoom: [
-      {
-        type: 'inside',
-        start: 0,
-        end: 100
-      },
-      {
-        type: 'slider',
-        show: false,
-        start: 0,
-        end: 100
-      }
-    ]
-  }
-  
-  chart.setOption(option)
+let chart: IChartApi | null = null
+let equitySeries: ISeriesApi<'Line'> | null = null
+let benchmarkSeries: ISeriesApi<'Line'> | null = null
+let resizeObserver: ResizeObserver | null = null
+
+function toLineData(values: EquityPoint[], key: 'equity' | 'benchmark'): LineData[] {
+  return values.map((item) => ({
+    time: item.date as LineData['time'],
+    value: item[key]
+  }))
 }
 
-const updateChart = () => {
-  if (!chart || props.data.length === 0) return
-  
-  const dates = props.data.map(d => d.date)
-  const equityData = props.data.map(d => d.equity)
-  const benchmarkData = props.data.map(d => d.benchmark)
-  
-  chart.setOption({
-    xAxis: {
-      data: dates
+function updateChartData() {
+  if (!equitySeries || !benchmarkSeries) return
+
+  equitySeries.setData(toLineData(props.data, 'equity'))
+  benchmarkSeries.setData(toLineData(props.data, 'benchmark'))
+}
+
+function initChart() {
+  if (!chartRef.value || chart) return
+
+  chart = createChart(chartRef.value, {
+    autoSize: true,
+    layout: {
+      background: { type: ColorType.Solid, color: '#FFFFFF' },
+      textColor: '#94A3B8'
     },
-    series: [
-      {
-        data: equityData
+    grid: {
+      vertLines: { color: '#F1F5F9' },
+      horzLines: { color: '#F1F5F9' }
+    },
+    rightPriceScale: {
+      borderColor: '#E2E8F0'
+    },
+    timeScale: {
+      borderColor: '#E2E8F0',
+      timeVisible: true,
+      secondsVisible: false
+    },
+    crosshair: {
+      vertLine: {
+        color: '#CBD5E1',
+        style: LineStyle.Dashed
       },
-      {
-        data: benchmarkData
+      horzLine: {
+        color: '#CBD5E1',
+        style: LineStyle.Dashed
       }
-    ]
+    }
   })
+
+  equitySeries = chart.addLineSeries({
+    color: '#0066FF',
+    lineWidth: 2,
+    title: '策略'
+  })
+
+  benchmarkSeries = chart.addLineSeries({
+    color: '#CBD5E1',
+    lineWidth: 2,
+    lineStyle: LineStyle.Dashed,
+    title: props.benchmark || '沪深300'
+  })
+
+  updateChartData()
+  chart.timeScale().fitContent()
+
+  resizeObserver = new ResizeObserver(() => {
+    if (!chartRef.value || !chart) return
+    chart.applyOptions({
+      width: chartRef.value.clientWidth,
+      height: chartRef.value.clientHeight
+    })
+  })
+
+  resizeObserver.observe(chartRef.value)
+}
+
+function destroyChart() {
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  benchmarkSeries = null
+  equitySeries = null
+  chart?.remove()
+  chart = null
 }
 
 onMounted(() => {
-  if (props.data.length > 0) {
-    initChart()
-  }
+  initChart()
 })
 
-watch(() => props.data, () => {
-  if (props.data.length > 0) {
+onBeforeUnmount(() => {
+  destroyChart()
+})
+
+watch(
+  () => props.data,
+  () => {
     if (!chart) {
       initChart()
-    } else {
-      updateChart()
+      return
     }
+
+    updateChartData()
+    chart.timeScale().fitContent()
+  },
+  { deep: true }
+)
+
+watch(
+  () => props.benchmark,
+  (value) => {
+    if (!benchmarkSeries) return
+    benchmarkSeries.applyOptions({
+      title: value || '沪深300'
+    })
   }
-}, { deep: true })
+)
 </script>
 
 <template>
