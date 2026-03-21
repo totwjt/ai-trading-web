@@ -45,7 +45,21 @@ const router = createRouter({
       path: '/simulation',
       name: '模拟交易',
       component: () => import('@/views/SimulationView.vue'),
-      meta: { title: '模拟交易', icon: 'swap_horiz' }
+      meta: { title: '模拟交易', icon: 'swap_horiz' },
+      children: [
+        {
+          path: '',
+          name: '模拟列表',
+          component: () => import('@/views/simulation/SimulationList.vue'),
+          meta: { title: '模拟列表' }
+        }
+      ]
+    },
+    {
+      path: '/simulation/detail/:id',
+      name: '模拟详情',
+      component: () => import('@/views/simulation/SimulationDetail.vue'),
+      meta: { title: '模拟详情', hideSidebar: true }
     },
     {
       path: '/holdings',
