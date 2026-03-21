@@ -5,6 +5,7 @@ Backtrader 回测引擎封装
 """
 
 import asyncio
+import inspect
 import logging
 import traceback
 from datetime import datetime
@@ -25,18 +26,29 @@ class BacktestCallbacks:
     def __init__(
         self,
         on_progress: Optional[Callable[[int, str], None]] = None,
-        on_log: Optional[Callable[[str, str, str], None]] = None
+        on_log: Optional[Callable[[str, str], None]] = None
     ):
         self.on_progress = on_progress
         self.on_log = on_log
+        self._pending_tasks: List[asyncio.Task] = []
+
+    def _track_task(self, result):
+        if inspect.isawaitable(result):
+            task = asyncio.create_task(result)
+            self._pending_tasks.append(task)
+            task.add_done_callback(lambda finished: self._pending_tasks.remove(finished) if finished in self._pending_tasks else None)
     
     def progress(self, progress: int, message: str = ""):
         if self.on_progress:
-            self.on_progress(progress, message)
+            self._track_task(self.on_progress(progress, message))
     
     def log(self, level: str, message: str):
         if self.on_log:
-            self.on_log(level, message)
+            self._track_task(self.on_log(level, message))
+
+    async def drain(self):
+        if self._pending_tasks:
+            await asyncio.gather(*list(self._pending_tasks), return_exceptions=True)
 
 
 class BacktestEngine:
@@ -308,13 +320,48 @@ class BacktestExecutor:
             db_session.add(log_entry)
             await db_session.commit()
         
-        engine.callbacks = BacktestCallbacks(
+        runtime_callbacks = BacktestCallbacks(
             on_progress=progress_callback,
             on_log=log_callback
         )
-        
+
         try:
-            results = await engine.run(callbacks)
+            results = await engine.run(runtime_callbacks)
+            await runtime_callbacks.drain()
+
+            curve_points = engine.get_equity_curve()
+            if not curve_points:
+                initial_value = results.get("initial_value", params.get("initial_capital", 1000000.0))
+                final_equity = results.get("final_equity", initial_value)
+                total_return = results.get("total_return", 0.0)
+                curve_points = [
+                    {
+                        "date": params.get("start_date"),
+                        "equity": initial_value,
+                        "benchmark": initial_value,
+                        "returns": 0.0
+                    }
+                ]
+                if params.get("end_date") != params.get("start_date"):
+                    curve_points.append(
+                        {
+                            "date": params.get("end_date"),
+                            "equity": final_equity,
+                            "benchmark": initial_value,
+                            "returns": total_return
+                        }
+                    )
+
+            for point in curve_points:
+                db_session.add(
+                    EquityCurve(
+                        backtest_id=backtest_id,
+                        date=point["date"],
+                        equity=point["equity"],
+                        benchmark=point["benchmark"],
+                        returns=point["returns"]
+                    )
+                )
             
             backtest = await db_session.get(Backtest, backtest_id)
             if backtest:
@@ -329,6 +376,7 @@ class BacktestExecutor:
             return results
             
         except asyncio.CancelledError:
+            await runtime_callbacks.drain()
             backtest = await db_session.get(Backtest, backtest_id)
             if backtest:
                 backtest.status = BacktestStatus.CANCELLED
@@ -336,6 +384,7 @@ class BacktestExecutor:
             return {"status": "cancelled"}
         
         except Exception as e:
+            await runtime_callbacks.drain()
             backtest = await db_session.get(Backtest, backtest_id)
             if backtest:
                 backtest.status = BacktestStatus.FAILED

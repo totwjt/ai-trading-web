@@ -10,8 +10,14 @@ const router = useRouter()
 
 const strategyId = computed(() => route.params.id ? Number(route.params.id) : null)
 const isNew = computed(() => !strategyId.value)
+const returnBacktestId = computed(() => {
+  const rawValue = route.query.backtestId ?? route.query.backtest_id
+  const parsed = Number(rawValue)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+})
 
 const strategyName = ref('新建策略')
+const strategyType = ref('custom')
 const strategyCode = ref(`import backtrader as bt
 
 class MyStrategy(bt.Strategy):
@@ -43,12 +49,15 @@ class MyStrategy(bt.Strategy):
 const startDate = ref(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
 const endDate = ref(new Date().toISOString().split('T')[0])
 const frequency = ref('1d')
+const initialCapital = ref(1000000)
+const strategyDescription = ref('')
 
 const logs = ref<Array<{ time: string; level: string; message: string }>>([
   { time: '10:00:00', level: 'INFO', message: '策略编辑器已就绪' }
 ])
 const isRunning = ref(false)
 const isSaving = ref(false)
+const isLoadingStrategy = ref(false)
 const previewResult = ref<PreviewResult | null>(null)
 const totalReturn = ref<number | null>(null)
 const annualReturn = ref<number | null>(null)
@@ -56,6 +65,8 @@ const maxDrawdown = ref<number | null>(null)
 const sharpeRatio = ref<number | null>(null)
 const winRate = ref<number | null>(null)
 const profitLossRatio = ref<number | null>(null)
+const previewFinalEquity = ref<number | null>(null)
+const previewInitialValue = ref<number | null>(null)
 
 const frequencyOptions = [
   { label: '日线', value: '1d' },
@@ -77,31 +88,74 @@ function clearLogs() {
 
 async function loadStrategy() {
   if (!strategyId.value) return
-  
+
+  isLoadingStrategy.value = true
   try {
     const strategy = await getStrategyDetail(strategyId.value)
     strategyName.value = strategy.name
+    strategyType.value = strategy.strategy_type || 'custom'
     strategyCode.value = strategy.code || strategyCode.value
+    strategyDescription.value = strategy.description || ''
+    if (strategy.config?.initial_capital) {
+      initialCapital.value = strategy.config.initial_capital
+    }
     addLog('INFO', `已加载策略: ${strategy.name}`)
   } catch (error) {
     addLog('ERROR', `加载策略失败: ${error}`)
+  } finally {
+    isLoadingStrategy.value = false
+  }
+}
+
+function validateBeforeSubmit(): boolean {
+  if (!strategyName.value.trim()) {
+    addLog('WARNING', '请输入策略名称')
+    return false
+  }
+
+  if (!strategyCode.value.trim()) {
+    addLog('WARNING', '策略代码不能为空')
+    return false
+  }
+
+  if (!startDate.value || !endDate.value || startDate.value > endDate.value) {
+    addLog('WARNING', '请检查回测日期范围')
+    return false
+  }
+
+  if (!Number.isFinite(initialCapital.value) || initialCapital.value <= 0) {
+    addLog('WARNING', '初始资金必须大于 0')
+    return false
+  }
+
+  return true
+}
+
+function buildStrategyPayload() {
+  return {
+    name: strategyName.value.trim(),
+    strategy_type: strategyType.value,
+    code: strategyCode.value,
+    description: strategyDescription.value || undefined,
+    config: {
+      initial_capital: initialCapital.value,
+      commission: 0.0003,
+      slippage: 0.0001
+    }
   }
 }
 
 async function handleSave() {
+  if (!validateBeforeSubmit()) return
+
   isSaving.value = true
   try {
-    const params = {
-      name: strategyName.value,
-      code: strategyCode.value
-    }
-    
     if (isNew.value) {
-      const result = await createStrategy(params)
+      const result = await createStrategy(buildStrategyPayload())
       addLog('SUCCESS', `策略已创建，ID: ${result.id}`)
       router.replace(`/backtest/edit/${result.id}`)
     } else {
-      await updateStrategy(strategyId.value!, params)
+      await updateStrategy(strategyId.value!, buildStrategyPayload())
       addLog('SUCCESS', '策略已保存')
     }
   } catch (error) {
@@ -112,6 +166,8 @@ async function handleSave() {
 }
 
 async function handlePreview() {
+  if (!validateBeforeSubmit()) return
+
   isRunning.value = true
   addLog('INFO', '开始编译检查...')
   
@@ -120,7 +176,7 @@ async function handlePreview() {
       start_date: startDate.value,
       end_date: endDate.value,
       frequency: frequency.value,
-      initial_capital: 1000000
+      initial_capital: initialCapital.value
     }
     
     const result = await previewStrategy({
@@ -132,12 +188,10 @@ async function handlePreview() {
     previewResult.value = result
     
     if (result.success) {
-      if (result.logs) {
-        result.logs.forEach(log => {
-          addLog(log.level, log.message)
-        })
-      }
-      
+      result.logs?.forEach(log => {
+        addLog(log.level, log.message)
+      })
+
       if (result.summary) {
         totalReturn.value = result.summary.total_return || null
         annualReturn.value = result.summary.annual_return || null
@@ -145,10 +199,15 @@ async function handlePreview() {
         sharpeRatio.value = result.summary.sharpe_ratio || null
         winRate.value = result.summary.win_rate || null
         profitLossRatio.value = result.summary.profit_loss_ratio || null
+        previewFinalEquity.value = result.summary.final_equity || null
+        previewInitialValue.value = result.summary.initial_value || null
       }
       
       addLog('SUCCESS', '编译运行完成')
     } else {
+      result.logs?.forEach(log => {
+        addLog(log.level, log.message)
+      })
       addLog('ERROR', result.error || '编译失败')
     }
   } catch (error) {
@@ -159,6 +218,8 @@ async function handlePreview() {
 }
 
 async function handleRunBacktest() {
+  if (!validateBeforeSubmit()) return
+
   if (!strategyId.value) {
     addLog('WARNING', '请先保存策略后再运行回测')
     return
@@ -172,7 +233,7 @@ async function handleRunBacktest() {
       start_date: startDate.value,
       end_date: endDate.value,
       frequency: frequency.value,
-      initial_capital: 1000000
+      initial_capital: initialCapital.value
     }
     
     const result = await createBacktest(strategyId.value, params)
@@ -189,6 +250,10 @@ async function handleRunBacktest() {
 }
 
 function goBack() {
+  if (returnBacktestId.value) {
+    router.push(`/backtest/detail/${returnBacktestId.value}`)
+    return
+  }
   router.push('/backtest')
 }
 
@@ -229,6 +294,17 @@ onMounted(() => {
           <input
             v-model="endDate"
             type="date"
+            class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700"
+          />
+        </div>
+        <div class="w-px h-3 bg-slate-300"></div>
+        <div class="flex items-center gap-1.5">
+          <label class="text-[11px] text-slate-500 whitespace-nowrap">初始资金</label>
+          <input
+            v-model.number="initialCapital"
+            type="number"
+            min="1"
+            step="10000"
             class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700"
           />
         </div>
@@ -279,6 +355,9 @@ onMounted(() => {
           class="flex-1 w-full bg-[#1e1e1e] text-slate-300 font-mono text-[13px] leading-relaxed p-4 resize-none focus:outline-none"
           spellcheck="false"
         ></textarea>
+        <div v-if="isLoadingStrategy" class="absolute inset-0 bg-black/30 flex items-center justify-center text-white text-sm">
+          正在加载策略...
+        </div>
       </section>
 
       <section class="w-[40%] flex flex-col border-l border-slate-200 bg-slate-50 overflow-hidden">
@@ -335,6 +414,18 @@ onMounted(() => {
                 {{ previewResult.error }}
               </div>
               <div v-else class="grid grid-cols-2 gap-4">
+                <div>
+                  <div class="text-[10px] text-slate-400 uppercase">初始权益</div>
+                  <div class="text-lg font-bold text-slate-800">
+                    {{ previewInitialValue ? previewInitialValue.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '-' }}
+                  </div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400 uppercase">期末权益</div>
+                  <div class="text-lg font-bold text-slate-800">
+                    {{ previewFinalEquity ? previewFinalEquity.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '-' }}
+                  </div>
+                </div>
                 <div>
                   <div class="text-[10px] text-slate-400 uppercase">累计收益率</div>
                   <div

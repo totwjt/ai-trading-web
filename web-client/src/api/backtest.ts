@@ -118,6 +118,14 @@ export interface LogItem {
   message: string
 }
 
+interface RawLogItem {
+  id?: number
+  time?: string
+  log_time?: string
+  level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS'
+  message: string
+}
+
 export interface LogListResponse {
   backtest_id: number
   error_count: number
@@ -174,6 +182,14 @@ export interface PreviewResult {
   summary?: PerformanceSummary & { final_equity?: number; initial_value?: number }
   equity_curve?: EquityPoint[]
   error?: string
+}
+
+function normalizeLogItem(log: RawLogItem): LogItem {
+  return {
+    time: log.time ?? log.log_time ?? '',
+    level: log.level,
+    message: log.message
+  }
 }
 
 export async function getBacktestList(params?: {
@@ -252,7 +268,10 @@ export async function getBacktestLogs(id: number): Promise<LogListResponse> {
   if (response.data.code !== 0) {
     throw new Error(response.data.message)
   }
-  return response.data.data!
+  return {
+    ...response.data.data!,
+    logs: (response.data.data?.logs ?? []).map(normalizeLogItem)
+  }
 }
 
 export async function getEquityCurve(id: number, frequency: string = '1d'): Promise<EquityCurveResponse> {
@@ -279,10 +298,14 @@ export async function previewStrategy(data: {
   params: BacktestParams
 }): Promise<PreviewResult> {
   const response = await apiClient.post<ApiResponse<PreviewResult>>('/api/preview/run', data)
-  if (response.data.code !== 0) {
+  if (response.data.code !== 0 && !response.data.data) {
     throw new Error(response.data.message)
   }
-  return response.data.data!
+  const result = response.data.data!
+  return {
+    ...result,
+    logs: (result.logs ?? []).map(normalizeLogItem)
+  }
 }
 
 export async function runBacktest(id: number): Promise<{ backtest_id: number; status: string }> {

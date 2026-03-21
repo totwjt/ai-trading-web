@@ -263,3 +263,35 @@ npm run dev
 #### 当前注意事项：
 1. `docs/API/strategy_service.md` 仍是“完善中”，后续应以实际 FastAPI 路由实现为准补正文档
 2. 后端当前的 `POST /api/backtests` 实际只创建任务，不会自动执行；若未来要保持“创建即运行”，建议同步修正文档或后端实现说明
+
+### 3.4 策略/回测联调收口（2026-03-21） ✅
+
+#### 已完成：
+1. ✅ 修复回测详情页的状态机与分区刷新
+   - 为 `pending / running / completed / failed / cancelled` 增加明确状态展示、进度描述和失败提示
+   - 将日志、交易明细、净值曲线、性能指标改为独立刷新，避免单个接口失败拖垮整页
+   - `pending/running` 阶段轮询进度时同步刷新子模块，完善运行中空态文案
+   - 从详情页进入编辑页时支持返回当前回测详情
+
+2. ✅ 修复编辑页与后端接口的关键语义不一致
+   - 保存时补齐 `strategy_type`、`config.initial_capital` 等稳定字段
+   - 预览接口在 `code=1` 但存在结构化 `data` 时不再直接丢失错误详情
+   - 预览结果补充初始权益、期末权益，并增加输入校验
+
+3. ✅ 同步接口文档
+   - 重写 `docs/API/strategy_service.md`
+   - 重写 `docs/API/backtest_service.md`
+   - 明确 `POST /api/backtests` 只创建任务，执行需要额外调用 `/run`
+
+4. ✅ 修复后端回测结果落库链路
+   - 修正执行器异步日志/进度回调未真正执行的问题
+   - 为无明细数据的回测补充最小净值曲线，保证详情页可展示基础曲线
+
+5. ✅ 完成验证
+   - `web-client` 下 `npm run build` 通过
+   - `backend` 下 `.venv/bin/python -m py_compile backtest/src/engine.py server.py` 通过
+
+#### 本轮验证与限制：
+1. 通过当前仓库 FastAPI app 的本地 ASGI 调用确认 `/health` 路由正常返回
+2. 受当前终端沙箱权限与数据库连接限制影响，无法在本轮稳定完成基于真实 PostgreSQL 的全量接口回放
+3. 后续若需要继续做真库联调，建议在可访问本地 `localhost:5432/tushare_sync` 的环境下再次执行 `cd backend && python server.py`
