@@ -12,8 +12,8 @@ from datetime import datetime
 import asyncio
 import logging
 
-from backend.backtest.src.routers import strategy_router, backtest_router, preview_router
-from backend.websocket_manager import websocket_handler
+from backtest.src.routers import strategy_router, backtest_router, preview_router
+from websocket_manager import websocket_handler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

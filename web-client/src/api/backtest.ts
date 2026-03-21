@@ -278,7 +278,7 @@ export async function previewStrategy(data: {
   code: string
   params: BacktestParams
 }): Promise<PreviewResult> {
-  const response = await apiClient.post<ApiResponse<PreviewResult>>('/api/backtests/preview', data)
+  const response = await apiClient.post<ApiResponse<PreviewResult>>('/api/preview/run', data)
   if (response.data.code !== 0) {
     throw new Error(response.data.message)
   }
