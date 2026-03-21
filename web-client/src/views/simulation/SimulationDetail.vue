@@ -203,7 +203,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="h-screen flex flex-col bg-bgMain overflow-hidden">
+  <div class="h-full flex flex-col bg-bgMain overflow-hidden">
     <!-- 页面标题栏 -->
     <div class="px-6 py-3 border-b border-border bg-card shrink-0">
       <div class="flex items-center justify-between">
