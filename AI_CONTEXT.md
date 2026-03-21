@@ -78,8 +78,8 @@ docs/DATABASE.md
 API规范
 docs/API.md
 
-领域模型
-docs/DOMAIN.md
+回测功能
+docs/backtest.md
 
 UI设计规范
 design/UI_RULES.md

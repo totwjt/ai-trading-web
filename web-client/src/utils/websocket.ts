@@ -73,8 +73,7 @@ class WebSocketClient {
   public errorHandler: ErrorHandler | null = null
 
   constructor(url: string = '') {
-    // 默认使用当前页面的 hostname，兼容局域网访问
-    this.url = url || `ws://${window.location.hostname}:8765`
+    this.url = url || `ws://${window.location.hostname}:8765/ws`
   }
 
   connect(): void {

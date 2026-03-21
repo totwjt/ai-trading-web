@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import Icon from '@/components/common/Icon.vue'
+import { getLatestNews, type NewsItem } from '@/api/news'
 import { useWebSocket, parseStockInfo, type RecommendationData } from '@/utils/websocket'
 
 interface Stock {
@@ -33,10 +33,12 @@ const {
   onError
 } = useWebSocket()
 
+const recommendations = ref<Recommendation[]>([])
+const loading = ref(true)
+const error = ref<string | null>(null)
 const isWsConnected = ref(false)
-const connectionStatus = ref('disconnected')
 
-// 模拟统计数据
+// 统计数据
 const stats = ref([
   { label: '今日处理新闻', value: '12,482', change: '+12% vs 昨', trend: 'up' },
   { label: '今日板块推荐', value: '12', change: '查看全部', trend: 'neutral' },
@@ -44,7 +46,7 @@ const stats = ref([
   { label: '系统延迟', value: '14ms', change: '优于 99% 节点', trend: 'neutral' }
 ])
 
-// 模拟筛选标签
+// 筛选标签
 const filterTabs = ref([
   { name: '实时推送', active: true },
   { name: '机构调研', active: false },
@@ -53,86 +55,77 @@ const filterTabs = ref([
   { name: '政策解读', active: false }
 ])
 
-// 模拟推荐数据
-const recommendations = ref([
-  {
-    id: 1,
-    type: '深度解析',
-    typeColor: 'red',
-    source: '东方财富',
-    time: '2023-10-24 09:30',
-    title: 'Meta裁员标志着效率优先战略调整，云服务外包迎来新机遇',
-    analysis: '通过大模型分析全球头部互联网企业财报，识别出在降本增效的大背景下，企业正加速将非核心研发业务外包。Meta的策略转型预示着北美大型科技公司对外部IT服务供应商的依赖度将提升，尤其是具备数字化转型交付能力的头部服务商，有望获得确定性溢价空间。',
-    sectors: ['人力资源服务', '云计算', 'IT外包', '跨境交付'],
-    stocks: [
-      { name: '科大讯飞', code: '002230.SZ', score: 98 },
-      { name: '中软国际', code: '0354.HK', score: 92 },
-      { name: '软通动力', code: '301236.SZ', score: 89 }
-    ]
-  },
-  {
-    id: 2,
-    type: '研报精选',
-    typeColor: 'blue',
-    source: '华泰证券',
-    time: '2023-10-24 10:15',
-    title: '半导体国产化进程加速：设备端采购订单Q3环比增长40%',
-    analysis: '分析国内主要晶圆厂招投标数据，发现刻蚀机、薄膜沉积设备等关键环节国产替代率显著提升。近期产业链调研显示，下游排产已排至明年Q2。AI模型预测，具有先进制程突破能力的设备厂商将在接下来的财报季迎来业绩与估值的双重修复。',
-    sectors: ['半导体设备', '国产化替代', '电子元器件'],
-    stocks: [
-      { name: '中微公司', code: '688012.SH', score: 96 },
-      { name: '北方华创', code: '002371.SZ', score: 94 },
-      { name: '拓荆科技', code: '688072.SH', score: 85 }
-    ]
-  },
-  {
-    id: 3,
-    type: '资金流向',
-    typeColor: 'green',
-    source: 'Wind资讯',
-    time: '2023-10-24 11:45',
-    title: '北向资金大幅净买入白酒板块，消费复苏预期重新点燃',
-    analysis: '今日早盘陆股通资金异常流入核心蓝筹，其中白酒龙头个股流入量占全天预计交易量的15%。AI大数据回测显示，白酒板块在资金连续3天净买入后，未来一周出现阶段性底部的概率为82%。建议关注高端及次高端白酒龙头。',
-    sectors: ['白酒', '核心资产', '消费升级'],
-    stocks: [
-      { name: '贵州茅台', code: '600519.SH', score: 91 },
-      { name: '泸州老窖', code: '000568.SZ', score: 88 },
-      { name: '山西汾酒', code: '600809.SH', score: 84 }
-    ]
-  },
-  {
-    id: 4,
-    type: '资金流向',
-    typeColor: 'green',
-    source: 'Wind资讯',
-    time: '2023-10-24 11:45',
-    title: '北向资金大幅净买入白酒板块，消费复苏预期重新点燃',
-    analysis: '今日早盘陆股通资金异常流入核心蓝筹，其中白酒龙头个股流入量占全天预计交易量的15%。AI大数据回测显示，白酒板块在资金连续3天净买入后，未来一周出现阶段性底部的概率为82%。建议关注高端及次高端白酒龙头。',
-    sectors: ['白酒', '核心资产', '消费升级'],
-    stocks: [
-      { name: '贵州茅台', code: '600519.SH', score: 91 },
-      { name: '泸州老窖', code: '000568.SZ', score: 88 },
-      { name: '山西汾酒', code: '600809.SH', score: 84 }
-    ]
-  },
-  {
-    id: 5,
-    type: '资金流向',
-    typeColor: 'green',
-    source: 'Wind资讯',
-    time: '2023-10-24 11:45',
-    title: '北向资金大幅净买入白酒板块，消费复苏预期重新点燃',
-    analysis: '今日早盘陆股通资金异常流入核心蓝筹，其中白酒龙头个股流入量占全天预计交易量的15%。AI大数据回测显示，白酒板块在资金连续3天净买入后，未来一周出现阶段性底部的概率为82%。建议关注高端及次高端白酒龙头。',
-    sectors: ['白酒', '核心资产', '消费升级'],
-    stocks: [
-      { name: '贵州茅台', code: '600519.SH', score: 91 },
-      { name: '泸州老窖', code: '000568.SZ', score: 88 },
-      { name: '山西汾酒', code: '600809.SH', score: 84 }
-    ]
-  }
-])
+function formatTime(publishTime: string | null): string {
+  if (!publishTime) return ''
+  const date = new Date(publishTime)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).replace(/\//g, '-')
+}
 
-function convertWsDataToRecommendation(data: RecommendationData): Recommendation {
+function getTypeAndColor(title: string, source: string): { type: string; typeColor: string } {
+  const sourceTypes: Record<string, { type: string; color: string }> = {
+    '东方财富': { type: '资讯', color: 'blue' },
+    '华泰证券': { type: '研报精选', color: 'blue' },
+    'Wind资讯': { type: '资金流向', color: 'green' },
+    '中金公司': { type: '研报精选', color: 'blue' },
+    '国泰君安': { type: '研报精选', color: 'blue' }
+  }
+  
+  const matched = sourceTypes[source]
+  if (matched) {
+    return { type: matched.type, typeColor: matched.color }
+  }
+  
+  const lowerTitle = title.toLowerCase()
+  if (lowerTitle.includes('资金') || lowerTitle.includes('净买入') || lowerTitle.includes('北向')) {
+    return { type: '资金流向', typeColor: 'green' }
+  }
+  if (lowerTitle.includes('政策') || lowerTitle.includes('监管')) {
+    return { type: '政策解读', typeColor: 'purple' }
+  }
+  if (lowerTitle.includes('调研') || lowerTitle.includes('机构')) {
+    return { type: '机构调研', typeColor: 'red' }
+  }
+  return { type: '资讯', typeColor: 'blue' }
+}
+
+function formatStockCode(code: string | null): string {
+  if (!code) return '-'
+  const codeNum = parseInt(code)
+  if (isNaN(codeNum)) return code
+  return code + (codeNum < 500000 ? '.SH' : '.SZ')
+}
+
+// 转换 API 数据为 Recommendation 格式
+function convertApiToRecommendation(item: NewsItem): Recommendation {
+  const { type, typeColor } = getTypeAndColor(item.title, item.source)
+  
+  const stocks: Stock[] = (item.stocks || []).map(s => ({
+    name: s.name,
+    code: formatStockCode(s.code),
+    score: s.score || 0
+  }))
+  
+  return {
+    id: item.id,
+    type,
+    typeColor,
+    source: item.source,
+    time: formatTime(item.publish_time),
+    title: item.title,
+    analysis: item.analysis,
+    sectors: item.sectors || [],
+    stocks
+  }
+}
+
+// 转换 WebSocket 数据为 Recommendation 格式
+function convertWsToRecommendation(data: RecommendationData): Recommendation {
   const news = data.news
   const analysis = data.analysis
 
@@ -149,64 +142,75 @@ function convertWsDataToRecommendation(data: RecommendationData): Recommendation
     return parsed || { name: stock, code: '-', score: 0 }
   })
 
-  const typeColors: Record<string, string> = {
-    '深度解析': 'red',
-    '研报精选': 'blue',
-    '资金流向': 'green',
-    '政策解读': 'purple'
-  }
-
-  const typeColor = typeColors[news.title.slice(0, 4)] || 'blue'
+  const { type, typeColor } = getTypeAndColor(news.title, news.source)
 
   return {
     id: Date.now(),
-    type: '实时推送',
+    type,
     typeColor,
     source: news.source,
     time: news.publish_time,
     title: news.title,
-    analysis: analysis.详细分析,
+    analysis: analysis.详细分析 || '',
     sectors: analysis.利好版块 || [],
     stocks
   }
 }
 
-function addRecommendation(data: RecommendationData) {
-  const newRec = convertWsDataToRecommendation(data)
+// 添加 WebSocket 推送的资讯到列表
+function addWebSocketRecommendation(data: RecommendationData) {
+  const newRec = convertWsToRecommendation(data)
   recommendations.value.unshift(newRec)
-
+  
+  // 最多保留50条
   if (recommendations.value.length > 50) {
     recommendations.value.pop()
   }
 }
 
+// 获取初始数据
+async function fetchNews() {
+  loading.value = true
+  error.value = null
+  
+  try {
+    const newsList = await getLatestNews(10)
+    recommendations.value = newsList.map(convertApiToRecommendation)
+  } catch (e) {
+    console.error('获取资讯失败:', e)
+    error.value = e instanceof Error ? e.message : '获取数据失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(() => {
+  // 初始化 WebSocket
   onConnect(() => {
     isWsConnected.value = true
-    connectionStatus.value = 'connected'
     subscribe(['recommendation'])
   })
 
   onDisconnect(() => {
     isWsConnected.value = false
-    connectionStatus.value = 'disconnected'
   })
 
-  onError((error) => {
-    console.error('WebSocket错误:', error)
-    connectionStatus.value = 'error'
+  onError((err) => {
+    console.error('WebSocket错误:', err)
   })
 
-  onMessage(addRecommendation)
-
+  onMessage(addWebSocketRecommendation)
+  
+  // 连接 WebSocket
   connect()
+  
+  // 获取初始数据
+  fetchNews()
 })
 
 onUnmounted(() => {
   disconnect()
 })
-
-
 </script>
 
 <template>
@@ -263,14 +267,40 @@ onUnmounted(() => {
       </button>
     </div>
 
+    <!-- Loading State -->
+    <div v-if="loading" class="p-6">
+      <div class="flex items-center justify-center h-64">
+        <div class="text-textMute">加载中...</div>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="p-6">
+      <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+        <p class="text-red-600 dark:text-red-400 text-sm">{{ error }}</p>
+        <button 
+          @click="fetchNews"
+          class="mt-2 text-sm text-primary hover:underline"
+        >
+          重试
+        </button>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div v-else-if="recommendations.length === 0" class="p-6">
+      <div class="flex items-center justify-center h-64">
+        <div class="text-textMute">暂无资讯数据</div>
+      </div>
+    </div>
+
     <!-- Recommendation List -->
-    <div class="p-6 space-y-4">
+    <div v-else class="p-6 space-y-4">
       <div
         v-for="rec in recommendations"
         :key="rec.id"
         class="bg-card border border-border transition-colors shadow-sm overflow-hidden flex"
       >
-        <!-- Left: Analysis Logic -->
         <div class="p-4 border-r border-border flex-1">
           <div class="flex items-center gap-3 mb-2">
             <span
@@ -289,13 +319,13 @@ onUnmounted(() => {
           <h2 class="text-lg font-bold text-textMain mb-2 leading-snug hover:text-primary cursor-pointer transition-colors">
             {{ rec.title }}
           </h2>
-          <div class="bg-gray-50 dark:bg-gray-800 p-3 mb-3 border-l-2 border-primary">
+          <div v-if="rec.analysis" class="bg-gray-50 dark:bg-gray-800 p-3 mb-3 border-l-2 border-primary">
             <p class="text-xs leading-relaxed text-textSub">
-              <span class="font-bold text-textMain">AI解析逻辑：</span>
+              <span class="font-bold text-textMain">AI解析：</span>
               {{ rec.analysis }}
             </p>
           </div>
-          <div class="flex flex-wrap gap-2 items-center">
+          <div v-if="rec.sectors.length > 0" class="flex flex-wrap gap-2 items-center">
             <span class="text-xs font-bold text-textMute">利好板块:</span>
             <span
               v-for="sector in rec.sectors"
@@ -307,8 +337,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Right: Stocks Table -->
-        <div class="w-[300px] min-w-[300px] bg-gray-50/30 dark:bg-gray-800/30 p-3">
+        <div v-if="rec.stocks.length > 0" class="w-[300px] min-w-[300px] bg-gray-50/30 dark:bg-gray-800/30 p-3">
           <table class="w-full table-fixed">
             <thead class="bg-transparent">
               <tr>
@@ -347,12 +376,5 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-
-    <!-- Load More -->
-    <!-- <div class="pb-8 flex justify-center">
-      <button class="px-12 py-2 border-2 border-border text-textMute text-xs font-bold hover:border-primary hover:text-primary transition-all rounded">
-        加载更多分析数据
-      </button>
-    </div> -->
   </div>
 </template>
