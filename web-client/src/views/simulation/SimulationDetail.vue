@@ -203,9 +203,9 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-bgMain">
+  <div class="h-screen flex flex-col bg-bgMain overflow-hidden">
     <!-- 页面标题栏 -->
-    <div class="px-6 py-4 border-b border-border bg-card">
+    <div class="px-6 py-3 border-b border-border bg-card shrink-0">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
           <button 
@@ -253,21 +253,21 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 页面内容 -->
-    <div class="p-6 space-y-6">
-      <!-- 上：持仓股票列表 -->
-      <div class="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-border flex items-center justify-between">
+    <!-- 页面内容 (可滚动) -->
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+      <!-- 上：持仓股票列表 (固定高度，可滚动) -->
+      <div class="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col" style="max-height: 280px;">
+        <div class="px-6 py-3 border-b border-border flex items-center justify-between shrink-0">
           <div class="flex items-center gap-3">
             <h2 class="font-bold text-sm text-textMain">持仓股票</h2>
-            <span class="text-xs text-textMute">共 {{ holdings.length }} 只股票</span>
+            <span class="text-xs text-textMute">共 {{ holdings.length }} 只</span>
           </div>
           <div class="flex items-center gap-4 text-xs text-textMute">
             <span>持仓市值: <span class="font-numeric font-semibold text-textMain">{{ formatMoney(simulation.holdingsValue) }}</span></span>
-            <span>占比: <span class="font-numeric font-semibold text-primary">{{ ((simulation.holdingsValue / simulation.currentCapital) * 100).toFixed(1) }}%</span></span>
           </div>
         </div>
-        <table class="w-full">
+        <div class="overflow-y-auto flex-1">
+          <table class="w-full">
           <thead>
             <tr class="bg-gray-50/50 dark:bg-gray-800/50 text-textMute text-[11px] uppercase tracking-wider">
               <th class="px-6 py-3 font-semibold text-left">股票名称</th>
@@ -321,6 +321,7 @@ onMounted(() => {
             </tr>
           </tbody>
         </table>
+        </div>
         
         <!-- 空状态 -->
         <div v-if="holdings.length === 0" class="py-12 text-center">
@@ -425,17 +426,18 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 右侧：交易记录 -->
+        <!-- 右侧：交易记录 (固定高度，可滚动) -->
         <div class="col-span-8">
-          <div class="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-            <div class="px-6 py-4 border-b border-border flex items-center justify-between">
+          <div class="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col" style="max-height: 400px;">
+            <div class="px-6 py-3 border-b border-border flex items-center justify-between shrink-0">
               <div class="flex items-center gap-3">
                 <h2 class="font-bold text-sm text-textMain">交易记录</h2>
                 <span class="text-xs text-textMute">最近 {{ trades.length }} 笔</span>
               </div>
               <button class="text-xs text-primary hover:underline font-semibold">查看全部</button>
             </div>
-            <table class="w-full">
+            <div class="overflow-y-auto flex-1">
+              <table class="w-full">
               <thead>
                 <tr class="bg-gray-50/50 dark:bg-gray-800/50 text-textMute text-[11px] uppercase tracking-wider">
                   <th class="px-6 py-3 font-semibold text-left">时间</th>
@@ -489,6 +491,7 @@ onMounted(() => {
                 </tr>
               </tbody>
             </table>
+            </div>
 
             <!-- 空状态 -->
             <div v-if="trades.length === 0" class="py-12 text-center">
