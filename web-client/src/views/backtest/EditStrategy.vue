@@ -55,11 +55,24 @@ const strategyDescription = ref('')
 // 时间范围选项
 const dateRangeOption = ref<'custom' | '3years'>('custom')
 
+const today = new Date()
+const threeYearsAgo = new Date(today.getFullYear() - 3, today.getMonth(), today.getDate())
+
+const computedStartDate = computed(() => {
+  return dateRangeOption.value === '3years' 
+    ? threeYearsAgo.toISOString().split('T')[0]
+    : startDate.value
+})
+
+const computedEndDate = computed(() => {
+  return dateRangeOption.value === '3years' 
+    ? today.toISOString().split('T')[0]
+    : endDate.value
+})
+
 function setDateRange3Years() {
-  const today = new Date()
-  endDate.value = today.toISOString().split('T')[0]
-  const threeYearsAgo = new Date(today.getFullYear() - 3, today.getMonth(), today.getDate())
   startDate.value = threeYearsAgo.toISOString().split('T')[0]
+  endDate.value = today.toISOString().split('T')[0]
 }
 
 const logs = ref<Array<{ time: string; level: string; message: string }>>([
@@ -124,7 +137,7 @@ function validateBeforeSubmit(): boolean {
     return false
   }
 
-  if (!startDate.value || !endDate.value || startDate.value > endDate.value) {
+  if (!computedStartDate.value || !computedEndDate.value || computedStartDate.value > computedEndDate.value) {
     addLog('WARNING', '请检查回测日期范围')
     return false
   }
@@ -182,8 +195,8 @@ async function handlePreview() {
 
   try {
     const params: BacktestParams = {
-      start_date: startDate.value,
-      end_date: endDate.value,
+      start_date: computedStartDate.value,
+      end_date: computedEndDate.value,
       frequency: frequency.value,
       initial_capital: initialCapital.value
     }
@@ -239,8 +252,8 @@ async function handleRunBacktest() {
 
   try {
     const params: BacktestParams = {
-      start_date: startDate.value,
-      end_date: endDate.value,
+      start_date: computedStartDate.value,
+      end_date: computedEndDate.value,
       frequency: frequency.value,
       initial_capital: initialCapital.value
     }
@@ -331,7 +344,6 @@ onMounted(() => {
                 type="radio"
                 value="3years"
                 class="accent-primary"
-                @change="setDateRange3Years"
               />
               <span class="text-[11px] text-slate-600">近三年</span>
             </label>
@@ -340,20 +352,12 @@ onMounted(() => {
         <div class="w-px h-3 bg-slate-300"></div>
         <div class="flex items-center gap-1.5">
           <label class="text-[11px] text-slate-500 whitespace-nowrap">开始日期</label>
-          <input
-            v-model="startDate"
-            type="date"
-            class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700"
-          />
+          <span class="text-xs text-slate-700 w-24">{{ computedStartDate }}</span>
         </div>
         <div class="w-px h-3 bg-slate-300"></div>
         <div class="flex items-center gap-1.5">
           <label class="text-[11px] text-slate-500 whitespace-nowrap">结束日期</label>
-          <input
-            v-model="endDate"
-            type="date"
-            class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700"
-          />
+          <span class="text-xs text-slate-700 w-24">{{ computedEndDate }}</span>
         </div>
         <div class="w-px h-3 bg-slate-300"></div>
         <div class="flex items-center gap-1.5">
