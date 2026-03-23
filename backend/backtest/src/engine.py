@@ -549,6 +549,9 @@ class BacktestEngine:
             # 计算扩展指标
             self._calculate_extended_metrics(metrics, strategy_instance, annual_return, max_dd)
             
+            # 计算交易统计指标
+            self._calculate_trade_stats(metrics, self.trades)
+            
         except Exception as e:
             logger.warning(f"提取分析器指标失败: {e}")
         
@@ -635,6 +638,50 @@ class BacktestEngine:
                         tracking_error = np.std(excess_returns, ddof=1) * np.sqrt(252)
                         if tracking_error > 0:
                             metrics["information_ratio"] = (np.mean(excess_returns) * 252) / tracking_error
+
+    def _calculate_trade_stats(
+        self,
+        metrics: Dict[str, Any],
+        trades: List[Dict[str, Any]]
+    ):
+        if not trades:
+            return
+        
+        from datetime import datetime
+        
+        profits = []
+        holding_periods = []
+        
+        buy_positions = {}
+        
+        for trade in trades:
+            trade_time = trade.get("time", "")
+            if not trade_time:
+                continue
+            
+            trade_dt = datetime.strptime(trade_time.split()[0], "%Y-%m-%d")
+            symbol = trade.get("code", "")
+            direction = trade.get("type", "")
+            profit = trade.get("profit")
+            
+            if direction == "BUY":
+                buy_positions[symbol] = trade_dt
+            elif direction == "SELL":
+                if symbol in buy_positions:
+                    buy_time = buy_positions[symbol]
+                    holding_days = (trade_dt - buy_time).days
+                    if holding_days >= 0:
+                        holding_periods.append(holding_days)
+                    del buy_positions[symbol]
+                
+                if profit is not None:
+                    profits.append(profit)
+        
+        if profits:
+            metrics["avg_profit_per_trade"] = sum(profits) / len(profits)
+        
+        if holding_periods:
+            metrics["avg_holding_days"] = sum(holding_periods) / len(holding_periods)
 
     def get_trades(self) -> List[Dict[str, Any]]:
         return self.trades
@@ -756,6 +803,8 @@ class BacktestExecutor:
                 "beta": results.get("beta"),
                 "alpha": results.get("alpha"),
                 "information_ratio": results.get("information_ratio"),
+                "avg_holding_days": results.get("avg_holding_days"),
+                "avg_profit_per_trade": results.get("avg_profit_per_trade"),
             }
             extended_metrics = {k: v for k, v in extended_metrics.items() if v is not None}
             
