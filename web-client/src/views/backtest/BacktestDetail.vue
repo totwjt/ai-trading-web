@@ -438,13 +438,13 @@ onBeforeUnmount(() => {
         >
           <div class="flex items-center justify-between gap-4">
             <div>
-              <h2 class="text-sm font-bold text-textMain">任务进度</h2>
-              <p class="text-xs text-textSub mt-1">
+              <span class="text-sm font-bold text-textMain">任务进度</span>
+              <span class="text-xs text-textSub mt-1">
                 创建时间 {{ new Date(detail.created_at).toLocaleString('zh-CN') }}
                 <span v-if="detail.completed_at">
                   · 完成时间 {{ new Date(detail.completed_at).toLocaleString('zh-CN') }}
                 </span>
-              </p>
+              </span>
             </div>
             <span v-if="isRefreshingPanels" class="text-xs text-textMute">子模块刷新中...</span>
           </div>

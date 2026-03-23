@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BACKTEST_SYMBOLS = ["000001.SZ"]
 DEFAULT_PREVIEW_SYMBOLS = ["000001.SZ", "000002.SZ", "600000.SH"]
+MAX_FULL_BACKTEST_SYMBOLS = 100
 
 
 def _date_to_db(value: str) -> str:
@@ -37,6 +38,14 @@ def _date_to_db(value: str) -> str:
 
 def _date_from_db(value: str) -> str:
     return f"{value[0:4]}-{value[4:6]}-{value[6:8]}"
+
+
+def _get_history_start_date(start_date: str, lookback_days: int = 60) -> str:
+    """计算历史数据开始日期（回测开始前N天）"""
+    from datetime import datetime, timedelta
+    dt = datetime.strptime(start_date, "%Y-%m-%d")
+    dt = dt - timedelta(days=lookback_days)
+    return dt.strftime("%Y-%m-%d")
 
 
 def _to_float(value: Any, default: float = 0.0) -> float:
@@ -166,14 +175,40 @@ class BacktestEngine:
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
         return cerebro
 
-    async def _resolve_symbols(self, max_symbols: int) -> List[str]:
+    async def _resolve_symbols(self, max_symbols: Optional[int]) -> List[str]:
         requested_symbols = [symbol for symbol in self.symbols if symbol]
         if requested_symbols:
+            if max_symbols is None:
+                return requested_symbols
             return requested_symbols[:max_symbols]
 
-        candidates = DEFAULT_PREVIEW_SYMBOLS if max_symbols > 1 else DEFAULT_BACKTEST_SYMBOLS
-
         async with async_session_maker() as session:
+            # 完整回测：限制最多 MAX_FULL_BACKTEST_SYMBOLS 只，数据量 >= 50
+            if max_symbols is None:
+                rows = await session.execute(
+                    text(
+                        """
+                        select ts_code
+                        from stock_daily
+                        where trade_date between :start_date and :end_date
+                        group by ts_code
+                        having count(*) >= 50
+                        order by ts_code
+                        limit :limit_num
+                        """
+                    ),
+                    {
+                        "start_date": _date_to_db(self.start_date),
+                        "end_date": _date_to_db(self.end_date),
+                        "limit_num": MAX_FULL_BACKTEST_SYMBOLS,
+                    }
+                )
+                symbols = [row[0] for row in rows.fetchall()]
+                await session.commit()
+                return symbols
+
+            # 预览模式：使用候选列表
+            candidates = DEFAULT_PREVIEW_SYMBOLS
             rows = await session.execute(
                 text(
                     """
@@ -194,6 +229,7 @@ class BacktestEngine:
             if symbols:
                 return symbols[:max_symbols]
 
+            # fallback: 从时间区间内获取
             fallback_rows = await session.execute(
                 text(
                     """
@@ -234,13 +270,13 @@ class BacktestEngine:
                       on saf.ts_code = sd.ts_code
                      and saf.trade_date = sd.trade_date
                     where sd.ts_code = :symbol
-                      and sd.trade_date between :start_date and :end_date
+                      and sd.trade_date between :hist_start_date and :end_date
                     order by sd.trade_date
                     """
                 ),
                 {
                     "symbol": symbol,
-                    "start_date": _date_to_db(self.start_date),
+                    "hist_start_date": _date_to_db(_get_history_start_date(self.start_date)),
                     "end_date": _date_to_db(self.end_date),
                 }
             )
@@ -372,7 +408,9 @@ class BacktestEngine:
 
             self.cerebro = self._create_cerebro()
 
-            symbols = await self._resolve_symbols(max_symbols=1)
+            # 编译运行用1只快速验证，完整回测使用全量股票
+            max_symbols = 1 if is_preview else None
+            symbols = await self._resolve_symbols(max_symbols=max_symbols)
             if not symbols:
                 raise ValueError("指定区间内未找到可用股票行情数据")
 
