@@ -80,14 +80,23 @@ class EquityRecorderMixin:
     def __init__(self, *args, **kwargs):
         self._equity_history: List[Dict[str, Any]] = []
         self._trade_history: List[Dict[str, Any]] = []
+        self._daily_returns: List[float] = []  # 每日收益率序列
         super().__init__(*args, **kwargs)
 
     def _record_equity_snapshot(self):
         current_dt = bt.num2date(self.datas[0].datetime[0]).date().isoformat()
         current_equity = float(self.broker.getvalue())
+        
+        # 计算日收益率
         if self._equity_history and self._equity_history[-1]["date"] == current_dt:
             self._equity_history[-1]["equity"] = current_equity
             return
+        elif self._equity_history:
+            prev_equity = self._equity_history[-1]["equity"]
+            if prev_equity > 0:
+                daily_return = (current_equity - prev_equity) / prev_equity
+                self._daily_returns.append(daily_return)
+        
         self._equity_history.append({"date": current_dt, "equity": current_equity})
 
     def prenext(self):
@@ -489,6 +498,13 @@ class BacktestEngine:
             "sharpe_ratio": None,
             "win_rate": None,
             "profit_loss_ratio": None,
+            # 扩展指标
+            "calmar_ratio": None,
+            "sortino_ratio": None,
+            "volatility": None,
+            "beta": None,
+            "alpha": None,
+            "information_ratio": None,
         }
         
         try:
@@ -530,10 +546,95 @@ class BacktestEngine:
             elif won_count > 0 and lost_count == 0:
                 metrics["profit_loss_ratio"] = float('inf')
             
+            # 计算扩展指标
+            self._calculate_extended_metrics(metrics, strategy_instance, annual_return, max_dd)
+            
         except Exception as e:
             logger.warning(f"提取分析器指标失败: {e}")
         
         return metrics
+
+    def _calculate_extended_metrics(
+        self,
+        metrics: Dict[str, Any],
+        strategy_instance,
+        annual_return: Optional[float],
+        max_dd: Optional[float]
+    ):
+        """计算扩展风险指标"""
+        import numpy as np
+        
+        daily_returns = getattr(strategy_instance, "_daily_returns", [])
+        if len(daily_returns) < 2:
+            return
+        
+        annual_return_pct = annual_return / 100.0 if annual_return else metrics["total_return"] / 100.0
+        max_dd_pct = abs(max_dd / 100.0) if max_dd else None
+        
+        # 1. Calmar比率 = 年化收益 / 最大回撤
+        if annual_return_pct and max_dd_pct and max_dd_pct > 0:
+            metrics["calmar_ratio"] = annual_return_pct / max_dd_pct
+        
+        # 2. 波动率 (年化) = 日收益率标准差 * sqrt(252)
+        daily_returns_arr = np.array(daily_returns)
+        if len(daily_returns_arr) > 0:
+            volatility_daily = np.std(daily_returns_arr, ddof=1)
+            metrics["volatility"] = volatility_daily * np.sqrt(252) * 100
+            
+            # 3. Sortino比率 = 年化收益 / 下行波动率
+            downside_returns = daily_returns_arr[daily_returns_arr < 0]
+            if len(downside_returns) > 1:
+                downside_std = np.std(downside_returns, ddof=1)
+                if downside_std > 0:
+                    downside_vol = downside_std * np.sqrt(252)
+                    metrics["sortino_ratio"] = annual_return_pct / downside_vol if annual_return_pct else None
+        
+        # 4. 计算 Beta 和 Alpha（需要基准收益序列）
+        equity_history = getattr(strategy_instance, "_equity_history", [])
+        if len(equity_history) > 1 and self.equity_curve:
+            strategy_returns = []
+            benchmark_returns = []
+            
+            # 从 equity_curve 获取基准收益
+            for i, point in enumerate(self.equity_curve):
+                if i == 0:
+                    continue
+                prev_point = self.equity_curve[i - 1]
+                if prev_point["equity"] > 0:
+                    strat_ret = (point["equity"] - prev_point["equity"]) / prev_point["equity"]
+                    strategy_returns.append(strat_ret)
+                if prev_point["benchmark"] > 0:
+                    bench_ret = (point["benchmark"] - prev_point["benchmark"]) / prev_point["benchmark"]
+                    benchmark_returns.append(bench_ret)
+            
+            if len(strategy_returns) > 1 and len(benchmark_returns) > 1:
+                strategy_arr = np.array(strategy_returns)
+                benchmark_arr = np.array(benchmark_returns)
+                
+                # Beta = Cov(策略, 基准) / Var(基准)
+                cov_matrix = np.cov(strategy_arr, benchmark_arr, ddof=1)
+                if cov_matrix.shape == (2, 2):
+                    cov_strat_bench = cov_matrix[0, 1]
+                    var_bench = cov_matrix[1, 1]
+                    if var_bench > 0:
+                        metrics["beta"] = cov_strat_bench / var_bench
+                    
+                    # Alpha = 策略年化收益 - 无风险利率 - Beta * (基准年化收益 - 无风险利率)
+                    risk_free_rate = 0.03 / 252  # 年化3%拆分为日频
+                    benchmark_annual = (1 + benchmark_arr.mean()) ** 252 - 1
+                    
+                    if metrics["beta"] is not None:
+                        strategy_annual = (1 + strategy_arr.mean()) ** 252 - 1
+                        metrics["alpha"] = (strategy_annual - risk_free_rate - 
+                                           metrics["beta"] * (benchmark_annual - risk_free_rate)) * 100
+                    
+                    # Information Ratio = 超额收益均值 / 跟踪误差
+                    min_len = min(len(strategy_returns), len(benchmark_returns))
+                    if min_len > 1:
+                        excess_returns = np.array(strategy_returns[:min_len]) - np.array(benchmark_returns[:min_len])
+                        tracking_error = np.std(excess_returns, ddof=1) * np.sqrt(252)
+                        if tracking_error > 0:
+                            metrics["information_ratio"] = (np.mean(excess_returns) * 252) / tracking_error
 
     def get_trades(self) -> List[Dict[str, Any]]:
         return self.trades
@@ -646,16 +747,33 @@ class BacktestExecutor:
 
             await self._replace_curve(backtest_id, engine.get_equity_curve())
             await self._replace_trades(backtest_id, engine.get_trades())
+            
+            extended_metrics = {
+                "total_trades": results.get("total_trades", 0),
+                "calmar_ratio": results.get("calmar_ratio"),
+                "sortino_ratio": results.get("sortino_ratio"),
+                "volatility": results.get("volatility"),
+                "beta": results.get("beta"),
+                "alpha": results.get("alpha"),
+                "information_ratio": results.get("information_ratio"),
+            }
+            extended_metrics = {k: v for k, v in extended_metrics.items() if v is not None}
+            
             await self._update_backtest(
                 backtest_id,
                 status=BacktestStatus.COMPLETED,
                 progress=100,
                 final_equity=results.get("final_equity"),
                 total_return=results.get("total_return"),
+                annual_return=results.get("annual_return"),
+                max_drawdown=results.get("max_drawdown"),
+                sharpe_ratio=results.get("sharpe_ratio"),
+                win_rate=results.get("win_rate"),
+                profit_loss_ratio=results.get("profit_loss_ratio"),
                 benchmark_return=results.get("benchmark_return"),
                 execution_time=results.get("execution_time", 0),
                 completed_at=datetime.now(),
-                metrics={"total_trades": results.get("total_trades", 0)},
+                metrics=extended_metrics,
                 error_message=None,
             )
             return results
