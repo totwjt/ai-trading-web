@@ -24,7 +24,7 @@ class MyStrategy(bt.Strategy):
     def __init__(self):
         self.dataclose = self.datas[0].close
         self.order = None
-        
+
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
             return
@@ -34,7 +34,7 @@ class MyStrategy(bt.Strategy):
             elif order.issell():
                 print(f'卖出: 价格 {order.executed.price:.2f}, 数量 {order.executed.size}')
         self.order = None
-        
+
     def next(self):
         if self.order:
             return
@@ -51,6 +51,16 @@ const endDate = ref(new Date().toISOString().split('T')[0])
 const frequency = ref('1d')
 const initialCapital = ref(1000000)
 const strategyDescription = ref('')
+
+// 时间范围选项
+const dateRangeOption = ref<'custom' | '3years'>('custom')
+
+function setDateRange3Years() {
+  const today = new Date()
+  endDate.value = today.toISOString().split('T')[0]
+  const threeYearsAgo = new Date(today.getFullYear() - 3, today.getMonth(), today.getDate())
+  startDate.value = threeYearsAgo.toISOString().split('T')[0]
+}
 
 const logs = ref<Array<{ time: string; level: string; message: string }>>([
   { time: '10:00:00', level: 'INFO', message: '策略编辑器已就绪' }
@@ -169,7 +179,7 @@ async function handlePreview() {
 
   isRunning.value = true
   addLog('INFO', '开始编译检查...')
-  
+
   try {
     const params: BacktestParams = {
       start_date: startDate.value,
@@ -177,15 +187,15 @@ async function handlePreview() {
       frequency: frequency.value,
       initial_capital: initialCapital.value
     }
-    
+
     const result = await previewStrategy({
       strategy_id: strategyId.value || undefined,
       code: strategyCode.value,
       params
     })
-    
+
     previewResult.value = result
-    
+
     if (result.success) {
       result.logs?.forEach(log => {
         addLog(log.level, log.message)
@@ -201,7 +211,7 @@ async function handlePreview() {
         previewFinalEquity.value = result.summary.final_equity || null
         previewInitialValue.value = result.summary.initial_value || null
       }
-      
+
       addLog('SUCCESS', '编译运行完成')
     } else {
       result.logs?.forEach(log => {
@@ -223,10 +233,10 @@ async function handleRunBacktest() {
     addLog('WARNING', '请先保存策略后再运行回测')
     return
   }
-  
+
   isRunning.value = true
   addLog('INFO', '创建回测任务...')
-  
+
   try {
     const params: BacktestParams = {
       start_date: startDate.value,
@@ -234,7 +244,7 @@ async function handleRunBacktest() {
       frequency: frequency.value,
       initial_capital: initialCapital.value
     }
-    
+
     const result = await createBacktest(strategyId.value, params)
     addLog('SUCCESS', `回测任务已创建: ID ${result.backtest_id}`)
 
@@ -296,13 +306,38 @@ onMounted(() => {
           <input
             v-model="strategyName"
             type="text"
-            class="bg-transparent border border-slate-200 rounded px-2 py-1 text-sm font-medium text-slate-700 focus:outline-none focus:border-primary w-48"
+            class="bg-transparent border border-slate-200 rounded px-2 py-1 text-sm font-medium text-slate-700 focus:outline-none focus:border-primary w-60"
             placeholder="请输入策略名称"
           />
         </div>
       </div>
-      
+
       <div class="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
+        <div class="flex items-center gap-2">
+          <label class="text-[11px] text-slate-500 whitespace-nowrap">时间范围</label>
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input
+                v-model="dateRangeOption"
+                type="radio"
+                value="custom"
+                class="accent-primary"
+              />
+              <span class="text-[11px] text-slate-600">自定义</span>
+            </label>
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input
+                v-model="dateRangeOption"
+                type="radio"
+                value="3years"
+                class="accent-primary"
+                @change="setDateRange3Years"
+              />
+              <span class="text-[11px] text-slate-600">近三年</span>
+            </label>
+          </div>
+        </div>
+        <div class="w-px h-3 bg-slate-300"></div>
         <div class="flex items-center gap-1.5">
           <label class="text-[11px] text-slate-500 whitespace-nowrap">开始日期</label>
           <input
@@ -345,7 +380,7 @@ onMounted(() => {
         </div>
         <span class="text-[10px] text-slate-400 whitespace-nowrap">当前真实回测仅支持日线</span>
       </div>
-      
+
       <div class="flex items-center gap-3">
         <button
           class="bg-primary text-white px-5 py-1.5 rounded text-sm font-semibold hover:bg-blue-700 shadow-sm shadow-blue-200 transition-all disabled:opacity-50"
