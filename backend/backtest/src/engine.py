@@ -402,22 +402,18 @@ class BacktestEngine:
                 self.trades = list(getattr(strategy_instance, "_trade_history", []))
                 self._build_equity_curve(list(getattr(strategy_instance, "_equity_history", [])), benchmark_map)
 
-            await callbacks.log(LogLevel.SUCCESS.value, "Backtest completed.")
-            await callbacks.progress(100, "回测完成")
-
             benchmark_return = None
             if self.equity_curve:
                 last_point = self.equity_curve[-1]
                 benchmark_return = ((last_point["benchmark"] - self.initial_capital) / self.initial_capital) * 100
 
-            self.results = {
-                "initial_value": initial_value,
-                "final_value": final_value,
-                "total_return": ((final_value - initial_value) / initial_value) * 100,
-                "final_equity": final_value,
-                "benchmark_return": benchmark_return,
-                "total_trades": len(self.trades),
-            }
+            metrics = self._extract_metrics(
+                strategy_instance,
+                initial_value,
+                final_value,
+                benchmark_return
+            )
+            self.results = metrics
             return self.results
 
         except Exception as exc:
@@ -426,6 +422,80 @@ class BacktestEngine:
             logger.error(traceback.format_exc())
             await callbacks.log(LogLevel.ERROR.value, error_msg)
             raise
+
+    def _extract_metrics(
+        self,
+        strategy_instance,
+        initial_value: float,
+        final_value: float,
+        benchmark_return: Optional[float]
+    ) -> Dict[str, Any]:
+        def safe_get(d: dict, *keys, default=None):
+            result = d
+            for key in keys:
+                if isinstance(result, dict):
+                    result = result.get(key, default)
+                else:
+                    return default
+            return result
+        
+        metrics = {
+            "initial_value": initial_value,
+            "final_value": final_value,
+            "final_equity": final_value,
+            "total_return": ((final_value - initial_value) / initial_value) * 100 if initial_value > 0 else 0,
+            "benchmark_return": benchmark_return,
+            "total_trades": 0,
+            "annual_return": None,
+            "max_drawdown": None,
+            "sharpe_ratio": None,
+            "win_rate": None,
+            "profit_loss_ratio": None,
+        }
+        
+        try:
+            returns_analysis = strategy_instance.analyzers.returns.get_analysis()
+            annual_return = safe_get(returns_analysis, 'rnorm100', 'avg', default=None)
+            if annual_return is not None:
+                metrics["annual_return"] = float(annual_return)
+            else:
+                metrics["annual_return"] = metrics["total_return"]
+            
+            dd_analysis = strategy_instance.analyzers.drawdown.get_analysis()
+            max_dd = safe_get(dd_analysis, 'max', 'drawdown', default=None)
+            if max_dd is not None:
+                metrics["max_drawdown"] = float(max_dd)
+            
+            sharpe_analysis = strategy_instance.analyzers.sharpe.get_analysis()
+            sharpe = safe_get(sharpe_analysis, 'sharperatio', default=None)
+            if sharpe is not None:
+                metrics["sharpe_ratio"] = float(sharpe)
+            
+            trades_analysis = strategy_instance.analyzers.trades.get_analysis()
+            
+            total_closed = safe_get(trades_analysis, 'total', 'closed', default=0)
+            if total_closed and total_closed > 0:
+                won = safe_get(trades_analysis, 'won', 'total', default=0)
+                metrics["win_rate"] = (won / total_closed) * 100 if won else 0
+                metrics["total_trades"] = int(total_closed)
+            
+            won_pnl = safe_get(trades_analysis, 'won', 'pnl', 'total', default=0)
+            lost_pnl = safe_get(trades_analysis, 'lost', 'pnl', 'total', default=0)
+            won_count = safe_get(trades_analysis, 'won', 'total', default=0)
+            lost_count = safe_get(trades_analysis, 'lost', 'total', default=0)
+            
+            if won_count > 0 and lost_count > 0:
+                avg_win = won_pnl / won_count if won_count > 0 else 0
+                avg_loss = abs(lost_pnl / lost_count) if lost_count > 0 else 0
+                if avg_loss > 0:
+                    metrics["profit_loss_ratio"] = avg_win / avg_loss
+            elif won_count > 0 and lost_count == 0:
+                metrics["profit_loss_ratio"] = float('inf')
+            
+        except Exception as e:
+            logger.warning(f"提取分析器指标失败: {e}")
+        
+        return metrics
 
     def get_trades(self) -> List[Dict[str, Any]]:
         return self.trades

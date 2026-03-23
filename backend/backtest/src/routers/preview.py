@@ -107,8 +107,15 @@ async def preview_backtest(
                 logs=logs,
                 summary={
                     "total_return": results.get("total_return", 0),
+                    "annual_return": results.get("annual_return"),
+                    "max_drawdown": results.get("max_drawdown"),
+                    "sharpe_ratio": results.get("sharpe_ratio"),
+                    "win_rate": results.get("win_rate"),
+                    "profit_loss_ratio": results.get("profit_loss_ratio"),
                     "final_equity": results.get("final_equity", 0),
-                    "initial_value": results.get("initial_value", 0)
+                    "initial_value": results.get("initial_value", 0),
+                    "benchmark_return": results.get("benchmark_return"),
+                    "total_trades": results.get("total_trades", 0),
                 },
                 equity_curve=engine.get_equity_curve()
             )

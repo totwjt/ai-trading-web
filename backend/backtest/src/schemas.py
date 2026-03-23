@@ -292,6 +292,10 @@ class PerformanceSummary(BaseModel):
     sharpe_ratio: Optional[float] = None
     win_rate: Optional[float] = None
     profit_loss_ratio: Optional[float] = None
+    initial_value: Optional[float] = None
+    final_equity: Optional[float] = None
+    benchmark_return: Optional[float] = None
+    total_trades: Optional[int] = None
 
 
 class PerformanceMetrics(BaseModel):

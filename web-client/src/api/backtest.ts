@@ -154,6 +154,10 @@ export interface PerformanceSummary {
   sharpe_ratio?: number
   win_rate?: number
   profit_loss_ratio?: number
+  initial_value?: number
+  final_equity?: number
+  benchmark_return?: number
+  total_trades?: number
 }
 
 export interface PerformanceMetrics {
