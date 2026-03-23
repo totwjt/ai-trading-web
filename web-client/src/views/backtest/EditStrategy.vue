@@ -291,7 +291,15 @@ onMounted(() => {
           返回
         </button>
         <div class="h-6 w-px bg-slate-200 mr-6"></div>
-        <span class="text-sm font-medium text-slate-600">策略: {{ strategyName }}</span>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-slate-500">策略:</span>
+          <input
+            v-model="strategyName"
+            type="text"
+            class="bg-transparent border border-slate-200 rounded px-2 py-1 text-sm font-medium text-slate-700 focus:outline-none focus:border-primary w-48"
+            placeholder="请输入策略名称"
+          />
+        </div>
       </div>
       
       <div class="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">

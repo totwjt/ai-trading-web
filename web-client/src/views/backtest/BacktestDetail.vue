@@ -539,8 +539,8 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="xl:col-span-1 border border-border rounded-lg bg-card shadow-sm flex flex-col overflow-hidden min-h-[350px]">
-            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div class="xl:col-span-1 border border-border rounded-lg bg-card shadow-sm flex flex-col overflow-hidden" style="height: 620px;">
+            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
               <h3 class="text-sm font-bold text-textMain flex items-center gap-2">
                 <Icon icon="mdi:list-status" :size="18" />
                 交易明细
@@ -585,8 +585,8 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="xl:col-span-1 border border-border rounded-lg bg-card shadow-sm flex flex-col overflow-hidden min-h-[350px]">
-            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div class="xl:col-span-1 border border-border rounded-lg bg-card shadow-sm flex flex-col overflow-hidden" style="height: 620px;">
+            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
               <h3 class="text-sm font-bold text-textMain flex items-center gap-2">
                 <Icon icon="mdi:terminal" :size="18" />
                 系统运行日志
