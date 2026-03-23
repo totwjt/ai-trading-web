@@ -10,6 +10,7 @@
 启动命令：
 ```bash
 cd backend
+source .venv/bin/activate
 python server.py
 ```
 

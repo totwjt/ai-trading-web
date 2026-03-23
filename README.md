@@ -68,9 +68,11 @@ npm run dev
 
 ```bash
 cd backend
-pip install -r requirements.txt
+source .venv/bin/activate  # 激活虚拟环境
 python server.py
 ```
+
+**注意**：必须先激活虚拟环境 `.venv`，直接运行 `python server.py` 会因缺少依赖而失败。
 
 ## 开发命令
 
@@ -82,7 +84,7 @@ python server.py
 - `npm run format` - 代码格式化
 
 ### 后端
-- `cd backend && python server.py` - 启动统一后端服务
+- `cd backend && source .venv/bin/activate && python server.py` - 启动统一后端服务（必须激活虚拟环境）
 - `pytest` - 运行测试
 
 ## 文档

@@ -114,6 +114,7 @@ pnpm test --watch
 **Backend Start:**
 ```bash
 cd backend
+source .venv/bin/activate
 python server.py
 ```
 
@@ -246,7 +247,7 @@ web-client/src/
 8.  **Update `docs/progress.md`** upon completing a phase.
 9.  **Commit frequently** with descriptive messages.
 10. **For API tasks**, consult the relevant file under `docs/API/` instead of assuming a root `docs/API.md`.
-11. **For backend startup**, use the unified entrypoint `backend/server.py` with `cd backend && python server.py`.
+11. **For backend startup**, use the unified entrypoint `backend/server.py` with `cd backend && source .venv/bin/activate && python server.py`. **必须先激活虚拟环境 `.venv`。**
 
 ### 4.1 Cursor/Copilot Integration
 
