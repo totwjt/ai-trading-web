@@ -126,20 +126,26 @@ class EquityRecorderMixin:
         direction = TradeDirection.BUY if order.isbuy() else TradeDirection.SELL
         pnl = getattr(order.executed, "pnl", None)
         current_dt = bt.num2date(order.executed.dt).strftime("%Y-%m-%d %H:%M:%S")
+        code = getattr(order.data, "_name", "UNKNOWN")
+        price = float(order.executed.price)
+        size = int(abs(order.executed.size))
+        amount = float(abs(order.executed.price * order.executed.size))
 
-        self._trade_history.append(
-            {
-                "time": current_dt,
-                "code": getattr(order.data, "_name", "UNKNOWN"),
-                "name": getattr(order.data, "_name", None),
-                "type": direction.value.upper(),
-                "price": float(order.executed.price),
-                "quantity": int(abs(order.executed.size)),
-                "amount": float(abs(order.executed.price * order.executed.size)),
-                "profit": float(pnl) if pnl is not None else None,
-                "commission": float(order.executed.comm or 0.0),
-            }
-        )
+        trade_info = {
+            "time": current_dt,
+            "code": code,
+            "name": code,
+            "type": direction.value.upper(),
+            "price": price,
+            "quantity": size,
+            "amount": amount,
+            "profit": float(pnl) if pnl is not None else None,
+            "commission": float(order.executed.comm or 0.0),
+        }
+        self._trade_history.append(trade_info)
+        
+        direction_cn = "买入" if direction == TradeDirection.BUY else "卖出"
+        print(f"[TRADE] {direction_cn} {code} {size}手 @{price:.2f} 金额:{amount:.2f}")
 
 
 class BacktestEngine:

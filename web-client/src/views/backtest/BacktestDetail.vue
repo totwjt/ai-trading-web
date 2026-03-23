@@ -559,6 +559,7 @@ onBeforeUnmount(() => {
                   <tr>
                     <th class="px-4 py-2 border-b border-slate-50">成交时间</th>
                     <th class="px-4 py-2 border-b border-slate-50">代码</th>
+                    <th class="px-4 py-2 border-b border-slate-50">名称</th>
                     <th class="px-4 py-2 border-b border-slate-50">类型</th>
                     <th class="px-4 py-2 border-b border-slate-50 text-right">价格</th>
                     <th class="px-4 py-2 border-b border-slate-50 text-right">数量</th>
@@ -569,13 +570,14 @@ onBeforeUnmount(() => {
                   <tr v-for="trade in trades" :key="trade.id" class="hover:bg-slate-50/50">
                     <td class="px-4 py-2 text-slate-500">{{ trade.time }}</td>
                     <td class="px-4 py-2 font-bold text-slate-800">{{ trade.code }}</td>
+                    <td class="px-4 py-2 text-slate-600">{{ trade.name || '-' }}</td>
                     <td class="px-4 py-2">
                       <span :class="trade.type === 'BUY' ? 'text-primary font-bold' : 'text-down font-bold'">
-                        {{ trade.type }}
+                        {{ trade.type === 'BUY' ? '买入' : '卖出' }}
                       </span>
                     </td>
                     <td class="px-4 py-2 text-right">{{ formatNumber(trade.price) }}</td>
-                    <td class="px-4 py-2 text-right text-slate-500">{{ trade.quantity }}</td>
+                    <td class="px-4 py-2 text-right text-slate-500">{{ trade.quantity }}手</td>
                     <td class="px-4 py-2 text-right" :class="getReturnClass(trade.profit)">
                       {{ trade.profit === undefined || trade.profit === null ? '-' : formatReturn(trade.profit) }}
                     </td>
