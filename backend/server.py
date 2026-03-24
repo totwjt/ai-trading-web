@@ -98,25 +98,43 @@ async def handle_ws_message(websocket: WebSocketServerProtocol, message: str):
             await websocket.send(response.to_json())
             
         elif ws_msg.type == MessageType.CONNECT:
+            client_type = ws_msg.payload.get("client_type", "web")
+            action = ws_msg.payload.get("action", "default")
             ws_client_info[websocket].update({
-                "client_type": ws_msg.payload.get("client_type", "web"),
+                "client_type": client_type,
                 "client_id": ws_msg.payload.get("client_id", ""),
-                "action": ws_msg.payload.get("action", "default")
+                "action": action
             })
+            
+            if client_type == "zixuan" and action == "default":
+                try:
+                    import httpx
+                    async with httpx.AsyncClient() as client:
+                        await client.post("http://192.168.66.141:8888/ws/start")
+                        logger.info("已启动外部自选股票实时推送")
+                except Exception as e:
+                    logger.error(f"启动外部推送失败: {e}")
+            
             response = WSMessage(
                 type=MessageType.SYSTEM,
                 payload={
                     "status": "connected",
                     "client_id": ws_msg.payload.get("client_id", ""),
-                    "client_type": ws_msg.payload.get("client_type", "web"),
+                    "client_type": client_type,
                     "server_time": datetime.now().isoformat()
                 }
             )
             await websocket.send(response.to_json())
             
         elif ws_msg.type == MessageType.PUSH:
-            data = ws_msg.payload.get("data", {})
-            await broadcast_ws(data)
+            target_type = ws_msg.payload.get("target_type", "web")
+            target_action = ws_msg.payload.get("action", "default")
+            data = ws_msg.payload.get("data", [])
+            
+            if target_action == "zixuan":
+                await broadcast_zixuan(data)
+            else:
+                await broadcast_ws(data)
             
     except json.JSONDecodeError:
         logger.error(f"无效JSON: {message[:100]}")
@@ -132,6 +150,32 @@ async def broadcast_ws(data: dict):
     for ws in connected_websockets:
         try:
             await ws.send(json_msg)
+        except Exception:
+            disconnected.add(ws)
+    
+    for ws in disconnected:
+        connected_websockets.discard(ws)
+        ws_client_info.pop(ws, None)
+
+
+async def broadcast_zixuan(data: list):
+    """推送自选股票实时行情"""
+    ws_msg = WSMessage(
+        type=MessageType.PUSH,
+        payload={
+            "target_type": "web",
+            "target_action": "zixuan",
+            "data": data
+        }
+    )
+    json_msg = ws_msg.to_json()
+    
+    disconnected = set()
+    for ws in connected_websockets:
+        try:
+            info = ws_client_info.get(ws, {})
+            if info.get("action") == "zixuan":
+                await ws.send(json_msg)
         except Exception:
             disconnected.add(ws)
     
