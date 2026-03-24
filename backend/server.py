@@ -22,6 +22,7 @@ from websockets import WebSocketServerProtocol
 from recommendation.db import get_latest_news, get_news_by_id
 from recommendation.models import WSMessage, MessageType
 from backtest.src.routers import strategy_router, backtest_router, preview_router
+from trading.routers import trading_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -46,6 +47,7 @@ app.add_middleware(
 app.include_router(strategy_router, prefix="/api")
 app.include_router(backtest_router, prefix="/api")
 app.include_router(preview_router, prefix="/api")
+app.include_router(trading_router)
 
 
 class StockItem(BaseModel):
