@@ -12,7 +12,7 @@ const strategyEnabled = ref(false)
 const riseSpeedMin = ref(0)
 const riseSpeedMax = ref(5)
 
-const { connect, isConnected } = useWebSocket()
+let wsInstance: WebSocket | null = null
 
 const loadWatchlist = async () => {
   watchlist.value = await getWatchlist()
@@ -20,15 +20,24 @@ const loadWatchlist = async () => {
 
 onMounted(() => {
   loadWatchlist()
-  connect()
-  setupWebSocketHandlers()
+  initWebSocket()
 })
 
-const setupWebSocketHandlers = () => {
-  const ws = new WebSocket(`ws://${window.location.hostname}:8765`)
+onUnmounted(() => {
+  if (wsInstance) {
+    wsInstance.close()
+    wsInstance = null
+  }
+})
+
+const initWebSocket = () => {
+  if (wsInstance) return
   
-  ws.onopen = () => {
-    ws.send(JSON.stringify({
+  const wsUrl = `ws://${window.location.hostname}:8765`
+  wsInstance = new WebSocket(wsUrl)
+  
+  wsInstance.onopen = () => {
+    wsInstance?.send(JSON.stringify({
       type: 'connect',
       payload: {
         client_id: 'trading_client_' + Date.now(),
@@ -40,7 +49,7 @@ const setupWebSocketHandlers = () => {
     }))
   }
   
-  ws.onmessage = (event) => {
+  wsInstance.onmessage = (event) => {
     try {
       const message: WSMessage = JSON.parse(event.data)
       if (message.type === 'push' && message.payload.target_action === 'zixuan') {
@@ -54,8 +63,12 @@ const setupWebSocketHandlers = () => {
     }
   }
   
-  ws.onerror = (err) => {
+  wsInstance.onerror = (err) => {
     console.error('WebSocket错误:', err)
+  }
+  
+  wsInstance.onclose = () => {
+    wsInstance = null
   }
 }
 

@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref } from 'vue'
 
 function generateClientId(): string {
   const stored = localStorage.getItem('ws_client_id')
@@ -245,20 +245,27 @@ class WebSocketClient {
 }
 
 let wsClient: WebSocketClient | null = null
+let clientUseCount = 0
 
 export function useWebSocket() {
+  clientUseCount++
+  
   if (!wsClient) {
     wsClient = new WebSocketClient()
   }
-
-  onUnmounted(() => {
-  })
 
   return {
     wsClient,
     isConnected: wsClient.isConnected,
     connect: () => wsClient?.connect(),
-    disconnect: () => wsClient?.disconnect(),
+    disconnect: () => {
+      clientUseCount--
+      if (clientUseCount <= 0 && wsClient) {
+        wsClient.disconnect()
+        wsClient = null
+        clientUseCount = 0
+      }
+    },
     subscribe: (topics: string[]) => wsClient?.subscribe(topics),
     onMessage: (handler: MessageHandler) => {
       wsClient!.messageHandler = handler

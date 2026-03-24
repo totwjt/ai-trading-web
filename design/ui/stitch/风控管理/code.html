@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>股智Pro - 风险控制中心</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Sans+SC:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "outline": "#727687",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#0066ff",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed-variant": "#003fa4",
+                        "on-tertiary-container": "#ebffdb",
+                        "on-background": "#191c1e",
+                        "surface-variant": "#e0e3e6",
+                        "surface": "#f7f9fc",
+                        "on-secondary-fixed-variant": "#930010",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#0054d6",
+                        "outline-variant": "#c2c6d8",
+                        "inverse-primary": "#b3c5ff",
+                        "surface-container": "#eceef1",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "on-secondary-container": "#fffbff",
+                        "tertiary": "#236700",
+                        "on-primary-container": "#f8f7ff",
+                        "inverse-on-surface": "#eff1f4",
+                        "inverse-surface": "#2d3133",
+                        "primary": "#0050cb",
+                        "surface-dim": "#d8dadd",
+                        "on-secondary-fixed": "#410003",
+                        "on-tertiary": "#ffffff",
+                        "on-surface": "#191c1e",
+                        "surface-container-high": "#e6e8eb",
+                        "secondary-fixed-dim": "#ffb3ad",
+                        "primary-fixed": "#dae1ff",
+                        "primary-fixed-dim": "#b3c5ff",
+                        "tertiary-fixed-dim": "#6de039",
+                        "on-tertiary-fixed": "#062100",
+                        "tertiary-fixed": "#88fd54",
+                        "on-error": "#ffffff",
+                        "tertiary-container": "#2f8300",
+                        "background": "#f7f9fc",
+                        "on-primary-fixed": "#001849",
+                        "surface-bright": "#f7f9fc",
+                        "surface-container-low": "#f2f4f7",
+                        "secondary-container": "#e71325",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#e0e3e6",
+                        "secondary": "#bb0018",
+                        "on-secondary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed": "#ffdad6",
+                        "on-surface-variant": "#424656"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter", "Noto Sans SC"],
+                        "body": ["Inter", "Noto Sans SC"],
+                        "label": ["Inter", "Noto Sans SC"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', 'Noto Sans SC', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #c2c6d8; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased overflow-x-hidden">
+<!-- Main Content Wrapper -->
+<main class="min-h-screen p-4 flex flex-col gap-4">
+<!-- Main Content Grid -->
+<div class="grid grid-cols-12 gap-4 flex-grow">
+<!-- Left Column: Position Management (Module 1) -->
+<div class="col-span-12 flex flex-col gap-4 lg:col-span-3">
+<section class="bg-surface-container-lowest rounded-lg p-4 flex-1 flex flex-col">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-sm font-bold flex items-center gap-2">
+<span class="w-1 h-4 bg-primary rounded-full"></span>仓位管理
+                        </h2>
+<span class="material-symbols-outlined text-outline text-lg">pie_chart</span>
+</div>
+<!-- Industry Concentration -->
+<div class="mb-6">
+<div class="text-[10px] text-outline font-bold mb-3 uppercase tracking-widest">行业集中度 (TOP 5)</div>
+<div class="space-y-3">
+<div class="space-y-1">
+<div class="flex justify-between text-[11px] font-medium">
+<span>电子 (Electronics)</span>
+<span>28.4%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full">
+<div class="bg-primary h-full rounded-full" style="width: 28.4%"></div>
+</div>
+</div>
+<div class="space-y-1">
+<div class="flex justify-between text-[11px] font-medium">
+<span>医疗保健 (Healthcare)</span>
+<span>15.2%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full">
+<div class="bg-primary h-full opacity-80 rounded-full" style="width: 15.2%"></div>
+</div>
+</div>
+<div class="space-y-1">
+<div class="flex justify-between text-[11px] font-medium">
+<span>新能源 (New Energy)</span>
+<span>12.8%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full">
+<div class="bg-primary h-full opacity-70 rounded-full" style="width: 12.8%"></div>
+</div>
+</div>
+<div class="space-y-1">
+<div class="flex justify-between text-[11px] font-medium">
+<span>半导体 (Semiconductor)</span>
+<span>10.5%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full">
+<div class="bg-primary h-full opacity-60 rounded-full" style="width: 10.5%"></div>
+</div>
+</div>
+<div class="space-y-1">
+<div class="flex justify-between text-[11px] font-medium">
+<span>消费品 (Consumer)</span>
+<span>8.2%</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full">
+<div class="bg-primary h-full opacity-50 rounded-full" style="width: 8.2%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Individual Stock Cap -->
+<div class="flex-grow">
+<div class="flex justify-between items-center mb-3">
+<div class="text-[10px] text-outline font-bold uppercase tracking-widest">个股持仓占比 (警戒线: 10%)</div>
+<span class="text-[9px] bg-secondary/10 text-secondary px-1.5 rounded font-bold">2个预警</span>
+</div>
+<div class="overflow-y-auto max-h-[300px] space-y-1 pr-1">
+<!-- Stock Row -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low hover:bg-surface-container transition-colors">
+<div class="flex flex-col">
+<span class="text-xs font-bold leading-none">宁德时代</span>
+<span class="text-[10px] text-outline leading-tight">300750</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<div class="text-xs font-mono font-bold text-secondary">11.42%</div>
+<div class="text-[9px] text-secondary font-medium">超限</div>
+</div>
+<div class="w-12 bg-surface-container-highest h-1 rounded-full relative overflow-hidden">
+<div class="absolute left-0 top-0 h-full bg-secondary" style="width: 100%"></div>
+</div>
+</div>
+</div>
+<!-- Stock Row -->
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low hover:bg-surface-container transition-colors">
+<div class="flex flex-col">
+<span class="text-xs font-bold leading-none">贵州茅台</span>
+<span class="text-[10px] text-outline leading-tight">600519</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<div class="text-xs font-mono font-bold text-secondary">10.15%</div>
+<div class="text-[9px] text-secondary font-medium">超限</div>
+</div>
+<div class="w-12 bg-surface-container-highest h-1 rounded-full relative overflow-hidden">
+<div class="absolute left-0 top-0 h-full bg-secondary" style="width: 100%"></div>
+</div>
+</div>
+</div>
+<!-- Stock Row -->
+<div class="flex items-center justify-between p-2 rounded hover:bg-surface-container transition-colors">
+<div class="flex flex-col">
+<span class="text-xs font-bold leading-none">比亚迪</span>
+<span class="text-[10px] text-outline leading-tight">002594</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<div class="text-xs font-mono font-bold">8.40%</div>
+<div class="text-[9px] text-tertiary font-medium">正常</div>
+</div>
+<div class="w-12 bg-surface-container-highest h-1 rounded-full relative overflow-hidden">
+<div class="absolute left-0 top-0 h-full bg-primary" style="width: 84%"></div>
+</div>
+</div>
+</div>
+<!-- Additional Placeholder Rows -->
+<div class="flex items-center justify-between p-2 rounded hover:bg-surface-container transition-colors opacity-80">
+<div class="flex flex-col">
+<span class="text-xs font-bold leading-none">隆基绿能</span>
+<span class="text-[10px] text-outline leading-tight">601012</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<div class="text-xs font-mono font-bold">6.12%</div>
+<div class="text-[9px] text-tertiary font-medium">正常</div>
+</div>
+<div class="w-12 bg-surface-container-highest h-1 rounded-full relative overflow-hidden">
+<div class="absolute left-0 top-0 h-full bg-primary" style="width: 61%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Total Position Control -->
+<div class="mt-4 pt-4 border-t border-outline-variant/10">
+<div class="flex justify-between items-end">
+<div>
+<span class="text-[10px] text-outline font-bold uppercase">总仓位控制</span>
+<div class="text-xl font-bold font-mono">72.5%</div>
+</div>
+<div class="text-right">
+<span class="text-[10px] text-outline font-bold uppercase">可用现金</span>
+<div class="text-sm font-bold font-mono text-primary">¥3,432,000</div>
+</div>
+</div>
+<div class="mt-2 h-3 w-full bg-surface-container flex rounded-sm overflow-hidden">
+<div class="h-full bg-primary" style="width: 72.5%"></div>
+<div class="h-full bg-surface-variant/50" style="width: 27.5%"></div>
+</div>
+<div class="flex justify-between mt-1">
+<span class="text-[9px] text-outline font-medium">股票持仓</span>
+<span class="text-[9px] text-outline font-medium">闲置资金</span>
+</div>
+</div>
+</section>
+</div>
+<!-- Center Column: Stop-loss & Take-profit (Module 2) -->
+<div class="col-span-12 flex flex-col gap-4 lg:col-span-6">
+<section class="bg-surface-container-lowest rounded-lg p-4 flex-1 flex flex-col shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-sm font-bold flex items-center gap-2">
+<span class="w-1 h-4 bg-primary rounded-full"></span>止损止盈策略管理
+                        </h2>
+<button class="bg-primary text-on-primary px-3 py-1 text-[11px] font-bold rounded flex items-center gap-1 hover:brightness-110 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[14px]">add_circle</span>
+                            新增规则
+                        </button>
+</div>
+<div class="overflow-x-auto flex-grow">
+<table class="w-full text-left">
+<thead class="bg-surface-container-low border-b border-outline-variant/20">
+<tr>
+<th class="py-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap px-2">标的名称/代码</th>
+<th class="py-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap px-2">策略类型</th>
+<th class="py-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap px-2">触发阈值</th>
+<th class="py-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap px-2">执行指令</th>
+<th class="py-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap px-2">状态</th>
+<th class="py-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider text-right whitespace-nowrap px-2">操作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<!-- Table Row -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-2.5 whitespace-nowrap px-2">
+<div class="flex flex-col">
+<span class="text-xs font-bold">宁德时代</span>
+<span class="text-[10px] text-outline">300750</span>
+</div>
+</td>
+<td class="py-2.5 whitespace-nowrap px-2">
+<span class="text-[10px] bg-primary/5 text-primary border border-primary/20 px-1.5 py-0.5 rounded font-medium">固定比例 %</span>
+</td>
+<td class="py-2.5 whitespace-nowrap px-2">
+<div class="flex flex-col gap-0.5">
+<span class="text-[10px] text-secondary font-mono font-bold">SL: -5.0%</span>
+<span class="text-[10px] text-tertiary font-mono font-bold">TP: +15.0%</span>
+</div>
+</td>
+<td class="py-2.5 whitespace-nowrap px-2">
+<span class="text-[10px] font-medium text-on-surface-variant">市价委托 (Market)</span>
+</td>
+<td class="py-2.5 whitespace-nowrap px-2">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="text-[10px] font-medium">运行中</span>
+</div>
+</td>
+<td class="py-2.5 text-right whitespace-nowrap px-2">
+<button class="text-primary hover:underline text-[10px] font-bold">编辑</button>
+</td>
+</tr>
+<!-- Table Row -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-2.5 whitespace-nowrap px-2">
+<div class="flex flex-col">
+<span class="text-xs font-bold">东方财富</span>
+<span class="text-[10px] text-outline">300059</span>
+</div>
+</td>
+<td class="py-2.5 whitespace-nowrap px-2">
+<span class="text-[10px] bg-primary-container text-on-primary-container px-1.5 py-0.5 rounded font-medium">移动止损</span>
+</td>
+<td class="py-2.5 whitespace-nowrap px-2">
+<div class="flex flex-col gap-0.5">
+<span class="text-[10px] text-secondary font-mono font-bold">TS: -3.5%</span>
+<span class="text-[10px] text-outline font-mono">TP: 未设置</span>
+</div>
+</td>
+<td class="py-2.5 whitespace-nowrap px-2">
+<span class="text-[10px] font-medium text-on-surface-variant">限价委托 (Limit)</span>
+</td>
+<td class="py-2.5 whitespace-nowrap px-2">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="text-[10px] font-medium">运行中</span>
+</div>
+</td>
+<td class="py-2.5 text-right whitespace-nowrap px-2">
+<button class="text-primary hover:underline text-[10px] font-bold">编辑</button>
+</td>
+</tr>
+<!-- Table Row -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-2.5 whitespace-nowrap px-2">
+<div class="flex flex-col">
+<span class="text-xs font-bold">中国平安</span>
+<span class="text-[10px] text-outline">601318</span>
+</div>
+</td>
+<td class="py-2.5 whitespace-nowrap px-2">
+<span class="text-[10px] bg-primary/5 text-primary border border-primary/20 px-1.5 py-0.5 rounded font-medium">固定比例 %</span>
+</td>
+<td class="py-2.5 whitespace-nowrap px-2">
+<div class="flex flex-col gap-0.5">
+<span class="text-[10px] text-secondary font-mono font-bold">SL: -4.0%</span>
+<span class="text-[10px] text-tertiary font-mono font-bold">TP: +10.0%</span>
+</div>
+</td>
+<td class="py-2.5 whitespace-nowrap px-2">
+<span class="text-[10px] font-medium text-on-surface-variant">市价委托 (Market)</span>
+</td>
+<td class="py-2.5 whitespace-nowrap px-2">
+<div class="flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
+<span class="text-[10px] font-medium text-outline">已暂停</span>
+</div>
+</td>
+<td class="py-2.5 text-right whitespace-nowrap px-2">
+<button class="text-primary hover:underline text-[10px] font-bold">激活</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Strategy Summary Card (Bottom of Module) -->
+<div class="mt-4 p-3 bg-primary/5 border border-primary/10 rounded flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">security</span>
+<div class="flex flex-col">
+<span class="text-[11px] font-bold">风控执行状态: 正常监控中</span>
+<span class="text-[9px] text-on-surface-variant">当前已部署 12 条止损规则，覆盖账户 85.4% 的资产。</span>
+</div>
+</div>
+<div class="flex gap-2">
+<div class="text-right">
+<span class="text-[10px] text-outline">今日触发次数</span>
+<div class="text-sm font-bold font-mono">03</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column: Risk Monitoring (Module 3) -->
+<div class="col-span-12 lg:col-span-3 flex flex-col gap-4">
+<section class="bg-surface-container-lowest rounded-lg p-4 flex-1 flex flex-col">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-sm font-bold flex items-center gap-2">
+<span class="w-1 h-4 bg-primary rounded-full"></span>风险监测与预警
+                        </h2>
+<span class="material-symbols-outlined text-outline text-lg">notifications_active</span>
+</div>
+<!-- Market Indicators -->
+<div class="grid grid-cols-2 gap-3 mb-6">
+<div class="bg-surface-container-low p-2 rounded">
+<span class="text-[10px] text-outline font-bold block mb-1">波动率 (VIX Equiv)</span>
+<div class="flex items-end gap-2">
+<span class="text-sm font-bold font-mono">18.4</span>
+<span class="text-[9px] text-secondary font-medium">+2.1%</span>
+</div>
+<div class="mt-2 h-6 flex items-end gap-1 overflow-hidden">
+<div class="w-1.5 bg-primary/20 h-[30%] rounded-t-sm"></div>
+<div class="w-1.5 bg-primary/20 h-[45%] rounded-t-sm"></div>
+<div class="w-1.5 bg-primary/20 h-[40%] rounded-t-sm"></div>
+<div class="w-1.5 bg-primary/20 h-[60%] rounded-t-sm"></div>
+<div class="w-1.5 bg-primary/20 h-[55%] rounded-t-sm"></div>
+<div class="w-1.5 bg-primary h-[80%] rounded-t-sm"></div>
+</div>
+</div>
+<div class="bg-surface-container-low p-2 rounded">
+<span class="text-[10px] text-outline font-bold block mb-1">流动性指数 (Turnover)</span>
+<div class="flex items-end gap-2">
+<span class="text-sm font-bold font-mono">Normal</span>
+<span class="text-[9px] text-tertiary font-medium">稳定</span>
+</div>
+<div class="mt-2 h-6 flex items-end gap-1 overflow-hidden">
+<div class="w-1.5 bg-tertiary/20 h-[70%] rounded-t-sm"></div>
+<div class="w-1.5 bg-tertiary/20 h-[65%] rounded-t-sm"></div>
+<div class="w-1.5 bg-tertiary/20 h-[75%] rounded-t-sm"></div>
+<div class="w-1.5 bg-tertiary/20 h-[80%] rounded-t-sm"></div>
+<div class="w-1.5 bg-tertiary/20 h-[72%] rounded-t-sm"></div>
+<div class="w-1.5 bg-tertiary h-[68%] rounded-t-sm"></div>
+</div>
+</div>
+</div>
+<!-- Risk Event Log -->
+<div class="flex-grow flex flex-col">
+<div class="text-[10px] text-outline font-bold mb-3 uppercase tracking-widest">风险事件流 (实时馈送)</div>
+<div class="space-y-4 overflow-y-auto max-h-[450px] pr-2">
+<!-- Alert Entry 1 -->
+<div class="relative pl-4 border-l-2 border-secondary">
+<div class="flex items-center justify-between mb-1">
+<span class="text-[10px] font-bold text-secondary">紧急 (Critical)</span>
+<span class="text-[10px] text-outline">14:22:10</span>
+</div>
+<div class="text-[11px] font-bold mb-1">宁德时代 (300750) 触发止损规则</div>
+<p class="text-[10px] text-on-surface-variant leading-relaxed">
+<span class="font-bold text-primary">AI诊断:</span> 电子板块出现异动下跌，伴随成交量突然放大，股价突破 -5% 止损线。
+                                </p>
+<div class="mt-2 bg-secondary/5 p-1.5 rounded border border-secondary/10 text-[9px] font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">done_all</span> 执行结果: 已自动减仓 30%
+                                </div>
+</div>
+<!-- Alert Entry 2 -->
+<div class="relative pl-4 border-l-2 border-primary">
+<div class="flex items-center justify-between mb-1">
+<span class="text-[10px] font-bold text-primary">提示 (Info)</span>
+<span class="text-[10px] text-outline">14:05:32</span>
+</div>
+<div class="text-[11px] font-bold mb-1">行业集中度接近限额</div>
+<p class="text-[10px] text-on-surface-variant leading-relaxed">
+<span class="font-bold text-primary">AI诊断:</span> 电子板块仓位已达 28.4%，接近系统软上限 (30%)。建议关注后续买入。
+                                </p>
+</div>
+<!-- Alert Entry 3 -->
+<div class="relative pl-4 border-l-2 border-yellow-500">
+<div class="flex items-center justify-between mb-1">
+<span class="text-[10px] font-bold text-yellow-600">警告 (Warning)</span>
+<span class="text-[10px] text-outline">13:45:00</span>
+</div>
+<div class="text-[11px] font-bold mb-1">流动性风险预警: 隆基绿能</div>
+<p class="text-[10px] text-on-surface-variant leading-relaxed">
+                                    当前买盘深度不足，建议分批执行后续交易指令。
+                                </p>
+</div>
+<!-- Alert Entry 4 -->
+<div class="relative pl-4 border-l-2 border-primary opacity-60">
+<div class="flex items-center justify-between mb-1">
+<span class="text-[10px] font-bold text-primary">提示 (Info)</span>
+<span class="text-[10px] text-outline">13:12:15</span>
+</div>
+<div class="text-[11px] font-bold mb-1">午间休市复盘</div>
+<p class="text-[10px] text-on-surface-variant leading-relaxed">
+                                    账户Beta值从 0.88 调整至 0.85，市场敏感度降低。
+                                </p>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+<!-- System Footer Info -->
+<div class="flex items-center justify-between px-4 py-2 bg-surface-container text-outline text-[10px] font-medium rounded">
+<div class="flex gap-6">
+<span>系统状态: <span class="text-tertiary">同步中 (低延迟模式)</span></span>
+<span>核心版本: Alpha-7.2.4</span>
+<span>风控服务器: 华东-02-Cluster</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">lock_open</span>
+                安全审计已启用
+            </div>
+</div>
+</main>
+</body></html>
