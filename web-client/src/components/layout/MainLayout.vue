@@ -36,14 +36,14 @@ const showSidebar = computed(() => {
     <header class="h-12 bg-card border-b border-border flex items-center justify-between px-4 z-50 shrink-0">
       <div class="flex items-center space-x-6">
         <!-- Logo 点击跳转首页 -->
-        <div 
+        <div
           class="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
           @click="router.push('/')"
         >
           <div class="bg-primary p-1 rounded">
             <Icon icon="mdi:chart-line" :size="20" class="text-white" />
           </div>
-          <span class="text-lg font-bold text-textMain tracking-tight">AI Trading</span>
+          <span class="text-lg font-bold text-textMain tracking-tight">华璟智璇 量化交易系统</span>
         </div>
         <!-- Global Search -->
         <div class="relative w-80">
