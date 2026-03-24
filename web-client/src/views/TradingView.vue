@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { searchStocks, getTradeRecords, getWatchlist, addToWatchlistAPI, removeFromWatchlistAPI, type StockSearchResult, type TradeRecord, type WatchlistItem } from '@/api/trading'
+import { useWebSocket, type WSMessage } from '@/utils/websocket'
 
 const searchKeyword = ref('')
 const searchResults = ref<StockSearchResult[] | null>(null)
@@ -11,13 +12,52 @@ const strategyEnabled = ref(false)
 const riseSpeedMin = ref(0)
 const riseSpeedMax = ref(5)
 
+const { connect, isConnected } = useWebSocket()
+
 const loadWatchlist = async () => {
   watchlist.value = await getWatchlist()
 }
 
 onMounted(() => {
   loadWatchlist()
+  connect()
+  setupWebSocketHandlers()
 })
+
+const setupWebSocketHandlers = () => {
+  const ws = new WebSocket(`ws://${window.location.hostname}:8765`)
+  
+  ws.onopen = () => {
+    ws.send(JSON.stringify({
+      type: 'connect',
+      payload: {
+        client_id: 'trading_client_' + Date.now(),
+        client_type: 'zixuan',
+        action: 'default'
+      },
+      timestamp: new Date().toISOString(),
+      message_id: 'msg_' + Date.now()
+    }))
+  }
+  
+  ws.onmessage = (event) => {
+    try {
+      const message: WSMessage = JSON.parse(event.data)
+      if (message.type === 'push' && message.payload.target_action === 'zixuan') {
+        const data = message.payload.data as WatchlistItem[]
+        if (data && data.length > 0) {
+          watchlist.value = data
+        }
+      }
+    } catch (e) {
+      console.error('WebSocket消息解析失败:', e)
+    }
+  }
+  
+  ws.onerror = (err) => {
+    console.error('WebSocket错误:', err)
+  }
+}
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
