@@ -13,7 +13,9 @@ const menuItems = computed(() => [
   { path: '/recommendation', name: '智能荐股', icon: 'smart_toy' },
   { path: '/backtest', name: '策略回测', icon: 'assessment' },
   { path: '/simulation', name: '模拟交易', icon: 'swap_horiz' },
-  { path: '/holdings', name: '我的持仓', icon: 'inventory' }
+  { path: '/holdings', name: '我的持仓', icon: 'inventory' },
+  { path: '/trading', name: '股票交易', icon: 'trending_up' },
+  { path: '/risk-control', name: '风控系统', icon: 'shield' }
 ])
 
 // 用户信息

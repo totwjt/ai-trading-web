@@ -74,6 +74,18 @@ const router = createRouter({
       meta: { title: '我的持仓', icon: 'inventory' }
     },
     {
+      path: '/trading',
+      name: '股票交易',
+      component: () => import('@/views/TradingView.vue'),
+      meta: { title: '股票交易', icon: 'trending_up' }
+    },
+    {
+      path: '/risk-control',
+      name: '风控系统',
+      component: () => import('@/views/RiskControlView.vue'),
+      meta: { title: '风控系统', icon: 'security' }
+    },
+    {
       path: '/settings',
       name: '设置',
       component: () => import('@/views/SettingsView.vue'),

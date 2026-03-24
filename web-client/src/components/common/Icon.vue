@@ -21,6 +21,9 @@ const iconMap: Record<string, string> = {
   'assessment': 'mdi:chart-timeline-variant',
   'swap_horiz': 'mdi:swap-horizontal',
   'inventory': 'mdi:package-variant',
+  'trending_up': 'mdi:trending-up',
+  'shield': 'mdi:shield-check',
+  'security': 'mdi:shield-check',
   'settings': 'mdi:cog',
   
   // 用户图标
