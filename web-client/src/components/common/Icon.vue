@@ -36,6 +36,8 @@ const iconMap: Record<string, string> = {
   'analytics': 'mdi:chart-areaspline',
   'search': 'mdi:magnify',
   'notification': 'mdi:bell',
+  'pie_chart': 'mdi:chart-pie',
+  'lock_open': 'mdi:lock-open',
   
   // 状态图标
   'arrow_up': 'mdi:arrow-up',
