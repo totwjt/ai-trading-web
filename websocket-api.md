@@ -1,83 +1,98 @@
-# WebSocket 外部平台接入指南
+# WebSocket 统一服务
 
-## 连接格式
+## 服务信息
 
-### 1. 连接时发送
+| 项目 | 值 |
+|------|-----|
+| 地址 | `http://localhost:8766` (本机) / `http://192.168.66.186:8766` (局域网) |
+| 协议 | Socket.IO |
+| 事件 | `push_from_external` |
 
-```json
-{
-  "type": "connect",
-  "payload": {
-    "client_id": "唯一标识",
-    "client_type": "web",
-    "action": "default"
-  },
-  "timestamp": "2026-03-18T12:00:00.000Z",
-  "message_id": "msg_123456"
-}
+## Topic 列表
+
+| Topic | 用途 |
+|-------|------|
+| `zixuan` | 自选股票行情 |
+| `recommendation` | 智能荐股 |
+| `trading` | 交易记录 |
+
+## 推送格式
+
+```python
+await sio.emit('push_from_external', {
+    'topic': 'zixuan',      # 目标 topic
+    'data': [...] 或 {...}  # 见下方格式
+})
 ```
 
-### 2. 推送消息给前端
+## 数据格式
 
-```json
-{
-  "type": "push",
-  "payload": {
-    "target_type": "web",
-    "target_action": "default",
-    "data": {
-      "news": {
-        "source": "新浪财经",
-        "title": "节能风电：目前没有算力基地直连供电项目",
-        "content": "有投资者问节能风电，公司有给算力基地供电项目吗？...",
-        "url": "https://wap.cj.sina.cn/pc/7x24/4753081",
-        "publish_time": "2026-03-18 15:36:59",
-        "crawl_time": "2026-03-18 15:37:16"
-      },
-      "analysis": {
-        "利好版块": ["风电设备、绿色电力"],
-        "利好股票": [
-          {"stock_code": "601016", "stock_name": "节能风电", "score": "60"}
-        ],
-        "分析因素": ["澄清市场传闻、排除算力概念炒作、聚焦主业"],
-        "详细分析": "新闻中节能风电明确回应..."
-      }
+### zixuan
+
+```python
+# data: WatchlistItem[]
+[
+    {
+        "ts_code": "600831.SH",
+        "name": "广电网络",
+        "pre_close": 3.62,
+        "open": 3.74,
+        "high": 3.85,
+        "low": 3.65,
+        "close": 3.85,
+        "change": 0.23,
+        "change_pct": 6.35,
+        "vol": 18000000,
+        "amount": 68000000,
+        "num": null,
+        "ask_price1": 3.85,
+        "ask_volume1": 100,
+        "bid_price1": 3.84,
+        "bid_volume1": 200,
+        "trade_time": "2026-03-25 14:30:00"
     }
-  }
-}
+]
 ```
 
-### 3. 响应
+### recommendation
 
-服务器返回：
-
-```json
+```python
+# data: RecommendationData
 {
-  "type": "system",
-  "payload": {
-    "status": "pushed",
-    "target": "web/default"
-  }
+    "news": {
+        "source": "新浪财经",
+        "title": "电力板块盘初拉升",
+        "content": "拓日新能、湖南发展双双涨停...",
+        "publish_time": "2026-03-25 10:05",
+        "url": "https://..."
+    },
+    "analysis": {
+        "利好版块": ["电力", "绿电"],
+        "利好股票": [
+            {"stock_code": "002218", "stock_name": "拓日新能", "score": "100"},
+            {"stock_code": "000900", "stock_name": "湖南发展", "score": "95"}
+        ],
+        "分析因素": ["板块涨停", "政策利好"],
+        "详细分析": "电力板块今日表现强势..."
+    }
 }
 ```
 
-## 参数说明
+### trading
 
-| 字段 | 说明 | 值 |
-|------|------|-----|
-| `client_id` | 客户端唯一标识 | 字符串 |
-| `client_type` | 客户端类型 | `web` = 前端 |
-| `action` | 业务模块 | `default` = 默认模块 |
-| `target_type` | 推送目标类型 | `web` |
-| `target_action` | 推送目标模块 | `default` |
-
-## WebSocket 地址
-
-```
-ws://localhost:8765
-```
-
-局域网访问时替换为服务器 IP：
-```
-ws://192.168.66.186:8765
+```python
+# data: TradeRecord[]
+[
+    {
+        "id": 1,
+        "ts_code": "600519",
+        "name": "贵州茅台",
+        "direction": "buy",
+        "price": 1850.00,
+        "quantity": 100,
+        "amount": 185000.00,
+        "time": "2024-01-15 10:30:25",
+        "status": "success"
+    }
+]
 ```

@@ -14,13 +14,13 @@ export interface ApiConfig {
 const config: ApiConfig = {
   ws: {
     host: import.meta.env.VITE_WS_HOST || 'localhost',
-    port: Number(import.meta.env.VITE_WS_PORT) || 8765,
-    path: import.meta.env.VITE_WS_PATH || ''
+    port: Number(import.meta.env.VITE_WS_PORT) || 8766,
+    path: import.meta.env.VITE_WS_PATH || '/pubsub'
   },
   recommendation: {
     host: import.meta.env.VITE_RECOMMENDATION_HOST || 'localhost',
-    port: Number(import.meta.env.VITE_RECOMMENDATION_PORT) || 8765,
-    path: import.meta.env.VITE_RECOMMENDATION_PATH || '/ws'
+    port: Number(import.meta.env.VITE_RECOMMENDATION_PORT) || 8766,
+    path: import.meta.env.VITE_RECOMMENDATION_PATH || '/pubsub'
   }
 }
 

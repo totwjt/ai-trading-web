@@ -5,30 +5,29 @@ AI Trading Server
 - 资讯分析 API
 - 策略管理 API
 - 回测管理 API
-- WebSocket 实时推送 (复用 recommendation 服务)
+- WebSocket 实时推送 (使用 python-socketio)
 """
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket
+import socketio
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import asyncio
-import json
 import logging
-import websockets
-from websockets import WebSocketServerProtocol
 
 from recommendation.db import get_latest_news, get_news_by_id
-from recommendation.models import WSMessage, MessageType
 from backtest.src.routers import strategy_router, backtest_router, preview_router
 from trading.routers import trading_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-connected_websockets: set = set()
-ws_client_info: dict = {}
+TOPIC_RECOMMENDATION = "recommendation"
+TOPIC_ZIXUAN = "zixuan"
+TOPIC_BACKTEST = "backtest"
+TOPIC_TRADING = "trading"
 
 app = FastAPI(
     title="AI Trading Server",
@@ -44,10 +43,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(strategy_router, prefix="/api")
-app.include_router(backtest_router, prefix="/api")
-app.include_router(preview_router, prefix="/api")
-app.include_router(trading_router)
+sio = socketio.AsyncServer(
+    async_mode='asgi',
+    cors_allowed_origins="*",
+    ping_timeout=60,
+    ping_interval=25
+)
+socketio_app = socketio.ASGIApp(sio, static_files={
+    '/': 'public/index.html'
+})
+
+app.mount('/socket.io', socketio_app)
 
 
 class StockItem(BaseModel):
@@ -73,146 +79,100 @@ class ApiResponse(BaseModel):
     timestamp: str = ""
 
 
-async def handle_ws_message(websocket: WebSocketServerProtocol, message: str):
-    try:
-        ws_msg = WSMessage.from_json(message)
-        logger.info(f"收到WebSocket消息: type={ws_msg.type}")
-        
-        if ws_msg.type == MessageType.HEARTBEAT:
-            response = WSMessage(
-                type=MessageType.HEARTBEAT,
-                payload={"status": "pong", "server_time": datetime.now().isoformat()}
-            )
-            await websocket.send(response.to_json())
-            
-        elif ws_msg.type == MessageType.SUBSCRIBE:
-            ws_client_info[websocket].update({
-                "client_type": ws_msg.payload.get("client_type", "web"),
-                "client_id": ws_msg.payload.get("client_id", ""),
-                "action": ws_msg.payload.get("action", "default")
-            })
-            response = WSMessage(
-                type=MessageType.SYSTEM,
-                payload={"status": "subscribed", "topics": ws_msg.payload.get("topics", [])}
-            )
-            await websocket.send(response.to_json())
-            
-        elif ws_msg.type == MessageType.CONNECT:
-            client_type = ws_msg.payload.get("client_type", "web")
-            action = ws_msg.payload.get("action", "default")
-            ws_client_info[websocket].update({
-                "client_type": client_type,
-                "client_id": ws_msg.payload.get("client_id", ""),
-                "action": action
-            })
-            
-            if client_type == "zixuan" and action == "default":
-                try:
-                    import httpx
-                    async with httpx.AsyncClient() as client:
-                        await client.post("http://192.168.66.141:8888/ws/start")
-                        logger.info("已启动外部自选股票实时推送")
-                except Exception as e:
-                    logger.error(f"启动外部推送失败: {e}")
-            
-            response = WSMessage(
-                type=MessageType.SYSTEM,
-                payload={
-                    "status": "connected",
-                    "client_id": ws_msg.payload.get("client_id", ""),
-                    "client_type": client_type,
-                    "server_time": datetime.now().isoformat()
-                }
-            )
-            await websocket.send(response.to_json())
-            
-        elif ws_msg.type == MessageType.PUSH:
-            target_type = ws_msg.payload.get("target_type", "web")
-            target_action = ws_msg.payload.get("action", "default")
-            data = ws_msg.payload.get("data", [])
-            
-            if target_action == "zixuan":
-                await broadcast_zixuan(data)
-            else:
-                await broadcast_ws(data)
-            
-    except json.JSONDecodeError:
-        logger.error(f"无效JSON: {message[:100]}")
-    except Exception as e:
-        logger.error(f"处理WebSocket消息错误: {e}")
+@sio.event
+async def connect(sid, environ):
+    logger.info(f"Client connected: {sid}")
+    await sio.emit('connected', {'status': 'ok', 'sid': sid}, room=sid)
 
 
-async def broadcast_ws(data: dict):
-    ws_msg = WSMessage(type=MessageType.RECOMMENDATION, payload=data)
-    json_msg = ws_msg.to_json()
-    
-    disconnected = set()
-    for ws in connected_websockets:
-        try:
-            await ws.send(json_msg)
-        except Exception:
-            disconnected.add(ws)
-    
-    for ws in disconnected:
-        connected_websockets.discard(ws)
-        ws_client_info.pop(ws, None)
+@sio.event
+async def disconnect(sid):
+    logger.info(f"Client disconnected: {sid}")
 
 
-async def broadcast_zixuan(data: list):
-    """推送自选股票实时行情"""
-    ws_msg = WSMessage(
-        type=MessageType.PUSH,
-        payload={
-            "target_type": "web",
-            "target_action": "zixuan",
-            "data": data
-        }
-    )
-    json_msg = ws_msg.to_json()
-    
-    disconnected = set()
-    for ws in connected_websockets:
-        try:
-            info = ws_client_info.get(ws, {})
-            if info.get("action") == "zixuan":
-                await ws.send(json_msg)
-        except Exception:
-            disconnected.add(ws)
-    
-    for ws in disconnected:
-        connected_websockets.discard(ws)
-        ws_client_info.pop(ws, None)
+@sio.event
+async def subscribe(sid, data):
+    topics = data.get('topics', []) if isinstance(data, dict) else data
+    logger.info(f"Client {sid} subscribed to: {topics}")
+    for topic in topics:
+        await sio.enter_room(sid, topic)
+    await sio.emit('subscribed', {'topics': topics}, room=sid)
 
 
-async def websocket_handler(websocket: WebSocketServerProtocol):
-    connected_websockets.add(websocket)
-    ws_client_info[websocket] = {
-        "connected_at": datetime.now().isoformat(),
-        "client_type": "web"
+@sio.event
+async def unsubscribe(sid, data):
+    topics = data.get('topics', []) if isinstance(data, dict) else data
+    logger.info(f"Client {sid} unsubscribed from: {topics}")
+    for topic in topics:
+        await sio.leave_room(sid, topic)
+    await sio.emit('unsubscribed', {'topics': topics}, room=sid)
+
+
+@sio.event
+async def heartbeat(sid):
+    await sio.emit('heartbeat', {'server_time': datetime.now().isoformat()}, room=sid)
+
+
+# ============================================================
+# 外部服务推送事件处理
+# 外部服务通过此事件推送数据，服务端转发到对应主题
+# ============================================================
+@sio.event
+async def push_from_external(sid, data):
+    """
+    接收外部服务推送的数据，转发到对应主题
+    data 格式:
+    {
+        "topic": "zixuan",           # 目标主题
+        "data": [...] 或 {...}       # 推送数据
     }
-    logger.info(f"WebSocket客户端连接, 当前连接数: {len(connected_websockets)}")
+    """
+    topic = data.get('topic')
+    payload = data.get('data')
     
-    welcome = WSMessage(
-        type=MessageType.SYSTEM,
-        payload={"status": "connected", "server_time": datetime.now().isoformat()}
-    )
-    await websocket.send(welcome.to_json())
+    if not topic or payload is None:
+        logger.warning(f"[push_from_external] 缺少 topic 或 data: {data}")
+        return
     
-    try:
-        async for message in websocket:
-            await handle_ws_message(websocket, message)
-    except Exception as e:
-        logger.error(f"WebSocket异常: {e}")
-    finally:
-        connected_websockets.discard(websocket)
-        ws_client_info.pop(websocket, None)
-        logger.info(f"WebSocket客户端断开, 当前连接数: {len(connected_websockets)}")
+    logger.info(f"[push_from_external] 收到推送 -> topic: {topic}, data: {str(payload)[:100]}...")
+    
+    if topic == TOPIC_ZIXUAN:
+        await sio.emit(TOPIC_ZIXUAN, payload, room=TOPIC_ZIXUAN)
+    elif topic == TOPIC_RECOMMENDATION:
+        await sio.emit(TOPIC_RECOMMENDATION, payload, room=TOPIC_RECOMMENDATION)
+    elif topic.startswith('backtest'):
+        await sio.emit(topic, payload, room=topic)
+    elif topic == TOPIC_TRADING:
+        await sio.emit(TOPIC_TRADING, payload, room=TOPIC_TRADING)
+    else:
+        # 通用主题广播
+        await sio.emit(topic, payload, room=topic)
+    
+    # 确认推送成功
+    await sio.emit('push_ack', {'topic': topic, 'status': 'ok'}, room=sid)
 
 
-async def start_websocket_server():
-    async with websockets.serve(websocket_handler, "0.0.0.0", 8765):
-        logger.info("WebSocket服务启动: ws://0.0.0.0:8765")
-        await asyncio.Future()
+async def publish_recommendation(data: dict):
+    await sio.emit(TOPIC_RECOMMENDATION, data, room=TOPIC_RECOMMENDATION)
+
+
+async def publish_zixuan(data: list):
+    await sio.emit(TOPIC_ZIXUAN, data, room=TOPIC_ZIXUAN)
+
+
+async def publish_backtest(backtest_id: int, data: dict):
+    topic = f"{TOPIC_BACKTEST}.{backtest_id}"
+    await sio.emit(topic, data, room=topic)
+
+
+async def publish_trading(data: dict):
+    await sio.emit(TOPIC_TRADING, data, room=TOPIC_TRADING)
+
+
+app.include_router(strategy_router, prefix="/api")
+app.include_router(backtest_router, prefix="/api")
+app.include_router(preview_router, prefix="/api")
+app.include_router(trading_router)
 
 
 @app.get("/api/news/latest", response_model=ApiResponse)
@@ -279,27 +239,21 @@ async def health_check():
 async def main():
     import uvicorn
     
-    ws_task = asyncio.create_task(start_websocket_server())
     config = uvicorn.Config(app, host="0.0.0.0", port=8766, log_level="info")
     server = uvicorn.Server(config)
     
     logger.info("=" * 50)
-    logger.info("HTTP API 服务启动: http://0.0.0.0:8766")
-    logger.info("WebSocket 服务启动: ws://0.0.0.0:8765")
+    logger.info("HTTP API + Socket.IO 服务启动: http://0.0.0.0:8766")
+    logger.info("Socket.IO: ws://0.0.0.0:8766/socket.io")
     logger.info("API 路由已加载:")
     logger.info("  - /api/strategies/*  (策略管理)")
     logger.info("  - /api/backtests/*   (回测管理)")
+    logger.info("  - /api/trading/*     (交易服务)")
+    logger.info("  - /socket.io         (WebSocket Pub/Sub)")
+    logger.info("  - /push_from_external (外部推送入口)")
     logger.info("=" * 50)
     
-    try:
-        await asyncio.gather(
-            server.serve(),
-            ws_task
-        )
-    except asyncio.CancelledError:
-        logger.info("正在关闭服务...")
-        ws_task.cancel()
-        await server.shutdown()
+    await server.serve()
 
 
 if __name__ == "__main__":

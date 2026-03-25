@@ -65,6 +65,101 @@ web-client/src/
 - 标准启动方式：
   - `cd backend`
   - `python server.py`
+- WebSocket 服务端口：`8766`（与 HTTP API 共用端口）
+  - Socket.IO 路径：`/socket.io`
+  - 使用 `python-socketio` 实现 Pub/Sub
+  - WebSocket Pub/Sub 主题：
+    - `recommendation` - 智能荐股推送
+    - `zixuan` - 自选股实时行情
+    - `trading` - 交易记录推送
+    - `backtest.{id}` - 回测进度/结果
+
+### WebSocket Pub/Sub 架构
+
+### 技术选型
+- 后端：`python-socketio` (端口 8766，HTTP/WebSocket 共用)
+- 前端：`socket.io-client`
+- 通信模式：订阅/发布 (Room 机制)
+
+### Topic 列表
+
+| Topic | 用途 | 开发进度 | 说明 |
+|-------|------|---------|------|
+| `zixuan` | 自选股票实时行情 | ✅ 已完成 | TradingView 页面使用 |
+| `recommendation` | 智能荐股推送 | ✅ 已完成 | RecommendationView 页面使用 |
+| `trading` | 交易记录实时推送 | 🔧 待对接 | 仅静态数据，需对接后端 |
+| `backtest.{id}` | 回测进度/结果 | 🔧 待完善 | 需从 websocket_manager.py 迁移 |
+| `risk` | 风控警报 | ⬜ 待开发 | 风控页面预留 |
+| `market` | 市场行情广播 | ⬜ 待开发 | 首页/市场概览预留 |
+| `news` | 资讯快讯 | ⬜ 待开发 | 首页新闻预留 |
+| `system` | 系统通知 | ⬜ 待开发 | 通用通知预留 |
+
+### 前端架构：全局连接 + 页面独立订阅
+
+```
+App.vue (全局 WebSocket 连接)
+    └── MainLayout.vue
+        └── RouterView
+            ├── HomeView.vue (订阅: market, news)
+            ├── RecommendationView.vue (订阅: recommendation)
+            ├── TradingView.vue (订阅: zixuan, trading)
+            ├── BacktestView.vue (订阅: backtest.{id})
+            └── ...
+
+特点：
+1. 全局单例 WebSocket 连接，避免重复连接
+2. 每个页面独立订阅所需 topic
+3. 页面离开时不自动取消订阅（连接保持）
+4. 消息仅用于实时显示，不做本地持久化存储
+```
+
+### 前端使用方式
+
+```typescript
+// 在页面组件中
+import { createSocketIOClient } from '@/utils/websocket'
+
+const client = createSocketIOClient({ clientType: 'web' })
+
+onMounted(() => {
+  // 连接由 App.vue 全局管理，无需手动 connect()
+  client.onConnect(() => {
+    client.subscribe(['zixuan'])  // 页面独立订阅
+  })
+  client.onZixuan((data) => {
+    // 仅用于实时显示
+    watchlist.value = data
+  })
+})
+```
+
+### 后端发布函数
+
+```python
+# server.py
+async def publish_zixuan(data: list):
+    await sio.emit('zixuan', data, room='zixuan')
+
+async def publish_recommendation(data: dict):
+    await sio.emit('recommendation', data, room='recommendation')
+
+async def publish_trading(data: dict):
+    await sio.emit('trading', data, room='trading')
+```
+
+### 外部服务推送
+
+外部服务（包括 7 个外部项目）通过 `push_from_external` 事件推送：
+
+```python
+# 外部服务使用统一客户端
+from common.socketio_client import UnifiedSocketIOClient
+
+client = UnifiedSocketIOClient(url="http://localhost:8766", client_type="external_system")
+await client.connect()
+await client.push_to_topic('zixuan', stock_data)  # 推送自选行情
+await client.push_to_topic('recommendation', news_data)  # 推送荐股
+```
 
 ## 系统模块
 - `user` 用户系统
@@ -73,7 +168,8 @@ web-client/src/
 - `backtest` 策略回测系统
 - `portfolio` 用户持仓与资产
 - `simulator` 模拟交易系统
-- `recommendation` 智能荐股系统
+- `recommendation` 智能荐股系统 ✅ WebSocket 已完成
+- `trading` 股票交易（自选股管理、条件检索、实时行情）✅ 自选行情 WebSocket 已完成
 
 ## 布局架构（重要）
 
@@ -99,6 +195,7 @@ web-client/src/
 /recommendation -> 智能荐股
 /backtest       -> 策略回测
 /simulation     -> 模拟交易
+/trading        -> 股票交易
 /holdings       -> 我的持仓
 /settings       -> 设置
 ```
@@ -112,6 +209,7 @@ App.vue
         ├── RecommendationView.vue
         ├── BacktestView.vue
         ├── SimulationView.vue
+        ├── TradingView.vue
         ├── HoldingsView.vue
         └── SettingsView.vue
 ```

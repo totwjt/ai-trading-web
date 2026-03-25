@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { getLatestNews, type NewsItem } from '@/api/news'
-import { createWebSocketClient, parseStockInfo, type RecommendationData } from '@/utils/websocket'
+import { parseStockInfo, type RecommendationData } from '@/utils/websocket'
+import { useWebSocket } from '@/composables/useWebSocket'
 
 interface Stock {
   name: string
@@ -21,17 +22,7 @@ interface Recommendation {
   stocks: Stock[]
 }
 
-const {
-  connect,
-  disconnect,
-  subscribe,
-  onMessage,
-  onConnect,
-  onDisconnect,
-  onError
-} = createWebSocketClient({
-  clientType: 'recommendation'
-})
+const ws = useWebSocket()
 
 const recommendations = ref<Recommendation[]>([])
 const loading = ref(true)
@@ -185,31 +176,29 @@ async function fetchNews() {
 }
 
 onMounted(() => {
-  // 初始化 WebSocket
-  onConnect(() => {
+  ws.subscribe(['recommendation'])
+
+  ws.onConnect(() => {
     isWsConnected.value = true
-    subscribe(['recommendation'])
   })
 
-  onDisconnect(() => {
+  ws.onDisconnect(() => {
     isWsConnected.value = false
   })
 
-  onError((err) => {
+  ws.onError((err) => {
     console.error('WebSocket错误:', err)
   })
 
-  onMessage(addWebSocketRecommendation)
+  ws.onRecommendation((data) => {
+    addWebSocketRecommendation(data as RecommendationData)
+  })
   
-  // 连接 WebSocket
-  connect()
-  
-  // 获取初始数据
   fetchNews()
 })
 
 onUnmounted(() => {
-  disconnect()
+  ws.unsubscribe(['recommendation'])
 })
 </script>
 

@@ -152,10 +152,30 @@ async def get_stock_realtime(ts_code: str, db: AsyncSession = Depends(get_db)):
 async def get_watchlist(db: AsyncSession = Depends(get_db)):
     """获取自选股票列表"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(f"{EXTERNAL_API}/stock/realtime")
+            
+            if response.status_code != 200:
+                logger.error(f"外部API请求失败: {response.status_code}")
+                return {
+                    "code": 1,
+                    "message": "获取自选列表失败",
+                    "data": [],
+                    "total": 0,
+                    "timestamp": datetime.now().isoformat()
+                }
+            
             data = response.json()
             items = data.get("data", [])
+            
+            if not items:
+                return {
+                    "code": 0,
+                    "message": "success",
+                    "data": [],
+                    "total": 0,
+                    "timestamp": datetime.now().isoformat()
+                }
             
             watchlist_data = []
             for item in items:
@@ -191,11 +211,12 @@ async def get_watchlist(db: AsyncSession = Depends(get_db)):
                 "total": len(watchlist_data),
                 "timestamp": datetime.now().isoformat()
             }
+            
     except Exception as e:
         logger.error(f"获取自选列表失败: {e}")
         return {
-            "code": 0,
-            "message": "success",
+            "code": 1,
+            "message": str(e),
             "data": [],
             "total": 0,
             "timestamp": datetime.now().isoformat()
@@ -214,11 +235,30 @@ async def add_watchlist(
                 f"{EXTERNAL_API}/ts_code",
                 json={"ts_code": ts_code}
             )
+            # 200: 成功
+            # 400 + "already exists": 已经是自选了，也算成功
             if response.status_code == 200:
                 return {
                     "code": 0,
                     "message": "success",
                     "data": {"ts_code": ts_code},
+                    "timestamp": datetime.now().isoformat()
+                }
+            elif response.status_code == 400:
+                try:
+                    error_data = response.json()
+                    if "already exists" in error_data.get("detail", ""):
+                        return {
+                            "code": 0,
+                            "message": "success",
+                            "data": {"ts_code": ts_code},
+                            "timestamp": datetime.now().isoformat()
+                        }
+                except:
+                    pass
+                return {
+                    "code": 1,
+                    "message": error_data.get("detail", "添加失败"),
                     "timestamp": datetime.now().isoformat()
                 }
             else:

@@ -24,6 +24,7 @@ redis>=5.0.0
 
 # WebSocket
 websockets>=12.0
+python-socketio[asyncio]>=5.11.0
 
 # Utilities
 python-multipart>=0.0.6

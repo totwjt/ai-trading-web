@@ -124,13 +124,19 @@ export async function getWatchlist(): Promise<WatchlistItem[]> {
 }
 
 export async function addToWatchlistAPI(tsCode: string, _name: string): Promise<boolean> {
-  const response = await apiClient.post<{ code: number }>(`/api/trading/watchlist/${tsCode}`)
-  return response.data.code === 0
+  const response = await apiClient.post<{ code: number; message?: string }>(`/api/trading/watchlist/${tsCode}`)
+  if (response.data.code !== 0) {
+    throw new Error(response.data.message || '添加失败')
+  }
+  return true
 }
 
 export async function removeFromWatchlistAPI(tsCode: string): Promise<boolean> {
-  const response = await apiClient.delete<{ code: number }>(`/api/trading/watchlist/${tsCode}`)
-  return response.data.code === 0
+  const response = await apiClient.delete<{ code: number; message?: string }>(`/api/trading/watchlist/${tsCode}`)
+  if (response.data.code !== 0) {
+    throw new Error(response.data.message || '删除失败')
+  }
+  return true
 }
 
 /**

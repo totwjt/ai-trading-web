@@ -1,35 +1,69 @@
-import asyncio
-import json
-from recommendation.models import WSMessage, MessageType
+"""
+自选股票实时行情推送客户端
+使用统一 Socket.IO 客户端连接到主服务
 
-async def simulate_external_push():
-    """模拟外部服务器推送自选股票实时行情"""
-    import websockets
+用法:
+    python simulate_push.py              # 模拟推送测试数据
+    python simulate_push.py --real      # 真实推送外部 API 数据
+"""
+
+import asyncio
+import argparse
+import logging
+from datetime import datetime
+
+import httpx
+
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from common.socketio_client import UnifiedSocketIOClient
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+EXTERNAL_API = "http://192.168.66.141:8888"
+SOCKETIO_URL = "http://localhost:8766"
+
+
+class ZixuanPusher:
+    """自选股票行情推送器"""
     
-    uri = "ws://localhost:8765"
-    
-    async with websockets.connect(uri) as ws:
-        # 1. 先建立连接
-        connect_msg = WSMessage(
-            type=MessageType.CONNECT,
-            payload={
-                "client_id": "test_client",
-                "client_type": "zixuan",
-                "action": "default"
-            }
+    def __init__(self, url: str = SOCKETIO_URL):
+        self.client = UnifiedSocketIOClient(
+            url=url,
+            client_type="zixuan_pusher"
         )
-        await ws.send(connect_msg.to_json())
-        print("Sent connect message")
-        
-        # 等待连接响应
-        response = await ws.recv()
-        print(f"Connect response: {response}")
-        
-        # 等待几秒让服务器准备好
-        await asyncio.sleep(1)
-        
-        # 2. 模拟外部服务器推送消息
-        push_data = [
+        self.push_interval = 5
+    
+    async def connect(self) -> bool:
+        return await self.client.connect()
+    
+    async def disconnect(self):
+        await self.client.disconnect()
+    
+    async def fetch_real_data(self) -> list:
+        """从外部 API 获取真实自选数据"""
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as http:
+                response = await http.get(f"{EXTERNAL_API}/stock/realtime")
+                if response.status_code == 200:
+                    data = response.json()
+                    return data.get("data", [])
+                else:
+                    logger.error(f"外部API请求失败: {response.status_code}")
+                    return []
+        except Exception as e:
+            logger.error(f"获取外部数据失败: {e}")
+            return []
+    
+    async def push_mock_data(self):
+        """推送模拟数据"""
+        mock_data = [
             {
                 "ts_code": "600831.SH",
                 "name": "广电网络",
@@ -42,7 +76,7 @@ async def simulate_external_push():
                 "change_pct": 6.35,
                 "vol": 18000000,
                 "amount": 68000000,
-                "trade_time": "2026-03-24 18:10:00"
+                "trade_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             },
             {
                 "ts_code": "000001.SZ",
@@ -56,24 +90,85 @@ async def simulate_external_push():
                 "change_pct": 4.78,
                 "vol": 20000000,
                 "amount": 215000000,
-                "trade_time": "2026-03-24 18:10:00"
+                "trade_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            },
+            {
+                "ts_code": "600519.SH",
+                "name": "贵州茅台",
+                "pre_close": 1680.00,
+                "high": 1700.00,
+                "open": 1685.00,
+                "low": 1675.00,
+                "close": 1698.00,
+                "change": 18.00,
+                "change_pct": 1.07,
+                "vol": 500000,
+                "amount": 845000000,
+                "trade_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
         ]
         
-        push_msg = WSMessage(
-            type=MessageType.PUSH,
-            payload={
-                "target_type": "web",
-                "target_action": "zixuan",
-                "data": push_data
-            }
-        )
-        await ws.send(push_msg.to_json())
-        print("Sent push message")
+        success = await self.client.push_to_topic("zixuan", mock_data)
+        if success:
+            logger.info(f"✅ 推送模拟数据成功: {len(mock_data)} 条")
+        else:
+            logger.error("❌ 推送模拟数据失败")
         
-        # 等待推送响应
-        response = await ws.recv()
-        print(f"Push response: {response}")
+        return success
+    
+    async def push_real_data(self):
+        """推送真实外部数据"""
+        data = await self.fetch_real_data()
+        if data:
+            success = await self.client.push_to_topic("zixuan", data)
+            if success:
+                logger.info(f"✅ 推送真实数据成功: {len(data)} 条")
+            else:
+                logger.error("❌ 推送真实数据失败")
+            return success
+        return False
+    
+    async def run(self, mode: str = "mock", interval: int = 5):
+        """运行推送循环"""
+        self.push_interval = interval
+        
+        if not await self.connect():
+            logger.error("连接失败，退出")
+            return
+        
+        logger.info(f"开始推送自选数据 (模式: {mode}, 间隔: {interval}秒)")
+        
+        try:
+            while True:
+                if mode == "real":
+                    await self.push_real_data()
+                else:
+                    await self.push_mock_data()
+                
+                await asyncio.sleep(self.push_interval)
+                
+        except asyncio.CancelledError:
+            logger.info("推送任务取消")
+        except KeyboardInterrupt:
+            logger.info("收到中断信号")
+        finally:
+            await self.disconnect()
+            logger.info("推送器已停止")
+
+
+async def main():
+    parser = argparse.ArgumentParser(description="自选股票行情推送")
+    parser.add_argument("--real", action="store_true", help="使用真实外部API数据")
+    parser.add_argument("--url", default=SOCKETIO_URL, help="Socket.IO服务地址")
+    parser.add_argument("--interval", type=int, default=5, help="推送间隔(秒)")
+    
+    args = parser.parse_args()
+    
+    pusher = ZixuanPusher(url=args.url)
+    mode = "real" if args.real else "mock"
+    
+    await pusher.run(mode=mode, interval=args.interval)
+
 
 if __name__ == "__main__":
-    asyncio.run(simulate_external_push())
+    asyncio.run(main())

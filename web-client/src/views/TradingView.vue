@@ -2,7 +2,8 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { searchStocks, getTradeRecords, getWatchlist, addToWatchlistAPI, removeFromWatchlistAPI, type StockSearchResult, type TradeRecord } from '@/api/trading'
-import { createWebSocketClient, type WatchlistItem } from '@/utils/websocket'
+import { useWebSocket } from '@/composables/useWebSocket'
+import type { WatchlistItem } from '@/utils/websocket'
 
 const searchKeyword = ref('')
 const searchResults = ref<StockSearchResult[] | null>(null)
@@ -16,15 +17,7 @@ const riseSpeedMax = ref(5)
 const pushCount = ref(0)
 const lastPushTime = ref('')
 
-const {
-  connect,
-  disconnect,
-  onZixuan,
-  onConnect,
-  onError
-} = createWebSocketClient({
-  clientType: 'zixuan'
-})
+const ws = useWebSocket()
 
 const loadWatchlist = async () => {
   watchlist.value = await getWatchlist()
@@ -32,28 +25,27 @@ const loadWatchlist = async () => {
 
 onMounted(() => {
   loadWatchlist()
-  
-  onConnect(() => {
+  ws.subscribe(['zixuan'])
+
+  ws.onConnect(() => {
     console.log('[Trading] WebSocket 已连接')
   })
 
-  onError((err) => {
+  ws.onError((err) => {
     console.error('[Trading] WebSocket 错误:', err)
   })
 
-  onZixuan((data) => {
+  ws.onZixuan((data) => {
     if (data && data.length > 0) {
       pushCount.value++
       lastPushTime.value = new Date().toLocaleTimeString()
-      watchlist.value = data
+      watchlist.value = data as WatchlistItem[]
     }
   })
-
-  connect()
 })
 
 onUnmounted(() => {
-  disconnect()
+  ws.unsubscribe(['zixuan'])
 })
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
