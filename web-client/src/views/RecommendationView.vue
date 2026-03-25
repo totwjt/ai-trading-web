@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { getLatestNews, type NewsItem } from '@/api/news'
-import { useWebSocket, parseStockInfo, type RecommendationData } from '@/utils/websocket'
+import { createWebSocketClient, parseStockInfo, type RecommendationData } from '@/utils/websocket'
 
 interface Stock {
   name: string
@@ -29,7 +29,10 @@ const {
   onConnect,
   onDisconnect,
   onError
-} = useWebSocket()
+} = createWebSocketClient({
+  url: `ws://${window.location.hostname}:8765/ws`,
+  clientType: 'recommendation'
+})
 
 const recommendations = ref<Recommendation[]>([])
 const loading = ref(true)

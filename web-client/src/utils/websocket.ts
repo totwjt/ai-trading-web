@@ -22,6 +22,7 @@ export type MessageType =
   | 'backtest_progress'
   | 'backtest_log'
   | 'backtest_completed'
+  | 'push'
 
 export interface WSMessage {
   type: MessageType
@@ -85,9 +86,34 @@ export type ConnectHandler = () => void
 export type DisconnectHandler = () => void
 export type ErrorHandler = (error: Event) => void
 
+// 自选列表相关类型
+export interface WatchlistItem {
+  ts_code: string
+  name: string
+  pre_close?: number
+  open?: number
+  high?: number
+  low?: number
+  close?: number
+  change?: number
+  change_pct?: number
+  vol?: number
+  amount?: number
+  trade_time?: string
+}
+
+export interface ZixuanPushPayload {
+  target_type: string
+  target_action: string
+  data: WatchlistItem[]
+}
+
+export type ZixuanHandler = (data: WatchlistItem[]) => void
+
 class WebSocketClient {
   private ws: WebSocket | null = null
   private url: string
+  private clientType: string = 'web'
   private reconnectInterval = 3000
   private heartbeatInterval: number | null = null
   private isManualClose = false
@@ -100,9 +126,11 @@ class WebSocketClient {
   public connectHandler: ConnectHandler | null = null
   public disconnectHandler: DisconnectHandler | null = null
   public errorHandler: ErrorHandler | null = null
+  public zixuanHandler: ZixuanHandler | null = null
 
-  constructor(url: string = '') {
+  constructor(url: string = '', clientType: string = 'web') {
     this.url = url || `ws://${window.location.hostname}:8765/ws`
+    this.clientType = clientType
   }
 
   connect(): void {
@@ -181,6 +209,12 @@ class WebSocketClient {
       case 'backtest_completed':
         this.backtestCompletedHandler?.(message.payload as unknown as BacktestCompletedData)
         break
+      case 'push':
+        if (message.payload.target_action === 'zixuan') {
+          const data = (message.payload as unknown as ZixuanPushPayload).data
+          this.zixuanHandler?.(data)
+        }
+        break
       case 'heartbeat':
         break
       case 'system':
@@ -198,7 +232,7 @@ class WebSocketClient {
       type: 'connect',
       payload: {
         client_id: CLIENT_ID,
-        client_type: 'web',
+        client_type: this.clientType,
         action: 'default',
         user_agent: navigator.userAgent
       },
@@ -244,49 +278,44 @@ class WebSocketClient {
   }
 }
 
-let wsClient: WebSocketClient | null = null
-let clientUseCount = 0
+export interface WebSocketOptions {
+  url?: string
+  clientType?: string
+}
 
-export function useWebSocket() {
-  clientUseCount++
-  
-  if (!wsClient) {
-    wsClient = new WebSocketClient()
-  }
+export function createWebSocketClient(options: WebSocketOptions = {}) {
+  const { url, clientType = 'web' } = options
+  const wsClient = new WebSocketClient(url, clientType)
 
   return {
     wsClient,
     isConnected: wsClient.isConnected,
-    connect: () => wsClient?.connect(),
-    disconnect: () => {
-      clientUseCount--
-      if (clientUseCount <= 0 && wsClient) {
-        wsClient.disconnect()
-        wsClient = null
-        clientUseCount = 0
-      }
-    },
-    subscribe: (topics: string[]) => wsClient?.subscribe(topics),
+    connect: () => wsClient.connect(),
+    disconnect: () => wsClient.disconnect(),
+    subscribe: (topics: string[]) => wsClient.subscribe(topics),
     onMessage: (handler: MessageHandler) => {
-      wsClient!.messageHandler = handler
+      wsClient.messageHandler = handler
     },
     onBacktestProgress: (handler: BacktestProgressHandler) => {
-      wsClient!.backtestProgressHandler = handler
+      wsClient.backtestProgressHandler = handler
     },
     onBacktestLog: (handler: BacktestLogHandler) => {
-      wsClient!.backtestLogHandler = handler
+      wsClient.backtestLogHandler = handler
     },
     onBacktestCompleted: (handler: BacktestCompletedHandler) => {
-      wsClient!.backtestCompletedHandler = handler
+      wsClient.backtestCompletedHandler = handler
+    },
+    onZixuan: (handler: ZixuanHandler) => {
+      wsClient.zixuanHandler = handler
     },
     onConnect: (handler: ConnectHandler) => {
-      wsClient!.connectHandler = handler
+      wsClient.connectHandler = handler
     },
     onDisconnect: (handler: DisconnectHandler) => {
-      wsClient!.disconnectHandler = handler
+      wsClient.disconnectHandler = handler
     },
     onError: (handler: ErrorHandler) => {
-      wsClient!.errorHandler = handler
+      wsClient.errorHandler = handler
     }
   }
 }

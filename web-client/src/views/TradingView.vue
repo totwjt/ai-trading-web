@@ -1,18 +1,31 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { searchStocks, getTradeRecords, getWatchlist, addToWatchlistAPI, removeFromWatchlistAPI, type StockSearchResult, type TradeRecord, type WatchlistItem } from '@/api/trading'
-import { useWebSocket, type WSMessage } from '@/utils/websocket'
+import { message } from 'ant-design-vue'
+import { searchStocks, getTradeRecords, getWatchlist, addToWatchlistAPI, removeFromWatchlistAPI, type StockSearchResult, type TradeRecord } from '@/api/trading'
+import { createWebSocketClient, type WatchlistItem } from '@/utils/websocket'
 
 const searchKeyword = ref('')
 const searchResults = ref<StockSearchResult[] | null>(null)
 const isSearching = ref(false)
+const isAddingToWatchlist = ref(false)
 const watchlist = ref<WatchlistItem[]>([])
 const tradeRecords = ref<TradeRecord[]>([])
 const strategyEnabled = ref(false)
 const riseSpeedMin = ref(0)
 const riseSpeedMax = ref(5)
+const pushCount = ref(0)
+const lastPushTime = ref('')
 
-let wsInstance: WebSocket | null = null
+const {
+  connect,
+  disconnect,
+  onZixuan,
+  onConnect,
+  onError
+} = createWebSocketClient({
+  url: `ws://${window.location.hostname}:8765`,
+  clientType: 'zixuan'
+})
 
 const loadWatchlist = async () => {
   watchlist.value = await getWatchlist()
@@ -20,57 +33,29 @@ const loadWatchlist = async () => {
 
 onMounted(() => {
   loadWatchlist()
-  initWebSocket()
+  
+  onConnect(() => {
+    console.log('[Trading] WebSocket 已连接')
+  })
+
+  onError((err) => {
+    console.error('[Trading] WebSocket 错误:', err)
+  })
+
+  onZixuan((data) => {
+    if (data && data.length > 0) {
+      pushCount.value++
+      lastPushTime.value = new Date().toLocaleTimeString()
+      watchlist.value = data
+    }
+  })
+
+  connect()
 })
 
 onUnmounted(() => {
-  if (wsInstance) {
-    wsInstance.close()
-    wsInstance = null
-  }
+  disconnect()
 })
-
-const initWebSocket = () => {
-  if (wsInstance) return
-  
-  const wsUrl = `ws://${window.location.hostname}:8765`
-  wsInstance = new WebSocket(wsUrl)
-  
-  wsInstance.onopen = () => {
-    wsInstance?.send(JSON.stringify({
-      type: 'connect',
-      payload: {
-        client_id: 'trading_client_' + Date.now(),
-        client_type: 'zixuan',
-        action: 'default'
-      },
-      timestamp: new Date().toISOString(),
-      message_id: 'msg_' + Date.now()
-    }))
-  }
-  
-  wsInstance.onmessage = (event) => {
-    try {
-      const message: WSMessage = JSON.parse(event.data)
-      if (message.type === 'push' && message.payload.target_action === 'zixuan') {
-        const data = message.payload.data as WatchlistItem[]
-        if (data && data.length > 0) {
-          watchlist.value = data
-        }
-      }
-    } catch (e) {
-      console.error('WebSocket消息解析失败:', e)
-    }
-  }
-  
-  wsInstance.onerror = (err) => {
-    console.error('WebSocket错误:', err)
-  }
-  
-  wsInstance.onclose = () => {
-    wsInstance = null
-  }
-}
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -97,17 +82,41 @@ watch(searchKeyword, (val) => {
 })
 
 const addToWatchlist = async (stock: StockSearchResult) => {
-  if (!watchlist.value.find(s => s.ts_code === stock.ts_code)) {
-    await addToWatchlistAPI(stock.ts_code, stock.name)
-    await loadWatchlist()
+  if (watchlist.value.find(s => s.ts_code === stock.ts_code)) {
+    message.warning('该股票已在自选列表中')
+    return
+  }
+  
+  isAddingToWatchlist.value = true
+  try {
+    const success = await addToWatchlistAPI(stock.ts_code, stock.name)
+    if (success) {
+      message.success('添加自选成功')
+      await loadWatchlist()
+    } else {
+      message.error('添加自选失败')
+    }
+  } catch (error: any) {
+    message.error(error?.message || '添加自选失败')
+    console.error('添加自选失败:', error)
+  } finally {
+    isAddingToWatchlist.value = false
   }
   searchKeyword.value = ''
   searchResults.value = null
 }
 
 const removeFromWatchlist = async (tsCode: string) => {
-  await removeFromWatchlistAPI(tsCode)
-  watchlist.value = watchlist.value.filter(s => s.ts_code !== tsCode)
+  try {
+    const success = await removeFromWatchlistAPI(tsCode)
+    if (success) {
+      message.success('删除成功')
+      watchlist.value = watchlist.value.filter(s => s.ts_code !== tsCode)
+    }
+  } catch (error: any) {
+    message.error(error?.message || '删除失败')
+    console.error('删除自选失败:', error)
+  }
 }
 
 const isInWatchlist = (tsCode: string) => {
@@ -185,7 +194,13 @@ loadTradeRecords()
           </div>
 
             <div class="bg-card rounded-lg shadow-sm border border-gray-100 p-4">
-            <h2 class="text-base font-semibold text-textMain mb-4">我的自选</h2>
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-base font-semibold text-textMain">我的自选</h2>
+              <div class="text-xs text-textMute">
+                推送次数: <span class="text-primary font-bold">{{ pushCount }}</span>
+                <span v-if="lastPushTime" class="ml-2">最后: {{ lastPushTime }}</span>
+              </div>
+            </div>
             <div v-if="watchlist.length === 0" class="text-center py-8 text-textMute text-sm">
               暂无自选股票
             </div>
@@ -205,11 +220,11 @@ loadTradeRecords()
                   <td class="text-xs text-textMain font-numeric">{{ stock.ts_code }}</td>
                   <td class="text-xs text-textMain">{{ stock.name }}</td>
                   <td class="text-xs text-textMain font-numeric text-right">{{ stock.close?.toFixed(2) }}</td>
-                  <td class="text-xs font-numeric text-right" :class="stock.change >= 0 ? 'text-up' : 'text-down'">
-                    {{ stock.change?.toFixed(2) }}
+                  <td class="text-xs font-numeric text-right" :class="(stock.change ?? 0) >= 0 ? 'text-up' : 'text-down'">
+                    {{ (stock.change ?? 0).toFixed(2) }}
                   </td>
-                  <td class="text-xs font-numeric text-right" :class="stock.change_pct >= 0 ? 'text-up' : 'text-down'">
-                    {{ stock.change_pct?.toFixed(2) }}%
+                  <td class="text-xs font-numeric text-right" :class="(stock.change_pct ?? 0) >= 0 ? 'text-up' : 'text-down'">
+                    {{ (stock.change_pct ?? 0).toFixed(2) }}%
                   </td>
                   <td class="text-center">
                     <button
