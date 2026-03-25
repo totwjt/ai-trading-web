@@ -87,7 +87,7 @@ web-client/src/
 | `recommendation` | 智能荐股推送 | ✅ 已完成 | RecommendationView 页面使用 |
 | `trading` | 交易记录实时推送 | 🔧 待对接 | 仅静态数据，需对接后端 |
 | `backtest.{id}` | 回测进度/结果 | 🔧 待完善 | 使用统一 WebSocket 服务 |
-| `risk` | 风控警报 | ⬜ 待开发 | 风控页面预留 |
+| `risk` | 风控警报 | ✅ 已完成 | 外部项目通过 push_to_topic 推送 |
 | `market` | 市场行情广播 | ⬜ 待开发 | 首页/市场概览预留 |
 | `news` | 资讯快讯 | ⬜ 待开发 | 首页新闻预留 |
 | `system` | 系统通知 | ⬜ 待开发 | 通用通知预留 |
