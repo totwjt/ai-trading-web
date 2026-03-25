@@ -23,7 +23,6 @@ const {
   onConnect,
   onError
 } = createWebSocketClient({
-  url: `ws://${window.location.hostname}:8765`,
   clientType: 'zixuan'
 })
 

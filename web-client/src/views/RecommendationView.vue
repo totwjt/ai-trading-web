@@ -30,7 +30,6 @@ const {
   onDisconnect,
   onError
 } = createWebSocketClient({
-  url: `ws://${window.location.hostname}:8765/ws`,
   clientType: 'recommendation'
 })
 

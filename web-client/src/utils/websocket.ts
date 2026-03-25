@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { getWsUrl } from '@/config/api'
 
 function generateClientId(): string {
   const stored = localStorage.getItem('ws_client_id')
@@ -284,7 +285,8 @@ export interface WebSocketOptions {
 }
 
 export function createWebSocketClient(options: WebSocketOptions = {}) {
-  const { url, clientType = 'web' } = options
+  const { clientType = 'web' } = options
+  const url = options.url || getWsUrl(clientType)
   const wsClient = new WebSocketClient(url, clientType)
 
   return {
