@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 trading_router = APIRouter(prefix="/api/trading", tags=["trading"])
 
 EXTERNAL_API = "http://192.168.66.141:8888"
+TRADER_API = "http://192.168.66.155:8003"
 
 
 # ==================== 数据模型 ====================
@@ -299,5 +300,108 @@ async def remove_watchlist(ts_code: str, db: AsyncSession = Depends(get_db)):
         return {
             "code": 1,
             "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+# ==================== 交易记录接口 ====================
+
+@trading_router.get("/trades")
+async def get_trades(db: AsyncSession = Depends(get_db)):
+    """获取交易记录"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{TRADER_API}/trader/trades")
+            
+            if response.status_code != 200:
+                logger.error(f"获取交易记录失败: {response.status_code}")
+                return {
+                    "code": 1,
+                    "message": "获取交易记录失败",
+                    "data": [],
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            data = response.json()
+            # 转换为前端需要的格式
+            trades = data.get("data", [])
+            result = []
+            for i, trade in enumerate(trades):
+                result.append({
+                    "id": trade.get("id") or i + 1,
+                    "ts_code": trade.get("code", ""),
+                    "name": trade.get("name", ""),
+                    "direction": trade.get("direction", "buy"),
+                    "price": float(trade.get("price", 0)),
+                    "quantity": int(trade.get("amount", 0) * 100) if trade.get("amount") else 0,
+                    "amount": float(trade.get("amount", 0)),
+                    "time": trade.get("time", ""),
+                    "status": "success"
+                })
+            
+            return {
+                "code": 0,
+                "message": "success",
+                "data": result,
+                "total": len(result),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+    except Exception as e:
+        logger.error(f"获取交易记录失败: {e}")
+        return {
+            "code": 1,
+            "message": str(e),
+            "data": [],
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@trading_router.get("/today_trades")
+async def get_today_trades(db: AsyncSession = Depends(get_db)):
+    """获取当日成交"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{TRADER_API}/trader/today_trades")
+            
+            if response.status_code != 200:
+                logger.error(f"获取当日成交失败: {response.status_code}")
+                return {
+                    "code": 1,
+                    "message": "获取当日成交失败",
+                    "data": [],
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            data = response.json()
+            trades = data.get("data", [])
+            result = []
+            for i, trade in enumerate(trades):
+                result.append({
+                    "id": trade.get("id") or i + 1,
+                    "ts_code": trade.get("code", ""),
+                    "name": trade.get("name", ""),
+                    "direction": trade.get("direction", "buy"),
+                    "price": float(trade.get("price", 0)),
+                    "quantity": int(trade.get("amount", 0) * 100) if trade.get("amount") else 0,
+                    "amount": float(trade.get("amount", 0)),
+                    "time": trade.get("time", ""),
+                    "status": "success"
+                })
+            
+            return {
+                "code": 0,
+                "message": "success",
+                "data": result,
+                "total": len(result),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+    except Exception as e:
+        logger.error(f"获取当日成交失败: {e}")
+        return {
+            "code": 1,
+            "message": str(e),
+            "data": [],
             "timestamp": datetime.now().isoformat()
         }

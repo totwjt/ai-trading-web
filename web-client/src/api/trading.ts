@@ -167,41 +167,14 @@ export async function saveStrategyConfig(config: StrategyConfig): Promise<boolea
  * 获取交易记录
  */
 export async function getTradeRecords(): Promise<TradeRecord[]> {
-  // TODO: 后端实现后接入
-  // 静态页面替代，返回示例数据
-  return [
-    {
-      id: 1,
-      ts_code: '600519',
-      name: '贵州茅台',
-      direction: 'buy',
-      price: 1850.00,
-      quantity: 100,
-      amount: 185000.00,
-      time: '2024-01-15 10:30:25',
-      status: 'success'
-    },
-    {
-      id: 2,
-      ts_code: '000858',
-      name: '五粮液',
-      direction: 'buy',
-      price: 168.50,
-      quantity: 500,
-      amount: 84250.00,
-      time: '2024-01-15 11:15:30',
-      status: 'success'
-    },
-    {
-      id: 3,
-      ts_code: '600519',
-      name: '贵州茅台',
-      direction: 'sell',
-      price: 1860.00,
-      quantity: 100,
-      amount: 186000.00,
-      time: '2024-01-16 14:25:10',
-      status: 'success'
+  try {
+    const response = await apiClient.get<{ code: number; data: TradeRecord[] }>('/api/trading/trades')
+    if (response.data.code === 0) {
+      return response.data.data || []
     }
-  ]
+    return []
+  } catch (error) {
+    console.error('获取交易记录失败:', error)
+    return []
+  }
 }

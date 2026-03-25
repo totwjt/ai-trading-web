@@ -12,8 +12,8 @@ const isAddingToWatchlist = ref(false)
 const watchlist = ref<WatchlistItem[]>([])
 const tradeRecords = ref<TradeRecord[]>([])
 const strategyEnabled = ref(false)
-const riseSpeedMin = ref(0)
-const riseSpeedMax = ref(5)
+const stopProfit = ref(5)   // 止盈点
+const stopLoss = ref(3)     // 止损点
 const pushCount = ref(0)
 const lastPushTime = ref('')
 
@@ -25,7 +25,8 @@ const loadWatchlist = async () => {
 
 onMounted(() => {
   loadWatchlist()
-  ws.subscribe(['zixuan'])
+  loadTradeRecords()
+  ws.subscribe(['zixuan', 'trading'])
 
   ws.onConnect(() => {
     console.log('[Trading] WebSocket 已连接')
@@ -42,10 +43,18 @@ onMounted(() => {
       watchlist.value = data as WatchlistItem[]
     }
   })
+
+  ws.onTrading((data) => {
+    console.log('[Trading] 收到交易推送:', data)
+    if (data && Array.isArray(data) && data.length > 0) {
+      const newTrades = data as TradeRecord[]
+      tradeRecords.value = [...newTrades, ...tradeRecords.value]
+    }
+  })
 })
 
 onUnmounted(() => {
-  ws.unsubscribe(['zixuan'])
+  ws.unsubscribe(['zixuan', 'trading'])
 })
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -117,8 +126,6 @@ const isInWatchlist = (tsCode: string) => {
 const loadTradeRecords = async () => {
   tradeRecords.value = await getTradeRecords()
 }
-
-loadTradeRecords()
 </script>
 
 <template>
@@ -248,27 +255,32 @@ loadTradeRecords()
             <div class="space-y-4">
               <div>
                 <div class="flex justify-between mb-2">
-                  <span class="text-sm text-textSub">涨速范围</span>
-                  <span class="text-sm text-textMain font-numeric">{{ riseSpeedMin }}% - {{ riseSpeedMax }}%</span>
+                  <span class="text-sm text-textSub">买点跌幅</span>
+                  <span class="text-sm text-textMain font-numeric">{{ stopProfit }}%</span>
                 </div>
-                <div class="flex gap-4 items-center">
-                  <input
-                    type="range"
-                    v-model.number="riseSpeedMin"
-                    min="0"
-                    max="10"
-                    step="0.5"
-                    class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  />
-                  <input
-                    type="range"
-                    v-model.number="riseSpeedMax"
-                    min="0"
-                    max="10"
-                    step="0.5"
-                    class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  />
+                <input
+                  type="range"
+                  v-model.number="stopProfit"
+                  min="0"
+                  max="20"
+                  step="0.5"
+                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <div class="flex justify-between mb-2">
+                  <span class="text-sm text-textSub">卖点涨幅</span>
+                  <span class="text-sm text-textMain font-numeric">{{ stopLoss }}%</span>
                 </div>
+                <input
+                  type="range"
+                  v-model.number="stopLoss"
+                  min="0"
+                  max="20"
+                  step="0.5"
+                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
               </div>
             </div>
           </div>

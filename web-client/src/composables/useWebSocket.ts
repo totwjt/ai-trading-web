@@ -16,6 +16,7 @@ export type BacktestCompletedHandler = (data: unknown) => void
 export type ConnectHandler = () => void
 export type DisconnectHandler = () => void
 export type ErrorHandler = (error: Error) => void
+export type TradingHandler = (data: unknown) => void
 
 let socketInstance: Socket | null = null
 let refCount = 0
@@ -31,6 +32,7 @@ const backtestCompletedHandlers: BacktestCompletedHandler[] = []
 const connectHandlers: ConnectHandler[] = []
 const disconnectHandlers: DisconnectHandler[] = []
 const errorHandlers: ErrorHandler[] = []
+const tradingHandlers: TradingHandler[] = []
 
 function getSocketUrl(): string {
   const wsHost = import.meta.env.VITE_WS_HOST || window.location.hostname
@@ -107,6 +109,10 @@ function initSocket(): Socket {
 
   socketInstance.on('backtest_completed', (data) => {
     backtestCompletedHandlers.forEach(handler => handler(data as unknown))
+  })
+
+  socketInstance.on('trading', (data) => {
+    tradingHandlers.forEach(handler => handler(data as unknown))
   })
 
   socketInstance.on('subscribed', (data) => {
@@ -199,6 +205,14 @@ export function useWebSocket() {
     }
   }
 
+  function onTrading(handler: TradingHandler): () => void {
+    tradingHandlers.push(handler)
+    return () => {
+      const index = tradingHandlers.indexOf(handler)
+      if (index > -1) tradingHandlers.splice(index, 1)
+    }
+  }
+
   function onConnect(handler: ConnectHandler): () => void {
     connectHandlers.push(handler)
     return () => {
@@ -235,6 +249,7 @@ export function useWebSocket() {
     onBacktestProgress,
     onBacktestLog,
     onBacktestCompleted,
+    onTrading,
     onConnect,
     onDisconnect,
     onError
