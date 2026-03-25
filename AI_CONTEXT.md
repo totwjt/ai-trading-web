@@ -56,11 +56,9 @@ web-client/src/
   - `backend/trading/`
   - `backend/recommendation/`
 - 当前仓库中的荐股能力以 `backend/recommendation/` 为准，不要写成 `backend/ai/`
-- 根目录下还存在若干兼容/启动文件，例如：
-  - `backend/server.py`
-  - `backend/backtest_server.py`
-  - `backend/websocket_manager.py`
-  - `backend/common/`
+- 根目录下存在启动文件和公共模块：
+  - `backend/server.py` - 统一后端入口
+  - `backend/common/` - 公共模块
 - 当前后端统一启动入口为 `backend/server.py`
 - 标准启动方式：
   - `cd backend`
@@ -88,7 +86,7 @@ web-client/src/
 | `zixuan` | 自选股票实时行情 | ✅ 已完成 | TradingView 页面使用 |
 | `recommendation` | 智能荐股推送 | ✅ 已完成 | RecommendationView 页面使用 |
 | `trading` | 交易记录实时推送 | 🔧 待对接 | 仅静态数据，需对接后端 |
-| `backtest.{id}` | 回测进度/结果 | 🔧 待完善 | 需从 websocket_manager.py 迁移 |
+| `backtest.{id}` | 回测进度/结果 | 🔧 待完善 | 使用统一 WebSocket 服务 |
 | `risk` | 风控警报 | ⬜ 待开发 | 风控页面预留 |
 | `market` | 市场行情广播 | ⬜ 待开发 | 首页/市场概览预留 |
 | `news` | 资讯快讯 | ⬜ 待开发 | 首页新闻预留 |
@@ -109,42 +107,28 @@ App.vue (全局 WebSocket 连接)
 特点：
 1. 全局单例 WebSocket 连接，避免重复连接
 2. 每个页面独立订阅所需 topic
-3. 页面离开时不自动取消订阅（连接保持）
+3. 页面离开时取消订阅（连接保持）
 4. 消息仅用于实时显示，不做本地持久化存储
 ```
 
 ### 前端使用方式
 
 ```typescript
-// 在页面组件中
-import { createSocketIOClient } from '@/utils/websocket'
+import { useWebSocket } from '@/composables/useWebSocket'
 
-const client = createSocketIOClient({ clientType: 'web' })
+const ws = useWebSocket()
 
 onMounted(() => {
-  // 连接由 App.vue 全局管理，无需手动 connect()
-  client.onConnect(() => {
-    client.subscribe(['zixuan'])  // 页面独立订阅
-  })
-  client.onZixuan((data) => {
-    // 仅用于实时显示
+  ws.subscribe(['zixuan'])  // 直接订阅，无需等待连接
+
+  ws.onZixuan((data) => {
     watchlist.value = data
   })
 })
-```
 
-### 后端发布函数
-
-```python
-# server.py
-async def publish_zixuan(data: list):
-    await sio.emit('zixuan', data, room='zixuan')
-
-async def publish_recommendation(data: dict):
-    await sio.emit('recommendation', data, room='recommendation')
-
-async def publish_trading(data: dict):
-    await sio.emit('trading', data, room='trading')
+onUnmounted(() => {
+  ws.unsubscribe(['zixuan'])  // 离开页面时取消订阅
+})
 ```
 
 ### 外部服务推送
