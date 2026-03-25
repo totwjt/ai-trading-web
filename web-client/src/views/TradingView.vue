@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { searchStocks, getTradeRecords, getWatchlist, addToWatchlistAPI, removeFromWatchlistAPI, type StockSearchResult, type TradeRecord } from '@/api/trading'
+import { searchStocks, getTradeRecords, getWatchlist, addToWatchlistAPI, removeFromWatchlistAPI, getStrategyConfig, saveStrategyConfig, type StockSearchResult, type TradeRecord, type StrategyConfig } from '@/api/trading'
 import { useWebSocket } from '@/composables/useWebSocket'
 import type { WatchlistItem } from '@/utils/websocket'
 

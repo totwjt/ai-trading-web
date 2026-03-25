@@ -28,6 +28,7 @@ TOPIC_RECOMMENDATION = "recommendation"
 TOPIC_ZIXUAN = "zixuan"
 TOPIC_BACKTEST = "backtest"
 TOPIC_TRADING = "trading"
+TOPIC_RISK = "risk"
 
 app = FastAPI(
     title="AI Trading Server",
@@ -144,6 +145,8 @@ async def push_from_external(sid, data):
         await sio.emit(topic, payload, room=topic)
     elif topic == TOPIC_TRADING:
         await sio.emit(TOPIC_TRADING, payload, room=TOPIC_TRADING)
+    elif topic == TOPIC_RISK:
+        await sio.emit(TOPIC_RISK, payload, room=TOPIC_RISK)
     else:
         # 通用主题广播
         await sio.emit(topic, payload, room=topic)
@@ -167,6 +170,10 @@ async def publish_backtest(backtest_id: int, data: dict):
 
 async def publish_trading(data: dict):
     await sio.emit(TOPIC_TRADING, data, room=TOPIC_TRADING)
+
+
+async def publish_risk(data: dict):
+    await sio.emit(TOPIC_RISK, data, room=TOPIC_RISK)
 
 
 app.include_router(strategy_router, prefix="/api")

@@ -26,26 +26,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-EXTERNAL_API = "http://192.168.66.141:8888"
+EXTERNAL_API = "http://192.168.66.141:8000"
 SOCKETIO_URL = "http://localhost:8766"
 
 
 class ZixuanPusher:
     """自选股票行情推送器"""
-    
+
     def __init__(self, url: str = SOCKETIO_URL):
         self.client = UnifiedSocketIOClient(
             url=url,
             client_type="zixuan_pusher"
         )
         self.push_interval = 5
-    
+
     async def connect(self) -> bool:
         return await self.client.connect()
-    
+
     async def disconnect(self):
         await self.client.disconnect()
-    
+
     async def fetch_real_data(self) -> list:
         """从外部 API 获取真实自选数据"""
         try:
@@ -60,7 +60,7 @@ class ZixuanPusher:
         except Exception as e:
             logger.error(f"获取外部数据失败: {e}")
             return []
-    
+
     async def push_mock_data(self):
         """推送模拟数据"""
         mock_data = [
@@ -107,15 +107,15 @@ class ZixuanPusher:
                 "trade_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
         ]
-        
+
         success = await self.client.push_to_topic("zixuan", mock_data)
         if success:
             logger.info(f"✅ 推送模拟数据成功: {len(mock_data)} 条")
         else:
             logger.error("❌ 推送模拟数据失败")
-        
+
         return success
-    
+
     async def push_real_data(self):
         """推送真实外部数据"""
         data = await self.fetch_real_data()
@@ -127,26 +127,26 @@ class ZixuanPusher:
                 logger.error("❌ 推送真实数据失败")
             return success
         return False
-    
+
     async def run(self, mode: str = "mock", interval: int = 5):
         """运行推送循环"""
         self.push_interval = interval
-        
+
         if not await self.connect():
             logger.error("连接失败，退出")
             return
-        
+
         logger.info(f"开始推送自选数据 (模式: {mode}, 间隔: {interval}秒)")
-        
+
         try:
             while True:
                 if mode == "real":
                     await self.push_real_data()
                 else:
                     await self.push_mock_data()
-                
+
                 await asyncio.sleep(self.push_interval)
-                
+
         except asyncio.CancelledError:
             logger.info("推送任务取消")
         except KeyboardInterrupt:
@@ -161,12 +161,12 @@ async def main():
     parser.add_argument("--real", action="store_true", help="使用真实外部API数据")
     parser.add_argument("--url", default=SOCKETIO_URL, help="Socket.IO服务地址")
     parser.add_argument("--interval", type=int, default=5, help="推送间隔(秒)")
-    
+
     args = parser.parse_args()
-    
+
     pusher = ZixuanPusher(url=args.url)
     mode = "real" if args.real else "mock"
-    
+
     await pusher.run(mode=mode, interval=args.interval)
 
 

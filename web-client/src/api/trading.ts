@@ -77,6 +77,18 @@ export interface StrategyConfig {
   priceMax: number      // 最高价格
 }
 
+// 策略配置响应（对应后端 /strategy_info 接口）
+export interface StrategyInfoResponse {
+  enabled?: boolean
+  rise_speed_min?: number
+  rise_speed_max?: number
+  volume_min?: number
+  price_min?: number
+  price_max?: number
+  stop_profit?: number  // 止盈点
+  stop_loss?: number    // 止损点
+}
+
 // 交易记录
 export interface TradeRecord {
   id: number
@@ -143,14 +155,30 @@ export async function removeFromWatchlistAPI(tsCode: string): Promise<boolean> {
  * 获取策略配置
  */
 export async function getStrategyConfig(): Promise<StrategyConfig> {
-  // TODO: 后端实现后接入
-  return {
-    enabled: false,
-    riseSpeedMin: 0,
-    riseSpeedMax: 5,
-    volumeMin: 1000,
-    priceMin: 1,
-    priceMax: 100
+  try {
+    const response = await apiClient.get<{ code: number; data: StrategyInfoResponse }>('/strategy_info')
+    if (response.data.code !== 0) {
+      throw new Error('获取策略配置失败')
+    }
+    const data = response.data.data
+    return {
+      enabled: data.enabled ?? false,
+      riseSpeedMin: data.rise_speed_min ?? 0,
+      riseSpeedMax: data.rise_speed_max ?? 5,
+      volumeMin: data.volume_min ?? 1000,
+      priceMin: data.price_min ?? 1,
+      priceMax: data.price_max ?? 100
+    }
+  } catch (error) {
+    console.error('获取策略配置失败:', error)
+    return {
+      enabled: false,
+      riseSpeedMin: 0,
+      riseSpeedMax: 5,
+      volumeMin: 1000,
+      priceMin: 1,
+      priceMax: 100
+    }
   }
 }
 
@@ -158,9 +186,24 @@ export async function getStrategyConfig(): Promise<StrategyConfig> {
  * 保存策略配置
  */
 export async function saveStrategyConfig(config: StrategyConfig): Promise<boolean> {
-  // TODO: 后端实现后接入
-  console.log('保存策略配置:', config)
-  return true
+  try {
+    const response = await apiClient.post<{ code: number; message?: string }>('/strategy_action', {
+      action: 'update_config',
+      enabled: config.enabled,
+      rise_speed_min: config.riseSpeedMin,
+      rise_speed_max: config.riseSpeedMax,
+      volume_min: config.volumeMin,
+      price_min: config.priceMin,
+      price_max: config.priceMax
+    })
+    if (response.data.code !== 0) {
+      throw new Error(response.data.message || '保存失败')
+    }
+    return true
+  } catch (error) {
+    console.error('保存策略配置失败:', error)
+    return false
+  }
 }
 
 /**

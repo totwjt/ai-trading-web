@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 trading_router = APIRouter(prefix="/api/trading", tags=["trading"])
 
-EXTERNAL_API = "http://192.168.66.141:8888"
+EXTERNAL_API = "http://192.168.66.141:8000"
 TRADER_API = "http://192.168.66.155:8003"
 
 
@@ -58,20 +58,20 @@ async def search_stocks(
     try:
         search_pattern = f"%{keyword}%"
         logger.info(f"Searching stocks: keyword={keyword}, pattern={search_pattern}, limit={limit}")
-        
+
         query = text("""
-            SELECT ts_code, name, industry, market, list_date 
-            FROM stock_basic 
+            SELECT ts_code, name, industry, market, list_date
+            FROM stock_basic
             WHERE ts_code LIKE :pattern OR name LIKE :pattern
             LIMIT :limit
         """)
-        
+
         logger.info(f"Executing query with params: pattern={search_pattern}, limit={limit}")
         result = await db.execute(query, {"pattern": search_pattern, "limit": limit})
-        
+
         rows = result.fetchall()
         logger.info(f"Query returned {len(rows)} rows")
-        
+
         stocks = [
             StockSearchResult(
                 ts_code=row[0],
@@ -82,9 +82,9 @@ async def search_stocks(
             )
             for row in rows
         ]
-        
+
         logger.info(f"Returning {len(stocks)} stocks: {[s.ts_code for s in stocks]}")
-        
+
         return StockSearchResponse(
             code=0,
             message="success",
@@ -92,7 +92,7 @@ async def search_stocks(
             total=len(stocks),
             timestamp=datetime.now().isoformat()
         )
-        
+
     except Exception as e:
         logger.error(f"股票搜索失败: {e}")
         return StockSearchResponse(
@@ -112,18 +112,18 @@ async def get_stock_realtime(ts_code: str, db: AsyncSession = Depends(get_db)):
     try:
         query = text("""
             SELECT ts_code, trade_time, open, high, low, close, vol
-            FROM stock_daily 
+            FROM stock_daily
             WHERE ts_code = :ts_code
             ORDER BY trade_time DESC
             LIMIT 1
         """)
-        
+
         result = await db.execute(query, {"ts_code": ts_code})
         row = result.fetchone()
-        
+
         if not row:
             raise HTTPException(status_code=404, detail="股票数据不存在")
-        
+
         return {
             "ts_code": row[0],
             "trade_time": row[1].strftime("%Y-%m-%d %H:%M:%S") if row[1] else None,
@@ -133,7 +133,7 @@ async def get_stock_realtime(ts_code: str, db: AsyncSession = Depends(get_db)):
             "close": float(row[5]) if row[5] else 0,
             "vol": int(row[6]) if row[6] else 0
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -155,7 +155,7 @@ async def get_watchlist(db: AsyncSession = Depends(get_db)):
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(f"{EXTERNAL_API}/stock/realtime")
-            
+
             if response.status_code != 200:
                 logger.error(f"外部API请求失败: {response.status_code}")
                 return {
@@ -165,10 +165,10 @@ async def get_watchlist(db: AsyncSession = Depends(get_db)):
                     "total": 0,
                     "timestamp": datetime.now().isoformat()
                 }
-            
+
             data = response.json()
             items = data.get("data", [])
-            
+
             if not items:
                 return {
                     "code": 0,
@@ -177,14 +177,14 @@ async def get_watchlist(db: AsyncSession = Depends(get_db)):
                     "total": 0,
                     "timestamp": datetime.now().isoformat()
                 }
-            
+
             watchlist_data = []
             for item in items:
                 close = item.get("close") or 0
                 pre_close = item.get("pre_close") or 0
                 change = close - pre_close
                 change_pct = (change / pre_close * 100) if pre_close else 0
-                
+
                 watchlist_data.append({
                     "ts_code": item.get("ts_code"),
                     "name": item.get("name"),
@@ -204,7 +204,7 @@ async def get_watchlist(db: AsyncSession = Depends(get_db)):
                     "bid_volume1": item.get("bid_volume1"),
                     "trade_time": item.get("trade_time")
                 })
-            
+
             return {
                 "code": 0,
                 "message": "success",
@@ -212,7 +212,7 @@ async def get_watchlist(db: AsyncSession = Depends(get_db)):
                 "total": len(watchlist_data),
                 "timestamp": datetime.now().isoformat()
             }
-            
+
     except Exception as e:
         logger.error(f"获取自选列表失败: {e}")
         return {
@@ -312,7 +312,7 @@ async def get_trades(db: AsyncSession = Depends(get_db)):
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(f"{TRADER_API}/trader/trades")
-            
+
             if response.status_code != 200:
                 logger.error(f"获取交易记录失败: {response.status_code}")
                 return {
@@ -321,7 +321,7 @@ async def get_trades(db: AsyncSession = Depends(get_db)):
                     "data": [],
                     "timestamp": datetime.now().isoformat()
                 }
-            
+
             data = response.json()
             # 转换为前端需要的格式
             trades = data.get("data", [])
@@ -338,7 +338,7 @@ async def get_trades(db: AsyncSession = Depends(get_db)):
                     "time": trade.get("time", ""),
                     "status": "success"
                 })
-            
+
             return {
                 "code": 0,
                 "message": "success",
@@ -346,7 +346,7 @@ async def get_trades(db: AsyncSession = Depends(get_db)):
                 "total": len(result),
                 "timestamp": datetime.now().isoformat()
             }
-            
+
     except Exception as e:
         logger.error(f"获取交易记录失败: {e}")
         return {
@@ -363,7 +363,7 @@ async def get_today_trades(db: AsyncSession = Depends(get_db)):
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(f"{TRADER_API}/trader/today_trades")
-            
+
             if response.status_code != 200:
                 logger.error(f"获取当日成交失败: {response.status_code}")
                 return {
@@ -372,7 +372,7 @@ async def get_today_trades(db: AsyncSession = Depends(get_db)):
                     "data": [],
                     "timestamp": datetime.now().isoformat()
                 }
-            
+
             data = response.json()
             trades = data.get("data", [])
             result = []
@@ -388,7 +388,7 @@ async def get_today_trades(db: AsyncSession = Depends(get_db)):
                     "time": trade.get("time", ""),
                     "status": "success"
                 })
-            
+
             return {
                 "code": 0,
                 "message": "success",
@@ -396,7 +396,7 @@ async def get_today_trades(db: AsyncSession = Depends(get_db)):
                 "total": len(result),
                 "timestamp": datetime.now().isoformat()
             }
-            
+
     except Exception as e:
         logger.error(f"获取当日成交失败: {e}")
         return {
