@@ -9,6 +9,7 @@ const riskPushCount = ref(0)
 const lastPushTime = ref('')
 
 onMounted(() => {
+  return
   ws.subscribe(['risk'])
 
   ws.onConnect(() => {
@@ -23,6 +24,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  return
   ws.unsubscribe(['risk'])
 })
 

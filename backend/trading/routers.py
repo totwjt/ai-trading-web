@@ -153,14 +153,16 @@ async def get_stock_realtime(ts_code: str, db: AsyncSession = Depends(get_db)):
 async def get_watchlist(db: AsyncSession = Depends(get_db)):
     """获取自选股票列表"""
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        logger.info(f"正在请求外部API: {EXTERNAL_API}/stock/realtime")
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(f"{EXTERNAL_API}/stock/realtime")
 
+            logger.info(f"外部API响应状态: {response.status_code}")
             if response.status_code != 200:
                 logger.error(f"外部API请求失败: {response.status_code}")
                 return {
                     "code": 1,
-                    "message": "获取自选列表失败",
+                    "message": f"获取自选列表失败: {response.status_code}",
                     "data": [],
                     "total": 0,
                     "timestamp": datetime.now().isoformat()
@@ -403,6 +405,41 @@ async def get_today_trades(db: AsyncSession = Depends(get_db)):
             "code": 1,
             "message": str(e),
             "data": [],
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+# ==================== 系统状态接口 ====================
+
+@trading_router.get("/system_status")
+async def get_system_status(db: AsyncSession = Depends(get_db)):
+    """获取系统连接状态"""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{TRADER_API}/trader/status")
+
+            if response.status_code != 200:
+                return {
+                    "code": 1,
+                    "message": "获取系统状态失败",
+                    "data": False,
+                    "timestamp": datetime.now().isoformat()
+                }
+
+            data = response.json()
+            return {
+                "code": 0,
+                "message": "success",
+                "data": data.get("data", False),
+                "timestamp": datetime.now().isoformat()
+            }
+
+    except Exception as e:
+        logger.error(f"获取系统状态失败: {e}")
+        return {
+            "code": 1,
+            "message": str(e),
+            "data": False,
             "timestamp": datetime.now().isoformat()
         }
 

@@ -248,7 +248,7 @@ const loadTradeRecords = async () => {
             </div>
           </div>
 
-            <div class="bg-card rounded-lg shadow-sm border border-gray-100 p-4">
+          <div class="bg-card rounded-lg shadow-sm border border-gray-100 p-4">
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-base font-semibold text-textMain">我的自选</h2>
               <div class="text-xs text-textMute">
@@ -259,43 +259,45 @@ const loadTradeRecords = async () => {
             <div v-if="watchlist.length === 0" class="text-center py-8 text-textMute text-sm">
               暂无自选股票
             </div>
-            <table v-else class="density-table w-full">
-              <thead>
-                <tr class="bg-gray-50">
-                  <th class="text-left text-xs font-medium text-textSub">代码</th>
-                  <th class="text-left text-xs font-medium text-textSub">名称</th>
-                  <th class="text-right text-xs font-medium text-textSub">收盘价</th>
-                  <th class="text-right text-xs font-medium text-textSub">涨跌额</th>
-                  <th class="text-right text-xs font-medium text-textSub">涨跌幅</th>
-                  <th class="text-right text-xs font-medium text-textSub">涨速(1m)</th>
-                  <th class="text-center text-xs font-medium text-textSub">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="stock in watchlist" :key="stock.ts_code" class="hover:bg-blue-50/30">
-                  <td class="text-xs text-textMain font-numeric">{{ stock.ts_code }}</td>
-                  <td class="text-xs text-textMain">{{ stock.name }}</td>
-                  <td class="text-xs text-textMain font-numeric text-right">{{ stock.close?.toFixed(2) }}</td>
-                  <td class="text-xs font-numeric text-right" :class="(stock.change ?? 0) >= 0 ? 'text-up' : 'text-down'">
-                    {{ (stock.change ?? 0).toFixed(2) }}
-                  </td>
-                  <td class="text-xs font-numeric text-right" :class="(stock.change_pct ?? 0) >= 0 ? 'text-up' : 'text-down'">
-                    {{ (stock.change_pct ?? 0).toFixed(2) }}%
-                  </td>
-                  <td class="text-xs font-numeric text-right" :class="(stock.speed_1min ?? 0) >= 0 ? 'text-up' : 'text-down'">
-                    {{ (stock.speed_1min ?? 0).toFixed(2) }}%
-                  </td>
-                  <td class="text-center">
-                    <button
-                      @click="removeFromWatchlist(stock.ts_code)"
-                      class="text-xs text-up hover:underline"
-                    >
-                      删除
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <div v-else class="max-h-[300px] overflow-y-auto">
+              <table class="density-table w-full table-wrapper">
+                <thead>
+                  <tr class="bg-gray-50">
+                    <th class="text-left text-xs font-medium text-textSub">代码</th>
+                    <th class="text-left text-xs font-medium text-textSub">名称</th>
+                    <th class="text-right text-xs font-medium text-textSub">收盘价</th>
+                    <th class="text-right text-xs font-medium text-textSub">涨跌额</th>
+                    <th class="text-right text-xs font-medium text-textSub">涨跌幅</th>
+                    <th class="text-right text-xs font-medium text-textSub">涨速(1m)</th>
+                    <th class="text-center text-xs font-medium text-textSub">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="stock in watchlist" :key="stock.ts_code" class="hover:bg-blue-50/30">
+                    <td class="text-xs text-textMain font-numeric">{{ stock.ts_code }}</td>
+                    <td class="text-xs text-textMain">{{ stock.name }}</td>
+                    <td class="text-xs text-textMain font-numeric text-right">{{ stock.close?.toFixed(2) }}</td>
+                    <td class="text-xs font-numeric text-right" :class="(stock.change ?? 0) >= 0 ? 'text-up' : 'text-down'">
+                      {{ (stock.change ?? 0).toFixed(2) }}
+                    </td>
+                    <td class="text-xs font-numeric text-right" :class="(stock.change_pct ?? 0) >= 0 ? 'text-up' : 'text-down'">
+                      {{ (stock.change_pct ?? 0).toFixed(2) }}%
+                    </td>
+                    <td class="text-xs font-numeric text-right" :class="(stock.speed_1min ?? 0) >= 0 ? 'text-up' : 'text-down'">
+                      {{ (stock.speed_1min ?? 0).toFixed(2) }}%
+                    </td>
+                    <td class="text-center">
+                      <button
+                        @click="removeFromWatchlist(stock.ts_code)"
+                        class="text-xs text-up hover:underline"
+                      >
+                        删除
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -406,5 +408,12 @@ const loadTradeRecords = async () => {
   height: 18px;
   border-radius: 50%;
   transition: transform 0.2s;
+}
+
+.table-wrapper thead th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
 }
 </style>

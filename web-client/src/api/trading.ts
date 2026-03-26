@@ -227,3 +227,19 @@ export async function getTradeRecords(): Promise<TradeRecord[]> {
     return []
   }
 }
+
+/**
+ * 获取系统连接状态
+ */
+export async function getSystemStatus(): Promise<boolean> {
+  try {
+    const response = await apiClient.get<{ code: number; data: boolean }>('/api/trading/system_status')
+    if (response.data.code === 0) {
+      return response.data.data === true
+    }
+    return false
+  } catch (error) {
+    console.error('获取系统状态失败:', error)
+    return false
+  }
+}

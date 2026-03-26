@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { getSystemStatus } from '@/api/trading'
 
-const TRADER_API = 'http://192.168.66.155:8003'
 const POLL_INTERVAL = 3000
 
 const isConnected = ref(false)
@@ -9,9 +9,7 @@ let timer: ReturnType<typeof setInterval> | null = null
 
 const fetchStatus = async () => {
   try {
-    const response = await fetch(`${TRADER_API}/trader/status`)
-    const data = await response.json()
-    const newStatus = data.data === true
+    const newStatus = await getSystemStatus()
     if (isConnected.value !== newStatus) {
       isConnected.value = newStatus
     }
