@@ -49,7 +49,7 @@ const debouncedSaveBuy = () => {
   if (buyTimer) clearTimeout(buyTimer)
   buyTimer = setTimeout(async () => {
     await setBuyThreshold(strategyConfig.value.buy_5m)
-    message.success('买点跌幅已保存')
+    message.success('买点涨幅已保存')
   }, 800)
 }
 
@@ -57,7 +57,7 @@ const debouncedSaveSell = () => {
   if (sellTimer) clearTimeout(sellTimer)
   sellTimer = setTimeout(async () => {
     await setSellThreshold(strategyConfig.value.sell_5m)
-    message.success('卖点涨幅已保存')
+    message.success('卖点跌幅已保存')
   }, 800)
 }
 
@@ -312,7 +312,7 @@ const loadTradeRecords = async () => {
             <div class="space-y-4">
               <div>
                 <div class="flex justify-between mb-2">
-                  <span class="text-sm text-textSub">买点跌幅</span>
+                  <span class="text-sm text-textSub">买点涨幅</span>
                   <span class="text-sm text-textMain font-numeric">{{ buyThreshold }}%</span>
                 </div>
                 <input
@@ -320,14 +320,14 @@ const loadTradeRecords = async () => {
                   v-model.number="buyThreshold"
                   min="0"
                   max="10"
-                  step="0.5"
+                  step="0.1"
                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
               </div>
 
               <div>
                 <div class="flex justify-between mb-2">
-                  <span class="text-sm text-textSub">卖点涨幅</span>
+                  <span class="text-sm text-textSub">卖点跌幅</span>
                   <span class="text-sm text-textMain font-numeric">{{ sellThreshold }}%</span>
                 </div>
                 <input
@@ -335,7 +335,7 @@ const loadTradeRecords = async () => {
                   v-model.number="sellThreshold"
                   min="0"
                   max="20"
-                  step="0.5"
+                  step="0.1"
                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
               </div>

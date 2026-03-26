@@ -1,6 +1,30 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import Icon from '@/components/common/Icon.vue'
+import { useWebSocket } from '@/composables/useWebSocket'
+
+const ws = useWebSocket()
+
+const riskPushCount = ref(0)
+const lastPushTime = ref('')
+
+onMounted(() => {
+  ws.subscribe(['risk'])
+
+  ws.onConnect(() => {
+    console.log('[RiskControl] WebSocket 已连接')
+  })
+
+  ws.onRisk((data) => {
+    console.log('[RiskControl] 收到风控推送:', data)
+    riskPushCount.value++
+    lastPushTime.value = new Date().toLocaleTimeString()
+  })
+})
+
+onUnmounted(() => {
+  ws.unsubscribe(['risk'])
+})
 
 // 行业集中度数据
 const industryConcentration = ref([
@@ -119,7 +143,7 @@ const riskEvents = ref([
   <div class="min-h-screen bg-bgMain p-4 flex flex-col gap-4">
     <!-- 主内容网格 -->
     <div class="grid grid-cols-12 gap-4 flex-grow">
-      
+
       <!-- 左侧列：仓位管理 -->
       <div class="col-span-12 flex flex-col gap-4 lg:col-span-3">
         <section class="bg-card rounded-lg p-4 flex-1 flex flex-col shadow-sm border border-border">
@@ -141,8 +165,8 @@ const riskEvents = ref([
                   <span>{{ item.percent }}%</span>
                 </div>
                 <div class="w-full bg-gray-100 h-1.5 rounded-full">
-                  <div 
-                    class="bg-primary h-full rounded-full" 
+                  <div
+                    class="bg-primary h-full rounded-full"
                     :style="{ width: item.percent + '%', opacity: 1 - (index * 0.15) }"
                   ></div>
                 </div>
@@ -157,8 +181,8 @@ const riskEvents = ref([
               <span class="text-[9px] bg-up/10 text-up px-1.5 rounded font-bold">2个预警</span>
             </div>
             <div class="overflow-y-auto max-h-[300px] space-y-1 pr-1 custom-scrollbar">
-              <div 
-                v-for="stock in stockPositions" 
+              <div
+                v-for="stock in stockPositions"
                 :key="stock.code"
                 class="flex items-center justify-between p-2 rounded hover:bg-gray-50 transition-colors"
                 :class="stock.status === '超限' ? 'bg-gray-50' : ''"
@@ -169,13 +193,13 @@ const riskEvents = ref([
                 </div>
                 <div class="flex items-center gap-3">
                   <div class="text-right">
-                    <div 
+                    <div
                       class="text-xs font-numeric font-bold"
                       :class="stock.status === '超限' ? 'text-up' : ''"
                     >
                       {{ stock.percent }}%
                     </div>
-                    <div 
+                    <div
                       class="text-[9px] font-medium"
                       :class="stock.status === '超限' ? 'text-up' : 'text-down'"
                     >
@@ -183,7 +207,7 @@ const riskEvents = ref([
                     </div>
                   </div>
                   <div class="w-12 bg-gray-200 h-1 rounded-full relative overflow-hidden">
-                    <div 
+                    <div
                       class="absolute left-0 top-0 h-full rounded-full"
                       :class="stock.status === '超限' ? 'bg-up' : 'bg-primary'"
                       :style="{ width: Math.min(stock.percent / 10 * 100, 100) + '%' }"
@@ -254,7 +278,7 @@ const riskEvents = ref([
                     </div>
                   </td>
                   <td class="py-2.5 whitespace-nowrap px-2">
-                    <span 
+                    <span
                       class="text-[10px] px-1.5 py-0.5 rounded font-medium"
                       :class="strategy.type === '移动止损' ? 'bg-primary text-white' : 'bg-primary/5 text-primary border border-primary/20'"
                     >
@@ -272,7 +296,7 @@ const riskEvents = ref([
                   </td>
                   <td class="py-2.5 whitespace-nowrap px-2">
                     <div class="flex items-center gap-1">
-                      <span 
+                      <span
                         class="w-1.5 h-1.5 rounded-full"
                         :class="strategy.status === '运行中' ? 'bg-down' : 'bg-gray-300'"
                       ></span>
@@ -330,8 +354,8 @@ const riskEvents = ref([
                 <span class="text-[9px] text-up font-medium">{{ marketIndicators.volatility.change }}</span>
               </div>
               <div class="mt-2 h-6 flex items-end gap-1 overflow-hidden">
-                <div 
-                  v-for="(h, i) in volatilityChart" 
+                <div
+                  v-for="(h, i) in volatilityChart"
                   :key="i"
                   class="w-1.5 rounded-t-sm"
                   :class="i === volatilityChart.length - 1 ? 'bg-primary' : 'bg-primary/20'"
@@ -346,8 +370,8 @@ const riskEvents = ref([
                 <span class="text-[9px] text-down font-medium">{{ marketIndicators.liquidity.status }}</span>
               </div>
               <div class="mt-2 h-6 flex items-end gap-1 overflow-hidden">
-                <div 
-                  v-for="(h, i) in liquidityChart" 
+                <div
+                  v-for="(h, i) in liquidityChart"
                   :key="i"
                   class="w-1.5 rounded-t-sm"
                   :class="i === liquidityChart.length - 1 ? 'bg-down' : 'bg-down/20'"
@@ -361,8 +385,8 @@ const riskEvents = ref([
           <div class="flex-grow flex flex-col">
             <div class="text-[10px] text-textMute font-bold mb-3 uppercase tracking-widest">风险事件流 (实时馈送)</div>
             <div class="space-y-4 overflow-y-auto max-h-[450px] pr-2 custom-scrollbar">
-              <div 
-                v-for="(event, index) in riskEvents" 
+              <div
+                v-for="(event, index) in riskEvents"
                 :key="index"
                 class="relative pl-4 border-l-2"
                 :class="[event.borderClass, event.opacity ? 'opacity-60' : '']"
@@ -391,6 +415,7 @@ const riskEvents = ref([
         <span>系统状态: <span class="text-down">同步中 (低延迟模式)</span></span>
         <span>核心版本: Alpha-7.2.4</span>
         <span>风控服务器: 华东-02-Cluster</span>
+        <span>WS推送: <span class="text-primary font-bold">{{ riskPushCount }}</span><span v-if="lastPushTime" class="ml-1">最后: {{ lastPushTime }}</span></span>
       </div>
       <div class="flex items-center gap-1">
         <Icon icon="lock_open" :size="12" />

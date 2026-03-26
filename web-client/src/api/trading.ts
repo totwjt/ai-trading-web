@@ -70,8 +70,8 @@ export interface WatchlistItem {
 // 策略配置
 export interface StrategyConfig {
   enabled: boolean
-  buy_5m: number   // 买点跌幅
-  sell_5m: number  // 卖点涨幅
+  buy_5m: number   // 买点涨幅
+  sell_5m: number  // 卖点跌幅
 }
 
 // 交易记录
@@ -96,11 +96,11 @@ export async function searchStocks(keyword: string, limit: number = 20): Promise
   const response = await apiClient.get<StockSearchResponse>('/api/trading/stock/search', {
     params: { keyword, limit }
   })
-  
+
   if (response.data.code !== 0) {
     throw new Error(response.data.message)
   }
-  
+
   return response.data.data || []
 }
 
@@ -171,27 +171,27 @@ export async function setStrategySwitch(enabled: boolean): Promise<boolean> {
 }
 
 /**
- * 设置买点跌幅
+ * 设置买点涨幅
  */
 export async function setBuyThreshold(value: number): Promise<boolean> {
   try {
     await apiClient.post('/strategy_action', { action: 'buy', type: '5m', value })
     return true
   } catch (error) {
-    console.error('设置买点跌幅失败:', error)
+    console.error('设置买点涨幅失败:', error)
     return false
   }
 }
 
 /**
- * 设置卖点涨幅
+ * 设置卖点跌幅
  */
 export async function setSellThreshold(value: number): Promise<boolean> {
   try {
     await apiClient.post('/strategy_action', { action: 'sell', type: '5m', value })
     return true
   } catch (error) {
-    console.error('设置卖点涨幅失败:', error)
+    console.error('设置卖点跌幅失败:', error)
     return false
   }
 }
