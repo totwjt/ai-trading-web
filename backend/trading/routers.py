@@ -405,3 +405,54 @@ async def get_today_trades(db: AsyncSession = Depends(get_db)):
             "data": [],
             "timestamp": datetime.now().isoformat()
         }
+
+
+# ==================== 策略配置接口 ====================
+
+@trading_router.get("/strategy_info")
+async def get_strategy_info():
+    """获取策略配置"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{EXTERNAL_API}/strategy_info")
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "switchSta": data.get("switchSta", False),
+                    "buy_5m": data.get("buy_5m", 0),
+                    "sell_5m": data.get("sell_5m", 0)
+                }
+            return {"switchSta": False, "buy_5m": 0, "sell_5m": 0}
+    except Exception as e:
+        logger.error(f"获取策略配置失败: {e}")
+        return {"switchSta": False, "buy_5m": 0, "sell_5m": 0}
+
+
+class StrategyActionRequest(BaseModel):
+    """策略操作请求"""
+    action: str
+    sta: Optional[bool] = None
+    type: Optional[str] = None
+    value: Optional[float] = None
+
+
+@trading_router.post("/strategy_action")
+async def strategy_action(request: StrategyActionRequest):
+    """策略操作"""
+    try:
+        payload = {"action": request.action}
+        if request.sta is not None:
+            payload["sta"] = request.sta
+        if request.type:
+            payload["type"] = request.type
+        if request.value is not None:
+            payload["value"] = request.value
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{EXTERNAL_API}/strategy_action", json=payload)
+            if response.status_code == 200:
+                return {"code": 0, "message": "success", "data": response.json()}
+            return {"code": 1, "message": "操作失败", "timestamp": datetime.now().isoformat()}
+    except Exception as e:
+        logger.error(f"策略操作失败: {e}")
+        return {"code": 1, "message": str(e), "timestamp": datetime.now().isoformat()}

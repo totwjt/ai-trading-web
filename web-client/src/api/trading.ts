@@ -70,23 +70,8 @@ export interface WatchlistItem {
 // 策略配置
 export interface StrategyConfig {
   enabled: boolean
-  riseSpeedMin: number  // 最小涨速百分比
-  riseSpeedMax: number  // 最大涨速百分比
-  volumeMin: number     // 最小成交量
-  priceMin: number      // 最低价格
-  priceMax: number      // 最高价格
-}
-
-// 策略配置响应（对应后端 /strategy_info 接口）
-export interface StrategyInfoResponse {
-  enabled?: boolean
-  rise_speed_min?: number
-  rise_speed_max?: number
-  volume_min?: number
-  price_min?: number
-  price_max?: number
-  stop_profit?: number  // 止盈点
-  stop_loss?: number    // 止损点
+  buy_5m: number   // 买点跌幅
+  sell_5m: number  // 卖点涨幅
 }
 
 // 交易记录
@@ -156,49 +141,69 @@ export async function removeFromWatchlistAPI(tsCode: string): Promise<boolean> {
  */
 export async function getStrategyConfig(): Promise<StrategyConfig> {
   try {
-    const response = await apiClient.get<{ code: number; data: StrategyInfoResponse }>('/strategy_info')
-    if (response.data.code !== 0) {
-      throw new Error('获取策略配置失败')
-    }
-    const data = response.data.data
+    const response = await apiClient.get<{ switchSta: boolean; buy_5m: number; sell_5m: number }>('/strategy_info')
     return {
-      enabled: data.enabled ?? false,
-      riseSpeedMin: data.rise_speed_min ?? 0,
-      riseSpeedMax: data.rise_speed_max ?? 5,
-      volumeMin: data.volume_min ?? 1000,
-      priceMin: data.price_min ?? 1,
-      priceMax: data.price_max ?? 100
+      enabled: response.data.switchSta ?? false,
+      buy_5m: response.data.buy_5m ?? 0,
+      sell_5m: response.data.sell_5m ?? 0
     }
   } catch (error) {
     console.error('获取策略配置失败:', error)
     return {
       enabled: false,
-      riseSpeedMin: 0,
-      riseSpeedMax: 5,
-      volumeMin: 1000,
-      priceMin: 1,
-      priceMax: 100
+      buy_5m: 0,
+      sell_5m: 0
     }
   }
 }
 
 /**
- * 保存策略配置
+ * 设置策略开关
+ */
+export async function setStrategySwitch(enabled: boolean): Promise<boolean> {
+  try {
+    await apiClient.post('/strategy_action', { action: 'switch', sta: enabled })
+    return true
+  } catch (error) {
+    console.error('设置策略开关失败:', error)
+    return false
+  }
+}
+
+/**
+ * 设置买点跌幅
+ */
+export async function setBuyThreshold(value: number): Promise<boolean> {
+  try {
+    await apiClient.post('/strategy_action', { action: 'buy', type: '5m', value })
+    return true
+  } catch (error) {
+    console.error('设置买点跌幅失败:', error)
+    return false
+  }
+}
+
+/**
+ * 设置卖点涨幅
+ */
+export async function setSellThreshold(value: number): Promise<boolean> {
+  try {
+    await apiClient.post('/strategy_action', { action: 'sell', type: '5m', value })
+    return true
+  } catch (error) {
+    console.error('设置卖点涨幅失败:', error)
+    return false
+  }
+}
+
+/**
+ * 保存策略配置（兼容旧接口，内部调用各自分接口）
  */
 export async function saveStrategyConfig(config: StrategyConfig): Promise<boolean> {
   try {
-    const response = await apiClient.post<{ code: number; message?: string }>('/strategy_action', {
-      action: 'update_config',
-      enabled: config.enabled,
-      rise_speed_min: config.riseSpeedMin,
-      rise_speed_max: config.riseSpeedMax,
-      volume_min: config.volumeMin,
-      price_min: config.priceMin,
-      price_max: config.priceMax
-    })
-    if (response.data.code !== 0) {
-      throw new Error(response.data.message || '保存失败')
-    }
+    await setStrategySwitch(config.enabled)
+    await setBuyThreshold(config.buy_5m)
+    await setSellThreshold(config.sell_5m)
     return true
   } catch (error) {
     console.error('保存策略配置失败:', error)

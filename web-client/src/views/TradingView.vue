@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { searchStocks, getTradeRecords, getWatchlist, addToWatchlistAPI, removeFromWatchlistAPI, getStrategyConfig, saveStrategyConfig, type StockSearchResult, type TradeRecord, type StrategyConfig } from '@/api/trading'
+import { searchStocks, getTradeRecords, getWatchlist, addToWatchlistAPI, removeFromWatchlistAPI, getStrategyConfig, setStrategySwitch, setBuyThreshold, setSellThreshold, type StockSearchResult, type TradeRecord, type StrategyConfig } from '@/api/trading'
 import { useWebSocket } from '@/composables/useWebSocket'
 import type { WatchlistItem } from '@/utils/websocket'
 
@@ -11,9 +11,55 @@ const isSearching = ref(false)
 const isAddingToWatchlist = ref(false)
 const watchlist = ref<WatchlistItem[]>([])
 const tradeRecords = ref<TradeRecord[]>([])
-const strategyEnabled = ref(false)
-const stopProfit = ref(5)   // 止盈点
-const stopLoss = ref(3)     // 止损点
+const strategyConfig = ref<StrategyConfig>({
+  enabled: false,
+  buy_5m: 0,
+  sell_5m: 0
+})
+
+const strategyEnabled = computed({
+  get: () => strategyConfig.value.enabled,
+  set: async (val: boolean) => {
+    strategyConfig.value.enabled = val
+    await setStrategySwitch(val)
+  }
+})
+
+const buyThreshold = computed({
+  get: () => strategyConfig.value.buy_5m,
+  set: (val: number) => {
+    strategyConfig.value.buy_5m = val
+    debouncedSaveBuy()
+  }
+})
+
+const sellThreshold = computed({
+  get: () => strategyConfig.value.sell_5m,
+  set: (val: number) => {
+    strategyConfig.value.sell_5m = val
+    debouncedSaveSell()
+  }
+})
+
+let buyTimer: ReturnType<typeof setTimeout> | null = null
+let sellTimer: ReturnType<typeof setTimeout> | null = null
+
+const debouncedSaveBuy = () => {
+  if (buyTimer) clearTimeout(buyTimer)
+  buyTimer = setTimeout(async () => {
+    await setBuyThreshold(strategyConfig.value.buy_5m)
+    message.success('买点跌幅已保存')
+  }, 800)
+}
+
+const debouncedSaveSell = () => {
+  if (sellTimer) clearTimeout(sellTimer)
+  sellTimer = setTimeout(async () => {
+    await setSellThreshold(strategyConfig.value.sell_5m)
+    message.success('卖点涨幅已保存')
+  }, 800)
+}
+
 const pushCount = ref(0)
 const lastPushTime = ref('')
 
@@ -23,9 +69,19 @@ const loadWatchlist = async () => {
   watchlist.value = await getWatchlist()
 }
 
+const loadStrategyConfig = async () => {
+  try {
+    const config = await getStrategyConfig()
+    strategyConfig.value = config
+  } catch (error) {
+    console.error('加载策略配置失败:', error)
+  }
+}
+
 onMounted(() => {
   loadWatchlist()
   loadTradeRecords()
+  loadStrategyConfig()
   ws.subscribe(['zixuan', 'trading'])
 
   ws.onConnect(() => {
@@ -86,7 +142,7 @@ const addToWatchlist = async (stock: StockSearchResult) => {
     message.warning('该股票已在自选列表中')
     return
   }
-  
+
   isAddingToWatchlist.value = true
   try {
     const success = await addToWatchlistAPI(stock.ts_code, stock.name)
@@ -256,13 +312,13 @@ const loadTradeRecords = async () => {
               <div>
                 <div class="flex justify-between mb-2">
                   <span class="text-sm text-textSub">买点跌幅</span>
-                  <span class="text-sm text-textMain font-numeric">{{ stopProfit }}%</span>
+                  <span class="text-sm text-textMain font-numeric">{{ buyThreshold }}%</span>
                 </div>
                 <input
                   type="range"
-                  v-model.number="stopProfit"
+                  v-model.number="buyThreshold"
                   min="0"
-                  max="20"
+                  max="10"
                   step="0.5"
                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
@@ -271,11 +327,11 @@ const loadTradeRecords = async () => {
               <div>
                 <div class="flex justify-between mb-2">
                   <span class="text-sm text-textSub">卖点涨幅</span>
-                  <span class="text-sm text-textMain font-numeric">{{ stopLoss }}%</span>
+                  <span class="text-sm text-textMain font-numeric">{{ sellThreshold }}%</span>
                 </div>
                 <input
                   type="range"
-                  v-model.number="stopLoss"
+                  v-model.number="sellThreshold"
                   min="0"
                   max="20"
                   step="0.5"

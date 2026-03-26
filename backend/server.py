@@ -17,6 +17,7 @@ from datetime import datetime
 import asyncio
 import logging
 
+import httpx
 from recommendation.db import get_latest_news, get_news_by_id
 from backtest.src.routers import strategy_router, backtest_router, preview_router
 from trading.routers import trading_router
@@ -180,6 +181,36 @@ app.include_router(strategy_router, prefix="/api")
 app.include_router(backtest_router, prefix="/api")
 app.include_router(preview_router, prefix="/api")
 app.include_router(trading_router)
+
+EXTERNAL_API = "http://192.168.66.141:8000"
+
+
+@app.get("/strategy_info")
+async def get_strategy_info():
+    """获取策略配置"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{EXTERNAL_API}/strategy_info")
+            if response.status_code == 200:
+                return response.json()
+            return {"switchSta": False, "buy_5m": 0, "sell_5m": 0}
+    except Exception as e:
+        logger.error(f"获取策略配置失败: {e}")
+        return {"switchSta": False, "buy_5m": 0, "sell_5m": 0}
+
+
+@app.post("/strategy_action")
+async def strategy_action(request: dict):
+    """策略操作"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{EXTERNAL_API}/strategy_action", json=request)
+            if response.status_code == 200:
+                return {"code": 0, "message": "success"}
+            return {"code": 1, "message": "操作失败"}
+    except Exception as e:
+        logger.error(f"策略操作失败: {e}")
+        return {"code": 1, "message": str(e)}
 
 
 @app.get("/api/news/latest", response_model=ApiResponse)
