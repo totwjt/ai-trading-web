@@ -4,6 +4,7 @@ import { message } from 'ant-design-vue'
 import { searchStocks, getTradeRecords, getWatchlist, addToWatchlistAPI, removeFromWatchlistAPI, getStrategyConfig, setStrategySwitch, setBuyThreshold, setSellThreshold, type StockSearchResult, type TradeRecord, type StrategyConfig } from '@/api/trading'
 import { useWebSocket } from '@/composables/useWebSocket'
 import type { WatchlistItem } from '@/utils/websocket'
+import TradingStatus from '@/components/common/TradingStatus.vue'
 
 const searchKeyword = ref('')
 const searchResults = ref<StockSearchResult[] | null>(null)
@@ -342,11 +343,14 @@ const loadTradeRecords = async () => {
           </div>
 
           <div class="bg-card rounded-lg shadow-sm border border-gray-100 p-4">
-            <h2 class="text-base font-semibold text-textMain mb-4">交易记录</h2>
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-base font-semibold text-textMain">交易记录</h2>
+              <TradingStatus />
+            </div>
             <div v-if="tradeRecords.length === 0" class="text-center py-8 text-textMute text-sm">
               暂无交易记录
             </div>
-            <div v-else class="overflow-x-auto">
+            <div v-else class="overflow-x-auto max-h-[300px] overflow-y-auto">
               <table class="density-table w-full">
                 <thead>
                   <tr class="bg-gray-50">
