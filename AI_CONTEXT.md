@@ -145,6 +145,33 @@ await client.push_to_topic('zixuan', stock_data)  # 推送自选行情
 await client.push_to_topic('recommendation', news_data)  # 推送荐股
 ```
 
+### 外部服务订阅
+
+外部服务可以订阅 `risk` 等 topic 接收实时推送：
+
+```python
+import socketio
+
+sio = socketio.Client()
+
+@sio.event
+def connect():
+    sio.emit('subscribe', {'topics': ['risk']})
+
+@sio.on('risk')
+def on_risk(data):
+    print(f"收到风控警报: {data}")
+
+sio.connect('http://192.168.66.186:8766', transports=['polling'])
+sio.wait()
+```
+
+**测试脚本位置：**
+- `test/test.py` - 纯订阅客户端
+- `test/test_push.py` - 订阅+推送测试
+- `backend/test_risk_push.py` - 推送测试服务
+- `backend/test_risk_receive.py` - 接收测试服务
+
 ## 系统模块
 - `user` 用户系统
 - `market` 股票市场数据展示
