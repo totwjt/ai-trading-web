@@ -267,6 +267,7 @@ const loadTradeRecords = async () => {
                   <th class="text-right text-xs font-medium text-textSub">收盘价</th>
                   <th class="text-right text-xs font-medium text-textSub">涨跌额</th>
                   <th class="text-right text-xs font-medium text-textSub">涨跌幅</th>
+                  <th class="text-right text-xs font-medium text-textSub">涨速(1m)</th>
                   <th class="text-center text-xs font-medium text-textSub">操作</th>
                 </tr>
               </thead>
@@ -280,6 +281,9 @@ const loadTradeRecords = async () => {
                   </td>
                   <td class="text-xs font-numeric text-right" :class="(stock.change_pct ?? 0) >= 0 ? 'text-up' : 'text-down'">
                     {{ (stock.change_pct ?? 0).toFixed(2) }}%
+                  </td>
+                  <td class="text-xs font-numeric text-right" :class="(stock.speed_1min ?? 0) >= 0 ? 'text-up' : 'text-down'">
+                    {{ (stock.speed_1min ?? 0).toFixed(2) }}%
                   </td>
                   <td class="text-center">
                     <button

@@ -69,6 +69,7 @@ export interface WatchlistItem {
   close?: number
   change?: number
   change_pct?: number
+  speed_1min?: number
   vol?: number
   amount?: number
   trade_time?: string
