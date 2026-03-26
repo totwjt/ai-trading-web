@@ -259,7 +259,7 @@ const loadTradeRecords = async () => {
             <div v-if="watchlist.length === 0" class="text-center py-8 text-textMute text-sm">
               暂无自选股票
             </div>
-            <div v-else class="max-h-[300px] overflow-y-auto">
+            <div v-else class="max-h-[400px] overflow-y-auto">
               <table class="density-table w-full table-wrapper">
                 <thead>
                   <tr class="bg-gray-50">
