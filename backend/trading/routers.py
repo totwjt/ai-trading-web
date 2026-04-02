@@ -8,11 +8,18 @@ from typing import List, Optional
 from datetime import datetime
 import logging
 import httpx
+import re
 
 from common.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select, delete
 from trading.models import Watchlist
+
+try:
+    from pypinyin import Style, lazy_pinyin
+except ImportError:  # pragma: no cover - dependency is declared in requirements
+    Style = None
+    lazy_pinyin = None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,33 +50,99 @@ class StockSearchResponse(BaseModel):
     timestamp: str = ""
 
 
+def get_stock_name_initials(name: str) -> str:
+    """生成股票名称首字母简写，例如“平安银行” -> “payh”"""
+    if not name:
+        return ""
+
+    if lazy_pinyin is None or Style is None:
+        return "".join(ch.lower() for ch in name if ch.isascii() and ch.isalnum())
+
+    initials = lazy_pinyin(
+        name,
+        style=Style.FIRST_LETTER,
+        errors=lambda chars: [ch.lower() for ch in chars if ch.isalnum()]
+    )
+    return "".join(part.lower() for part in initials if part and part.isalnum())
+
+
+def get_stock_match_score(keyword: str, ts_code: str, name: str) -> Optional[int]:
+    """返回匹配分值，值越小表示相关性越高"""
+    normalized_keyword = keyword.strip().lower()
+    normalized_code = (ts_code or "").lower()
+    normalized_name = (name or "").lower()
+    initials = get_stock_name_initials(name)
+
+    if not normalized_keyword:
+        return None
+    if normalized_code == normalized_keyword or normalized_name == normalized_keyword:
+        return 0
+    if normalized_code.startswith(normalized_keyword):
+        return 1
+    if normalized_name.startswith(normalized_keyword):
+        return 2
+    if initials.startswith(normalized_keyword):
+        return 3
+    if normalized_keyword in normalized_code:
+        return 4
+    if normalized_keyword in normalized_name:
+        return 5
+    if normalized_keyword in initials:
+        return 6
+    return None
+
+
 # ==================== 路由 ====================
 
 @trading_router.get("/stock/search", response_model=StockSearchResponse)
 async def search_stocks(
-    keyword: str = Query(..., description="搜索关键词，支持股票代码或名称"),
+    keyword: str = Query(..., description="搜索关键词，支持股票代码、名称或首字母简写"),
     limit: int = Query(default=20, ge=1, le=100, description="返回结果数量"),
     db: AsyncSession = Depends(get_db)
 ):
     """
     股票检索 API
-    支持按股票代码(ts_code)或名称(name)模糊查询
+    支持按股票代码(ts_code)、名称(name)或股票名称首字母简写查询
     """
     try:
-        search_pattern = f"%{keyword}%"
-        logger.info(f"Searching stocks: keyword={keyword}, pattern={search_pattern}, limit={limit}")
+        normalized_keyword = keyword.strip().lower()
+        search_pattern = f"%{keyword.strip()}%"
+        is_initials_search = bool(re.fullmatch(r"[a-zA-Z]+", keyword.strip()))
 
-        query = text("""
-            SELECT ts_code, name, industry, market, list_date
-            FROM stock_basic
-            WHERE ts_code LIKE :pattern OR name LIKE :pattern
-            LIMIT :limit
-        """)
+        logger.info(
+            "Searching stocks: keyword=%s, pattern=%s, limit=%s, initials_search=%s",
+            keyword,
+            search_pattern,
+            limit,
+            is_initials_search
+        )
 
-        logger.info(f"Executing query with params: pattern={search_pattern}, limit={limit}")
-        result = await db.execute(query, {"pattern": search_pattern, "limit": limit})
+        if is_initials_search:
+            query = text("""
+                SELECT ts_code, name, industry, market, list_date
+                FROM stock_basic
+            """)
+            result = await db.execute(query)
+            all_rows = result.fetchall()
+            ranked_rows = []
 
-        rows = result.fetchall()
+            for row in all_rows:
+                score = get_stock_match_score(normalized_keyword, row[0], row[1])
+                if score is not None:
+                    ranked_rows.append((score, row))
+
+            ranked_rows.sort(key=lambda item: (item[0], item[1][0]))
+            rows = [row for _, row in ranked_rows[:limit]]
+        else:
+            query = text("""
+                SELECT ts_code, name, industry, market, list_date
+                FROM stock_basic
+                WHERE ts_code LIKE :pattern OR name LIKE :pattern
+                LIMIT :limit
+            """)
+            result = await db.execute(query, {"pattern": search_pattern, "limit": limit})
+            rows = result.fetchall()
+
         logger.info(f"Query returned {len(rows)} rows")
 
         stocks = [

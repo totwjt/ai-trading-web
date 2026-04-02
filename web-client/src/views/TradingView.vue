@@ -201,7 +201,7 @@ const loadTradeRecords = async () => {
               <input
                 v-model="searchKeyword"
                 type="text"
-                placeholder="输入股票代码或名称搜索..."
+                placeholder="输入股票代码、名称或首字母简写搜索..."
                 class="w-full px-3 py-2 border border-border rounded text-sm text-textMain placeholder-textMute focus:outline-none focus:border-primary"
               />
               <div v-if="isSearching" class="absolute right-3 top-2.5">

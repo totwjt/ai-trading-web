@@ -29,6 +29,7 @@ python-socketio[asyncio]>=5.11.0
 # Utilities
 python-multipart>=0.0.6
 python-dateutil>=2.8.2
+pypinyin>=0.54.0
 
 # Code Analysis (for strategy security check)
 astor>=0.8.1
