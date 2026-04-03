@@ -3,9 +3,38 @@
 """
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Index
+from sqlalchemy import Column, Integer, String, DateTime, Index, ForeignKey, Boolean
 
 from common.database import Base
+
+
+class User(Base):
+    """用户表"""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    uid = Column(String(64), nullable=False, unique=True, index=True, comment="用户唯一标识")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间")
+
+
+class Terminal(Base):
+    """终端表"""
+    __tablename__ = "terminals"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    uid = Column(String(64), ForeignKey("users.uid"), nullable=False, index=True, comment="用户ID外键")
+    terminal_id = Column(String(128), nullable=False, unique=True, index=True, comment="终端唯一标识")
+    mac_address = Column(String(32), nullable=False, comment="终端设备MAC地址")
+    account_name = Column(String(128), nullable=False, comment="终端账号名称(whoami)")
+    terminal_name = Column(String(128), nullable=True, comment="终端显示名称")
+    active = Column(Boolean, nullable=False, default=True, comment="是否启用")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间")
+
+    __table_args__ = (
+        Index("idx_terminal_uid_terminal_id", "uid", "terminal_id"),
+    )
 
 
 class Watchlist(Base):

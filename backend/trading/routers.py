@@ -12,9 +12,7 @@ import re
 
 from common.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, select, delete
-from trading.models import Watchlist
-
+from sqlalchemy import text
 try:
     from pypinyin import Style, lazy_pinyin
 except ImportError:  # pragma: no cover - dependency is declared in requirements
@@ -48,6 +46,17 @@ class StockSearchResponse(BaseModel):
     data: List[StockSearchResult]
     total: int = 0
     timestamp: str = ""
+
+
+class TerminalItem(BaseModel):
+    uid: str
+    terminal_id: str
+    terminal_name: Optional[str] = None
+    mac_address: str
+    account_name: str
+    active: bool = True
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 def get_stock_name_initials(name: str) -> str:
@@ -375,6 +384,56 @@ async def remove_watchlist(ts_code: str, db: AsyncSession = Depends(get_db)):
         return {
             "code": 1,
             "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@trading_router.get("/terminals")
+async def get_user_terminals(
+    uid: str = Query(..., description="用户ID，例如 u_1001"),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取用户终端列表"""
+    try:
+        query = text(
+            """
+            SELECT uid, terminal_id, terminal_name, mac_address, account_name, active, created_at, updated_at
+            FROM terminals
+            WHERE uid = :uid
+            ORDER BY created_at ASC, id ASC
+            """
+        )
+        result = await db.execute(query, {"uid": uid})
+        rows = result.fetchall()
+
+        terminals = [
+            TerminalItem(
+                uid=row[0],
+                terminal_id=row[1],
+                terminal_name=row[2],
+                mac_address=row[3],
+                account_name=row[4],
+                active=bool(row[5]),
+                created_at=row[6].isoformat() if row[6] else None,
+                updated_at=row[7].isoformat() if row[7] else None,
+            )
+            for row in rows
+        ]
+
+        return {
+            "code": 0,
+            "message": "success",
+            "data": terminals,
+            "total": len(terminals),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"获取终端列表失败: {e}")
+        return {
+            "code": 1,
+            "message": str(e),
+            "data": [],
+            "total": 0,
             "timestamp": datetime.now().isoformat()
         }
 

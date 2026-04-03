@@ -88,6 +88,17 @@ export interface TradeRecord {
   status: 'success' | 'failed'
 }
 
+export interface UserTerminal {
+  uid: string
+  terminal_id: string
+  terminal_name?: string | null
+  mac_address: string
+  account_name: string
+  active: boolean
+  created_at?: string | null
+  updated_at?: string | null
+}
+
 // ==================== API 函数 ====================
 
 /**
@@ -241,5 +252,20 @@ export async function getSystemStatus(): Promise<boolean> {
   } catch (error) {
     console.error('获取系统状态失败:', error)
     return false
+  }
+}
+
+export async function getUserTerminals(uid: string): Promise<UserTerminal[]> {
+  try {
+    const response = await apiClient.get<{ code: number; data: UserTerminal[] }>('/api/trading/terminals', {
+      params: { uid }
+    })
+    if (response.data.code === 0) {
+      return response.data.data || []
+    }
+    return []
+  } catch (error) {
+    console.error('获取终端列表失败:', error)
+    return []
   }
 }

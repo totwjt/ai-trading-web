@@ -17,6 +17,7 @@ export type ConnectHandler = () => void
 export type DisconnectHandler = () => void
 export type ErrorHandler = (error: Error) => void
 export type TradingHandler = (data: unknown) => void
+export type GenericEventHandler = (data: unknown) => void
 
 let socketInstance: Socket | null = null
 let refCount = 0
@@ -33,6 +34,7 @@ const connectHandlers: ConnectHandler[] = []
 const disconnectHandlers: DisconnectHandler[] = []
 const errorHandlers: ErrorHandler[] = []
 const tradingHandlers: TradingHandler[] = []
+const customEventHandlers: Record<string, GenericEventHandler[]> = {}
 
 function getSocketUrl(): string {
   const wsHost = import.meta.env.VITE_WS_HOST || window.location.hostname
@@ -113,6 +115,12 @@ function initSocket(): Socket {
 
   socketInstance.on('trading', (data) => {
     tradingHandlers.forEach(handler => handler(data as unknown))
+  })
+
+  socketInstance.onAny((eventName, data) => {
+    const handlers = customEventHandlers[eventName]
+    if (!handlers || handlers.length === 0) return
+    handlers.forEach(handler => handler(data as unknown))
   })
 
   socketInstance.on('subscribed', (data) => {
@@ -237,6 +245,28 @@ export function useWebSocket() {
     }
   }
 
+  function onEvent(eventName: string, handler: GenericEventHandler): () => void {
+    if (!customEventHandlers[eventName]) {
+      customEventHandlers[eventName] = []
+    }
+    customEventHandlers[eventName].push(handler)
+    return () => {
+      const handlers = customEventHandlers[eventName]
+      if (!handlers) return
+      const index = handlers.indexOf(handler)
+      if (index > -1) {
+        handlers.splice(index, 1)
+      }
+      if (handlers.length === 0) {
+        delete customEventHandlers[eventName]
+      }
+    }
+  }
+
+  function emit(event: string, payload?: unknown): void {
+    socket.emit(event, payload)
+  }
+
   return {
     isConnected,
     subscribedTopics,
@@ -252,7 +282,9 @@ export function useWebSocket() {
     onTrading,
     onConnect,
     onDisconnect,
-    onError
+    onError,
+    onEvent,
+    emit
   }
 }
 
