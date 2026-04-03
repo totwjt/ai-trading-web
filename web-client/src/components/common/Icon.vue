@@ -10,7 +10,6 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   size: 24,
-  color: 'currentColor'
 })
 
 // 图标映射表 - 本地化图标
@@ -25,10 +24,10 @@ const iconMap: Record<string, string> = {
   'shield': 'mdi:shield-check',
   'security': 'mdi:shield-check',
   'settings': 'mdi:cog',
-  
+
   // 用户图标
   'user-secret': 'fa:user-secret',
-  
+
   // 操作图标
   'refresh': 'mdi:refresh',
   'filter_list': 'mdi:filter',
@@ -38,7 +37,7 @@ const iconMap: Record<string, string> = {
   'notification': 'mdi:bell',
   'pie_chart': 'mdi:chart-pie',
   'lock_open': 'mdi:lock-open',
-  
+
   // 状态图标
   'arrow_up': 'mdi:arrow-up',
   'arrow_down': 'mdi:arrow-down',
@@ -59,10 +58,10 @@ const resolvedIcon = computed(() => {
 </script>
 
 <template>
-  <Icon 
-    :icon="resolvedIcon" 
-    :width="size" 
-    :height="size" 
+  <Icon
+    :icon="resolvedIcon"
+    :width="size"
+    :height="size"
     :style="{ color: color }"
   />
 </template>

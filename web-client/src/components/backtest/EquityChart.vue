@@ -36,19 +36,22 @@ function initChart() {
     autoSize: true,
     layout: {
       background: { type: ColorType.Solid, color: '#FFFFFF' },
-      textColor: '#94A3B8'
+      textColor: '#6B7280',
+      fontSize: 11
     },
     grid: {
-      vertLines: { color: '#F1F5F9' },
-      horzLines: { color: '#F1F5F9' }
+      vertLines: { color: '#EEF2F7' },
+      horzLines: { color: '#EEF2F7' }
     },
     rightPriceScale: {
-      borderColor: '#E2E8F0'
+      borderColor: '#E5E7EB'
     },
     timeScale: {
-      borderColor: '#E2E8F0',
+      borderColor: '#E5E7EB',
       timeVisible: true,
-      secondsVisible: false
+      secondsVisible: false,
+      rightOffset: 4,
+      barSpacing: 8
     },
     crosshair: {
       vertLine: {
@@ -59,20 +62,27 @@ function initChart() {
         color: '#CBD5E1',
         style: LineStyle.Dashed
       }
+    },
+    localization: {
+      locale: 'zh-CN'
     }
   })
 
   equitySeries = chart.addLineSeries({
-    color: '#0066FF',
+    color: '#FF0000',
     lineWidth: 2,
-    title: '策略'
+    title: '本策略收益',
+    lastValueVisible: true,
+    priceLineVisible: false
   })
 
   benchmarkSeries = chart.addLineSeries({
-    color: '#CBD5E1',
+    color: '#0066FF',
     lineWidth: 2,
     lineStyle: LineStyle.Dashed,
-    title: props.benchmark || '沪深300'
+    title: props.benchmark || '沪深300基准',
+    lastValueVisible: true,
+    priceLineVisible: false
   })
 
   updateChartData()

@@ -187,8 +187,8 @@ def quick_preview_params(params: dict) -> dict:
     生成预览参数
     
     将回测参数转换为预览模式参数
-    - 近1年数据
-    - 少量股票
+    - 保留用户输入的日期和交易参数
+    - 预览模式下由引擎决定是否限制股票数量
     
     Args:
         params: 原始回测参数
@@ -196,15 +196,19 @@ def quick_preview_params(params: dict) -> dict:
     Returns:
         预览参数
     """
-    from datetime import datetime, timedelta
-    
-    end_date = datetime.strptime(params.get("end_date", datetime.now().strftime("%Y-%m-%d")), "%Y-%m-%d")
-    start_date = end_date - timedelta(days=365)
-    
     return {
-        "start_date": start_date.strftime("%Y-%m-%d"),
-        "end_date": end_date.strftime("%Y-%m-%d"),
+        "start_date": params.get("start_date"),
+        "end_date": params.get("end_date"),
         "frequency": params.get("frequency", "1d"),
         "initial_capital": params.get("initial_capital", 1000000.0),
-        "max_stocks": 3
+        "commission": params.get("commission", 0.0003),
+        "use_min_commission": params.get("use_min_commission", True),
+        "min_commission": params.get("min_commission", 5.0),
+        "slippage": params.get("slippage", 0.0001),
+        "fill_ratio": params.get("fill_ratio", 1.0),
+        "adjust_mode": params.get("adjust_mode", "qfq"),
+        "benchmark_code": params.get("benchmark_code", "000300.SH"),
+        "symbols": params.get("symbols", []),
+        "match_mode": params.get("match_mode", "open"),
+        "max_stocks": 3,
     }

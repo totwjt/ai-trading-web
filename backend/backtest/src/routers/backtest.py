@@ -117,6 +117,7 @@ async def create_backtest(
         end_date=data.params.end_date,
         frequency=data.params.frequency,
         initial_capital=data.params.initial_capital,
+        metrics={"runtime_params": data.params.model_dump()},
         user_id=1
     )
     
@@ -153,6 +154,26 @@ async def get_backtest(
     strategy_result = await db.execute(select(Strategy).where(Strategy.id == backtest.strategy_id))
     strategy = strategy_result.scalar_one_or_none()
     
+    runtime_params = {}
+    if isinstance(backtest.metrics, dict):
+        runtime_params = backtest.metrics.get("runtime_params", {}) or {}
+
+    response_params = {
+        "start_date": backtest.start_date,
+        "end_date": backtest.end_date,
+        "frequency": backtest.frequency,
+        "initial_capital": backtest.initial_capital,
+        "commission": runtime_params.get("commission", 0.0003),
+        "use_min_commission": runtime_params.get("use_min_commission", True),
+        "min_commission": runtime_params.get("min_commission", 5.0),
+        "slippage": runtime_params.get("slippage", 0.0001),
+        "fill_ratio": runtime_params.get("fill_ratio", 1.0),
+        "adjust_mode": runtime_params.get("adjust_mode", "qfq"),
+        "benchmark_code": runtime_params.get("benchmark_code", "000300.SH"),
+        "symbols": runtime_params.get("symbols", []),
+        "match_mode": runtime_params.get("match_mode", "open"),
+    }
+
     return BacktestDetailResponse(
         code=0,
         message="success",
@@ -161,12 +182,7 @@ async def get_backtest(
             "strategy_id": backtest.strategy_id,
             "strategy_name": strategy.name if strategy else None,
             "status": backtest.status.value if backtest.status else None,
-            "params": {
-                "start_date": backtest.start_date,
-                "end_date": backtest.end_date,
-                "frequency": backtest.frequency,
-                "initial_capital": backtest.initial_capital
-            },
+            "params": response_params,
             "results": {
                 "final_equity": backtest.final_equity,
                 "total_return": backtest.total_return,
@@ -232,11 +248,24 @@ async def run_backtest(
     if not strategy:
         raise HTTPException(status_code=404, detail="关联策略不存在")
     
+    runtime_params = {}
+    if isinstance(backtest.metrics, dict):
+        runtime_params = backtest.metrics.get("runtime_params", {}) or {}
+
     params = {
         "start_date": backtest.start_date,
         "end_date": backtest.end_date,
         "initial_capital": backtest.initial_capital,
-        "frequency": backtest.frequency
+        "frequency": backtest.frequency,
+        "commission": runtime_params.get("commission", strategy.config.get("commission", 0.0003) if isinstance(strategy.config, dict) else 0.0003),
+        "use_min_commission": runtime_params.get("use_min_commission", strategy.config.get("use_min_commission", True) if isinstance(strategy.config, dict) else True),
+        "min_commission": runtime_params.get("min_commission", strategy.config.get("min_commission", 5.0) if isinstance(strategy.config, dict) else 5.0),
+        "slippage": runtime_params.get("slippage", strategy.config.get("slippage", 0.0001) if isinstance(strategy.config, dict) else 0.0001),
+        "fill_ratio": runtime_params.get("fill_ratio", strategy.config.get("fill_ratio", 1.0) if isinstance(strategy.config, dict) else 1.0),
+        "adjust_mode": runtime_params.get("adjust_mode", strategy.config.get("adjust_mode", "qfq") if isinstance(strategy.config, dict) else "qfq"),
+        "benchmark_code": runtime_params.get("benchmark_code", strategy.config.get("benchmark_code", "000300.SH") if isinstance(strategy.config, dict) else "000300.SH"),
+        "symbols": runtime_params.get("symbols", strategy.config.get("symbols", []) if isinstance(strategy.config, dict) else []),
+        "match_mode": runtime_params.get("match_mode", strategy.config.get("match_mode", "open") if isinstance(strategy.config, dict) else "open"),
     }
     
     backtest.status = BacktestStatus.RUNNING

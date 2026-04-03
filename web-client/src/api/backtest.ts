@@ -23,6 +23,15 @@ export interface BacktestParams {
   end_date: string
   frequency: string
   initial_capital: number
+  commission: number
+  use_min_commission: boolean
+  min_commission: number
+  slippage: number
+  fill_ratio: number
+  adjust_mode: string
+  benchmark_code: string
+  symbols: string[]
+  match_mode: string
 }
 
 export interface Backtest {
@@ -167,11 +176,23 @@ export interface PerformanceMetrics {
   beta?: number
   alpha?: number
   information_ratio?: number
+  excess_return?: number
   max_consecutive_wins?: number
   max_consecutive_losses?: number
   avg_holding_days?: number
   total_trades?: number
   avg_profit_per_trade?: number
+  total_commission?: number
+  total_commission_without_min?: number
+  minimum_commission_impact?: number
+  net_profit?: number
+  closed_trades?: number
+  winning_trades?: number
+  losing_trades?: number
+  trading_days?: number
+  commission_model?: string
+  use_min_commission?: boolean
+  min_commission?: number
 }
 
 export interface PerformanceResponse {

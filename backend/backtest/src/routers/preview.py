@@ -80,14 +80,23 @@ async def preview_backtest(
             strategy_code=data.code,
             start_date=preview_params["start_date"],
             end_date=preview_params["end_date"],
-            initial_capital=preview_params["initial_capital"]
+            initial_capital=preview_params["initial_capital"],
+            commission=preview_params["commission"],
+            use_min_commission=preview_params["use_min_commission"],
+            min_commission=preview_params["min_commission"],
+            slippage=preview_params["slippage"],
+            fill_ratio=preview_params["fill_ratio"],
+            adjust_mode=preview_params["adjust_mode"],
+            benchmark_code=preview_params["benchmark_code"],
+            symbols=preview_params["symbols"],
+            match_mode=preview_params["match_mode"],
         )
         
         logs.append({
             "id": len(logs) + 1,
             "log_time": datetime.now().isoformat(),
             "level": "INFO",
-            "message": "回测引擎初始化完成（365天单股票快速验证）"
+            "message": "回测引擎初始化完成（按当前参数预览）"
         })
         
         results = await engine.run(is_preview=True)

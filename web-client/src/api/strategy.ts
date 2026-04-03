@@ -34,6 +34,13 @@ export interface StrategyConfig {
   initial_capital: number
   commission: number
   slippage: number
+  use_min_commission: boolean
+  min_commission: number
+  fill_ratio: number
+  adjust_mode: string
+  benchmark_code: string
+  symbols: string[]
+  match_mode: string
 }
 
 export interface Strategy {

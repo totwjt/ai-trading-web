@@ -38,6 +38,13 @@ class StrategyConfig(BaseModel):
     initial_capital: float = Field(default=1000000.0, description="初始资金")
     commission: float = Field(default=0.0003, description="手续费率")
     slippage: float = Field(default=0.0001, description="滑点")
+    use_min_commission: bool = Field(default=True, description="是否启用最低手续费")
+    min_commission: float = Field(default=5.0, description="最低手续费")
+    fill_ratio: float = Field(default=1.0, description="成交比率")
+    adjust_mode: str = Field(default="qfq", description="复权模式: none/qfq/hfq")
+    benchmark_code: str = Field(default="000300.SH", description="基准代码")
+    symbols: List[str] = Field(default_factory=list, description="标的代码列表")
+    match_mode: str = Field(default="open", description="撮合模式: open/close")
 
 
 class StrategyCreate(BaseModel):
@@ -99,6 +106,15 @@ class BacktestParams(BaseModel):
     end_date: str = Field(..., description="结束日期 YYYY-MM-DD")
     frequency: str = Field(default="1d", description="数据频率: 1d/1w/1m/5m/15m")
     initial_capital: float = Field(default=1000000.0, description="初始资金")
+    commission: float = Field(default=0.0003, description="手续费率")
+    use_min_commission: bool = Field(default=True, description="是否启用最低手续费")
+    min_commission: float = Field(default=5.0, description="最低手续费")
+    slippage: float = Field(default=0.0001, description="滑点")
+    fill_ratio: float = Field(default=1.0, description="成交比率")
+    adjust_mode: str = Field(default="qfq", description="复权模式: none/qfq/hfq")
+    benchmark_code: str = Field(default="000300.SH", description="基准代码")
+    symbols: List[str] = Field(default_factory=list, description="标的代码列表")
+    match_mode: str = Field(default="open", description="撮合模式: open/close")
 
 
 class BacktestCreate(BaseModel):
@@ -311,6 +327,16 @@ class PerformanceMetrics(BaseModel):
     avg_holding_days: Optional[float] = None
     total_trades: Optional[int] = None
     avg_profit_per_trade: Optional[float] = None
+    total_commission: Optional[float] = None
+    total_commission_without_min: Optional[float] = None
+    minimum_commission_impact: Optional[float] = None
+    net_profit: Optional[float] = None
+    closed_trades: Optional[int] = None
+    winning_trades: Optional[int] = None
+    losing_trades: Optional[int] = None
+    commission_model: Optional[str] = None
+    use_min_commission: Optional[bool] = None
+    min_commission: Optional[float] = None
 
 
 class PerformanceResponse(ApiResponse):

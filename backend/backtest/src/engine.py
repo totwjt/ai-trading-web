@@ -5,6 +5,7 @@ Backtrader 回测引擎封装
 """
 
 import asyncio
+import functools
 import logging
 import traceback
 from datetime import datetime
@@ -77,49 +78,34 @@ class BacktestCallbacks:
 class EquityRecorderMixin:
     """为用户策略补充净值曲线与交易记录。"""
 
-    def __init__(self, *args, **kwargs):
-        self._equity_history: List[Dict[str, Any]] = []
-        self._trade_history: List[Dict[str, Any]] = []
-        self._daily_returns: List[float] = []  # 每日收益率序列
-        super().__init__(*args, **kwargs)
+    @staticmethod
+    def setup_tracking_state(strategy):
+        strategy._equity_history = []
+        strategy._trade_history = []
+        strategy._daily_returns = []
 
-    def _record_equity_snapshot(self):
-        current_dt = bt.num2date(self.datas[0].datetime[0]).date().isoformat()
-        current_equity = float(self.broker.getvalue())
+    @staticmethod
+    def record_equity_snapshot(strategy):
+        current_dt = bt.num2date(strategy.datas[0].datetime[0]).date().isoformat()
+        tracking_start_date = getattr(strategy, "_tracking_start_date", None)
+        if tracking_start_date and current_dt < tracking_start_date:
+            return
+        current_equity = float(strategy.broker.getvalue())
         
         # 计算日收益率
-        if self._equity_history and self._equity_history[-1]["date"] == current_dt:
-            self._equity_history[-1]["equity"] = current_equity
+        if strategy._equity_history and strategy._equity_history[-1]["date"] == current_dt:
+            strategy._equity_history[-1]["equity"] = current_equity
             return
-        elif self._equity_history:
-            prev_equity = self._equity_history[-1]["equity"]
+        elif strategy._equity_history:
+            prev_equity = strategy._equity_history[-1]["equity"]
             if prev_equity > 0:
                 daily_return = (current_equity - prev_equity) / prev_equity
-                self._daily_returns.append(daily_return)
+                strategy._daily_returns.append(daily_return)
         
-        self._equity_history.append({"date": current_dt, "equity": current_equity})
+        strategy._equity_history.append({"date": current_dt, "equity": current_equity})
 
-    def prenext(self):
-        super_method = getattr(super(), "prenext", None)
-        if callable(super_method):
-            super_method()
-        self._record_equity_snapshot()
-
-    def nextstart(self):
-        super_method = getattr(super(), "nextstart", None)
-        if callable(super_method):
-            super_method()
-        self._record_equity_snapshot()
-
-    def next(self):
-        super().next()
-        self._record_equity_snapshot()
-
-    def notify_order(self, order):
-        super_method = getattr(super(), "notify_order", None)
-        if callable(super_method):
-            super_method(order)
-
+    @staticmethod
+    def record_order(strategy, order):
         if order.status != order.Completed:
             return
 
@@ -142,10 +128,28 @@ class EquityRecorderMixin:
             "profit": float(pnl) if pnl is not None else None,
             "commission": float(order.executed.comm or 0.0),
         }
-        self._trade_history.append(trade_info)
+        strategy._trade_history.append(trade_info)
         
         direction_cn = "买入" if direction == TradeDirection.BUY else "卖出"
         print(f"[TRADE] {direction_cn} {code} {size}手 @{price:.2f} 金额:{amount:.2f}")
+
+
+class AShareCommissionInfo(bt.CommInfoBase):
+    params = (
+        ("commission", 0.0003),
+        ("use_min_commission", True),
+        ("min_commission", 5.0),
+        ("percabs", True),
+        ("stocklike", True),
+        ("commtype", bt.CommInfoBase.COMM_PERC),
+    )
+
+    def _getcommission(self, size, price, pseudoexec):
+        amount = abs(size) * price
+        commission = amount * self.p.commission
+        if self.p.use_min_commission:
+            return max(float(self.p.min_commission), float(commission))
+        return float(commission)
 
 
 class BacktestEngine:
@@ -162,18 +166,30 @@ class BacktestEngine:
         end_date: str,
         initial_capital: float = 1000000.0,
         commission: float = 0.0003,
+        use_min_commission: bool = True,
+        min_commission: float = 5.0,
+        slippage: float = 0.0001,
+        fill_ratio: float = 1.0,
+        adjust_mode: str = "qfq",
         benchmark_code: str = "000300.SH",
         frequency: str = "1d",
         symbols: Optional[List[str]] = None,
+        match_mode: str = "open",
     ):
         self.strategy_code = strategy_code
         self.start_date = start_date
         self.end_date = end_date
         self.initial_capital = initial_capital
         self.commission = commission
+        self.use_min_commission = use_min_commission
+        self.min_commission = min_commission
+        self.slippage = slippage
+        self.fill_ratio = max(0.0, min(fill_ratio, 1.0))
+        self.adjust_mode = (adjust_mode or "qfq").lower()
         self.benchmark_code = benchmark_code
         self.frequency = frequency
         self.symbols = symbols or []
+        self.match_mode = (match_mode or "open").lower()
 
         self.cerebro: Optional[bt.Cerebro] = None
         self.results: Dict[str, Any] = {}
@@ -183,12 +199,63 @@ class BacktestEngine:
     def _create_cerebro(self) -> bt.Cerebro:
         cerebro = bt.Cerebro()
         cerebro.broker.setcash(self.initial_capital)
-        cerebro.broker.setcommission(commission=self.commission)
+        if self.match_mode == "close":
+            cerebro.broker.set_coc(True)
+        cerebro.broker.addcommissioninfo(
+            AShareCommissionInfo(
+                commission=self.commission,
+                use_min_commission=self.use_min_commission,
+                min_commission=self.min_commission,
+            )
+        )
+        if self.slippage > 0:
+            cerebro.broker.set_slippage_perc(
+                perc=self.slippage,
+                slip_open=self.match_mode != "close",
+                slip_limit=True,
+                slip_match=True,
+                slip_out=False,
+            )
+        if 0 < self.fill_ratio < 1:
+            def volume_filler(order, price, ago):
+                volume = float(order.data.volume[ago] or 0)
+                available = max(int(volume * self.fill_ratio), 0)
+                remaining = int(abs(order.executed.remsize))
+                return min(remaining, available)
+
+            cerebro.broker.set_filler(volume_filler)
         cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe")
         cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
         cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
         return cerebro
+
+    def _apply_price_adjustment(self, frame: pd.DataFrame) -> pd.DataFrame:
+        if frame.empty:
+            return frame
+
+        mode = self.adjust_mode
+        if mode not in {"qfq", "hfq"}:
+            return frame
+
+        factors = frame["adj_factor"].replace(0, pd.NA).ffill().bfill().fillna(1.0).astype(float)
+        if factors.empty:
+            return frame
+
+        base_factor = factors.iloc[-1] if mode == "qfq" else factors.iloc[0]
+        if not base_factor:
+            return frame
+
+        ratio = factors / float(base_factor)
+        adjusted = frame.copy()
+        for column in ("open", "high", "low", "close"):
+            adjusted[column] = adjusted[column].astype(float) * ratio
+
+        valid_ratio = ratio.replace(0, pd.NA)
+        adjusted["volume"] = adjusted["volume"].astype(float) / valid_ratio
+        adjusted["amount"] = adjusted["amount"].astype(float)
+        adjusted["adj_factor"] = factors
+        return adjusted.ffill().bfill()
 
     async def _resolve_symbols(self, max_symbols: Optional[int]) -> List[str]:
         requested_symbols = [symbol for symbol in self.symbols if symbol]
@@ -310,6 +377,7 @@ class BacktestEngine:
         frame["volume"] = frame["volume"].astype(float)
         frame["amount"] = frame["amount"].astype(float)
         frame["adj_factor"] = frame["adj_factor"].ffill().fillna(1.0).astype(float)
+        frame = self._apply_price_adjustment(frame)
         frame = frame[["datetime", "open", "high", "low", "close", "volume", "amount", "adj_factor"]]
         frame.set_index("datetime", inplace=True)
         return frame
@@ -377,10 +445,40 @@ class BacktestEngine:
         if not user_strategy_class:
             raise ValueError("策略代码中未找到有效的策略类")
 
+        tracking_start_date = self.start_date
+
+        def _wrap_lifecycle(
+            method_name: str,
+            recorder: Optional[Callable[..., None]] = None
+        ):
+            original_method = getattr(user_strategy_class, method_name, None)
+
+            @functools.wraps(original_method)
+            def wrapped(self, *args, **kwargs):
+                if callable(original_method):
+                    original_method(self, *args, **kwargs)
+                if recorder is not None:
+                    recorder(self, *args, **kwargs)
+
+            return wrapped
+
+        def _wrapped_init(self, *args, **kwargs):
+            EquityRecorderMixin.setup_tracking_state(self)
+            self._tracking_start_date = tracking_start_date
+            original_init = getattr(user_strategy_class, "__init__", None)
+            if callable(original_init):
+                original_init(self, *args, **kwargs)
+
         wrapped_strategy = type(
             f"{user_strategy_class.__name__}Wrapped",
-            (EquityRecorderMixin, user_strategy_class),
-            {}
+            (user_strategy_class,),
+            {
+                "__init__": _wrapped_init,
+                "prenext": _wrap_lifecycle("prenext", lambda strategy, *_: EquityRecorderMixin.record_equity_snapshot(strategy)),
+                "nextstart": _wrap_lifecycle("nextstart", lambda strategy, *_: EquityRecorderMixin.record_equity_snapshot(strategy)),
+                "next": _wrap_lifecycle("next", lambda strategy, *_: EquityRecorderMixin.record_equity_snapshot(strategy)),
+                "notify_order": _wrap_lifecycle("notify_order", lambda strategy, order, *_: EquityRecorderMixin.record_order(strategy, order)),
+            }
         )
         cerebro.addstrategy(wrapped_strategy)
 
@@ -396,6 +494,8 @@ class BacktestEngine:
         last_benchmark = self.initial_capital
         curve: List[Dict[str, Any]] = []
         for point in equity_history:
+            if point["date"] < self.start_date:
+                continue
             benchmark_value = benchmark_map.get(point["date"], last_benchmark)
             last_benchmark = benchmark_value
             returns = ((point["equity"] - self.initial_capital) / self.initial_capital) * 100
@@ -504,6 +604,20 @@ class BacktestEngine:
             "sharpe_ratio": None,
             "win_rate": None,
             "profit_loss_ratio": None,
+            "total_commission": None,
+            "total_commission_without_min": None,
+            "minimum_commission_impact": None,
+            "net_profit": None,
+            "closed_trades": None,
+            "winning_trades": None,
+            "losing_trades": None,
+            "trading_days": len(self.equity_curve) if self.equity_curve else None,
+            "excess_return": None,
+            "max_consecutive_wins": None,
+            "max_consecutive_losses": None,
+            "commission_model": "rate+min" if self.use_min_commission else "rate_only",
+            "use_min_commission": self.use_min_commission,
+            "min_commission": self.min_commission,
             # 扩展指标
             "calmar_ratio": None,
             "sortino_ratio": None,
@@ -512,6 +626,8 @@ class BacktestEngine:
             "alpha": None,
             "information_ratio": None,
         }
+        if benchmark_return is not None:
+            metrics["excess_return"] = metrics["total_return"] - benchmark_return
         
         try:
             returns_analysis = strategy_instance.analyzers.returns.get_analysis()
@@ -532,25 +648,6 @@ class BacktestEngine:
                 metrics["sharpe_ratio"] = float(sharpe)
             
             trades_analysis = strategy_instance.analyzers.trades.get_analysis()
-            
-            total_closed = safe_get(trades_analysis, 'total', 'closed', default=0)
-            if total_closed and total_closed > 0:
-                won = safe_get(trades_analysis, 'won', 'total', default=0)
-                metrics["win_rate"] = (won / total_closed) * 100 if won else 0
-                metrics["total_trades"] = int(total_closed)
-            
-            won_pnl = safe_get(trades_analysis, 'won', 'pnl', 'total', default=0)
-            lost_pnl = safe_get(trades_analysis, 'lost', 'pnl', 'total', default=0)
-            won_count = safe_get(trades_analysis, 'won', 'total', default=0)
-            lost_count = safe_get(trades_analysis, 'lost', 'total', default=0)
-            
-            if won_count > 0 and lost_count > 0:
-                avg_win = won_pnl / won_count if won_count > 0 else 0
-                avg_loss = abs(lost_pnl / lost_count) if lost_count > 0 else 0
-                if avg_loss > 0:
-                    metrics["profit_loss_ratio"] = avg_win / avg_loss
-            elif won_count > 0 and lost_count == 0:
-                metrics["profit_loss_ratio"] = float('inf')
             
             # 计算扩展指标
             self._calculate_extended_metrics(metrics, strategy_instance, annual_return, max_dd)
@@ -576,27 +673,30 @@ class BacktestEngine:
         daily_returns = getattr(strategy_instance, "_daily_returns", [])
         if len(daily_returns) < 2:
             return
-        
+
+        daily_returns_arr = np.array(daily_returns, dtype=float)
         annual_return_pct = annual_return / 100.0 if annual_return else metrics["total_return"] / 100.0
         max_dd_pct = abs(max_dd / 100.0) if max_dd else None
+        risk_free_daily = 0.03 / 252
+        excess_returns = daily_returns_arr - risk_free_daily
         
         # 1. Calmar比率 = 年化收益 / 最大回撤
         if annual_return_pct and max_dd_pct and max_dd_pct > 0:
             metrics["calmar_ratio"] = annual_return_pct / max_dd_pct
         
         # 2. 波动率 (年化) = 日收益率标准差 * sqrt(252)
-        daily_returns_arr = np.array(daily_returns)
         if len(daily_returns_arr) > 0:
             volatility_daily = np.std(daily_returns_arr, ddof=1)
             metrics["volatility"] = volatility_daily * np.sqrt(252) * 100
-            
-            # 3. Sortino比率 = 年化收益 / 下行波动率
-            downside_returns = daily_returns_arr[daily_returns_arr < 0]
+            if volatility_daily > 0:
+                metrics["sharpe_ratio"] = (np.mean(excess_returns) / volatility_daily) * np.sqrt(252)
+
+            # 3. Sortino比率 = 超额日收益均值 / 下行波动率
+            downside_returns = excess_returns[excess_returns < 0]
             if len(downside_returns) > 1:
                 downside_std = np.std(downside_returns, ddof=1)
                 if downside_std > 0:
-                    downside_vol = downside_std * np.sqrt(252)
-                    metrics["sortino_ratio"] = annual_return_pct / downside_vol if annual_return_pct else None
+                    metrics["sortino_ratio"] = (np.mean(excess_returns) / downside_std) * np.sqrt(252)
         
         # 4. 计算 Beta 和 Alpha（需要基准收益序列）
         equity_history = getattr(strategy_instance, "_equity_history", [])
@@ -657,7 +757,11 @@ class BacktestEngine:
         
         profits = []
         holding_periods = []
-        
+        total_commission = 0.0
+        total_commission_without_min = 0.0
+        winning_trades = 0
+        losing_trades = 0
+
         buy_positions = {}
         
         for trade in trades:
@@ -669,6 +773,11 @@ class BacktestEngine:
             symbol = trade.get("code", "")
             direction = trade.get("type", "")
             profit = trade.get("profit")
+            amount = float(trade.get("amount") or 0.0)
+            commission = float(trade.get("commission") or 0.0)
+
+            total_commission += commission
+            total_commission_without_min += amount * self.commission
             
             if direction == "BUY":
                 buy_positions[symbol] = trade_dt
@@ -682,10 +791,53 @@ class BacktestEngine:
                 
                 if profit is not None:
                     profits.append(profit)
-        
+                    if profit > 0:
+                        winning_trades += 1
+                    elif profit < 0:
+                        losing_trades += 1
+
+        closed_trades = len(profits)
+        metrics["total_commission"] = total_commission
+        metrics["total_commission_without_min"] = total_commission_without_min
+        metrics["minimum_commission_impact"] = total_commission - total_commission_without_min
+        metrics["net_profit"] = sum(profits) if profits else 0.0
+        metrics["closed_trades"] = closed_trades
+        metrics["winning_trades"] = winning_trades
+        metrics["losing_trades"] = losing_trades
+
+        if closed_trades > 0:
+            metrics["total_trades"] = closed_trades
+            metrics["win_rate"] = (winning_trades / closed_trades) * 100
+
         if profits:
             metrics["avg_profit_per_trade"] = sum(profits) / len(profits)
-        
+            avg_win = sum(p for p in profits if p > 0) / winning_trades if winning_trades > 0 else 0
+            avg_loss = abs(sum(p for p in profits if p < 0) / losing_trades) if losing_trades > 0 else 0
+            if winning_trades > 0 and losing_trades > 0 and avg_loss > 0:
+                metrics["profit_loss_ratio"] = avg_win / avg_loss
+            elif winning_trades > 0 and losing_trades == 0:
+                metrics["profit_loss_ratio"] = float("inf")
+
+            max_consecutive_wins = 0
+            max_consecutive_losses = 0
+            current_wins = 0
+            current_losses = 0
+            for profit in profits:
+                if profit > 0:
+                    current_wins += 1
+                    current_losses = 0
+                elif profit < 0:
+                    current_losses += 1
+                    current_wins = 0
+                else:
+                    current_wins = 0
+                    current_losses = 0
+                max_consecutive_wins = max(max_consecutive_wins, current_wins)
+                max_consecutive_losses = max(max_consecutive_losses, current_losses)
+
+            metrics["max_consecutive_wins"] = max_consecutive_wins
+            metrics["max_consecutive_losses"] = max_consecutive_losses
+
         if holding_periods:
             metrics["avg_holding_days"] = sum(holding_periods) / len(holding_periods)
 
@@ -779,7 +931,15 @@ class BacktestExecutor:
             end_date=params.get("end_date"),
             initial_capital=params.get("initial_capital", 1000000.0),
             commission=params.get("commission", 0.0003),
+            use_min_commission=params.get("use_min_commission", True),
+            min_commission=params.get("min_commission", 5.0),
+            slippage=params.get("slippage", 0.0001),
+            fill_ratio=params.get("fill_ratio", 1.0),
+            adjust_mode=params.get("adjust_mode", "qfq"),
+            benchmark_code=params.get("benchmark_code", "000300.SH"),
             frequency=params.get("frequency", "1d"),
+            symbols=params.get("symbols", []),
+            match_mode=params.get("match_mode", "open"),
         )
 
         async def progress_callback(progress: int, message: str):
@@ -802,6 +962,21 @@ class BacktestExecutor:
             await self._replace_trades(backtest_id, engine.get_trades())
             
             extended_metrics = {
+                "runtime_params": {
+                    "start_date": params.get("start_date"),
+                    "end_date": params.get("end_date"),
+                    "initial_capital": params.get("initial_capital", 1000000.0),
+                    "frequency": params.get("frequency", "1d"),
+                    "commission": params.get("commission", 0.0003),
+                    "use_min_commission": params.get("use_min_commission", True),
+                    "min_commission": params.get("min_commission", 5.0),
+                    "slippage": params.get("slippage", 0.0001),
+                    "fill_ratio": params.get("fill_ratio", 1.0),
+                    "adjust_mode": params.get("adjust_mode", "qfq"),
+                    "benchmark_code": params.get("benchmark_code", "000300.SH"),
+                    "symbols": params.get("symbols", []),
+                    "match_mode": params.get("match_mode", "open"),
+                },
                 "total_trades": results.get("total_trades", 0),
                 "calmar_ratio": results.get("calmar_ratio"),
                 "sortino_ratio": results.get("sortino_ratio"),
@@ -809,8 +984,22 @@ class BacktestExecutor:
                 "beta": results.get("beta"),
                 "alpha": results.get("alpha"),
                 "information_ratio": results.get("information_ratio"),
+                "excess_return": results.get("excess_return"),
                 "avg_holding_days": results.get("avg_holding_days"),
                 "avg_profit_per_trade": results.get("avg_profit_per_trade"),
+                "total_commission": results.get("total_commission"),
+                "total_commission_without_min": results.get("total_commission_without_min"),
+                "minimum_commission_impact": results.get("minimum_commission_impact"),
+                "net_profit": results.get("net_profit"),
+                "closed_trades": results.get("closed_trades"),
+                "winning_trades": results.get("winning_trades"),
+                "losing_trades": results.get("losing_trades"),
+                "trading_days": results.get("trading_days"),
+                "max_consecutive_wins": results.get("max_consecutive_wins"),
+                "max_consecutive_losses": results.get("max_consecutive_losses"),
+                "commission_model": results.get("commission_model"),
+                "use_min_commission": results.get("use_min_commission"),
+                "min_commission": results.get("min_commission"),
             }
             extended_metrics = {k: v for k, v in extended_metrics.items() if v is not None}
             

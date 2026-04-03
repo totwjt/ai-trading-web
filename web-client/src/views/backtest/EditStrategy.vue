@@ -50,6 +50,15 @@ const startDate = ref(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOStri
 const endDate = ref(new Date().toISOString().split('T')[0])
 const frequency = ref('1d')
 const initialCapital = ref(1000000)
+const commissionRate = ref(0.0003)
+const useMinCommission = ref(true)
+const minCommission = ref(5)
+const slippageRate = ref(0.0001)
+const fillRatio = ref(1)
+const adjustMode = ref('qfq')
+const benchmarkCode = ref('000300.SH')
+const symbolInput = ref('')
+const matchMode = ref<'open' | 'close'>('open')
 const strategyDescription = ref('')
 
 // 时间范围选项
@@ -59,20 +68,37 @@ const today = new Date()
 const threeYearsAgo = new Date(today.getFullYear() - 3, today.getMonth(), today.getDate())
 
 const computedStartDate = computed(() => {
-  return dateRangeOption.value === '3years' 
+  return dateRangeOption.value === '3years'
     ? threeYearsAgo.toISOString().split('T')[0]
     : startDate.value
 })
 
 const computedEndDate = computed(() => {
-  return dateRangeOption.value === '3years' 
+  return dateRangeOption.value === '3years'
     ? today.toISOString().split('T')[0]
     : endDate.value
 })
 
-function setDateRange3Years() {
-  startDate.value = threeYearsAgo.toISOString().split('T')[0]
-  endDate.value = today.toISOString().split('T')[0]
+const adjustModeOptions = [
+  { label: '前复权', value: 'qfq' },
+  { label: '后复权', value: 'hfq' },
+  { label: '不复权', value: 'none' }
+]
+
+const matchModeOptions = [
+  { label: '下一根开盘撮合', value: 'open' },
+  { label: '当前收盘撮合', value: 'close' }
+]
+
+function parseSymbols(value: string): string[] {
+  return value
+    .split(/[\s,，]+/)
+    .map(item => item.trim().toUpperCase())
+    .filter(Boolean)
+}
+
+function setDateRangeOption(option: 'custom' | '3years') {
+  dateRangeOption.value = option
 }
 
 const logs = ref<Array<{ time: string; level: string; message: string }>>([
@@ -90,6 +116,7 @@ const winRate = ref<number | null>(null)
 const profitLossRatio = ref<number | null>(null)
 const previewFinalEquity = ref<number | null>(null)
 const previewInitialValue = ref<number | null>(null)
+const parameterModalOpen = ref(false)
 
 const frequencyOptions = [
   { label: '日线', value: '1d' }
@@ -115,8 +142,22 @@ async function loadStrategy() {
     strategyType.value = strategy.strategy_type || 'custom'
     strategyCode.value = strategy.code || strategyCode.value
     strategyDescription.value = strategy.description || ''
-    if (strategy.config?.initial_capital) {
-      initialCapital.value = strategy.config.initial_capital
+    if (strategy.config) {
+      initialCapital.value = strategy.config.initial_capital ?? initialCapital.value
+      commissionRate.value = strategy.config.commission ?? commissionRate.value
+      useMinCommission.value = strategy.config.use_min_commission ?? useMinCommission.value
+      minCommission.value = strategy.config.min_commission ?? minCommission.value
+      slippageRate.value = strategy.config.slippage ?? slippageRate.value
+      fillRatio.value = strategy.config.fill_ratio ?? fillRatio.value
+      adjustMode.value = strategy.config.adjust_mode ?? adjustMode.value
+      benchmarkCode.value = strategy.config.benchmark_code ?? benchmarkCode.value
+      symbolInput.value = (strategy.config.symbols ?? []).join(', ')
+      matchMode.value = (strategy.config.match_mode as 'open' | 'close') ?? matchMode.value
+    }
+    if (strategy.name.includes('掘金-布林线均值回归') && !symbolInput.value.trim()) {
+      symbolInput.value = '600004.SH'
+      matchMode.value = 'close'
+      addLog('INFO', '已为掘金布林线策略预填白云机场与收盘撮合参数')
     }
     addLog('INFO', `已加载策略: ${strategy.name}`)
   } catch (error) {
@@ -147,6 +188,26 @@ function validateBeforeSubmit(): boolean {
     return false
   }
 
+  if (!Number.isFinite(commissionRate.value) || commissionRate.value < 0) {
+    addLog('WARNING', '手续费率不能小于 0')
+    return false
+  }
+
+  if (!Number.isFinite(minCommission.value) || minCommission.value < 0) {
+    addLog('WARNING', '最低手续费不能小于 0')
+    return false
+  }
+
+  if (!Number.isFinite(slippageRate.value) || slippageRate.value < 0) {
+    addLog('WARNING', '滑点比率不能小于 0')
+    return false
+  }
+
+  if (!Number.isFinite(fillRatio.value) || fillRatio.value <= 0 || fillRatio.value > 1) {
+    addLog('WARNING', '成交比率必须在 0 到 1 之间')
+    return false
+  }
+
   return true
 }
 
@@ -158,9 +219,34 @@ function buildStrategyPayload() {
     description: strategyDescription.value || undefined,
     config: {
       initial_capital: initialCapital.value,
-      commission: 0.0003,
-      slippage: 0.0001
+      commission: commissionRate.value,
+      use_min_commission: useMinCommission.value,
+      min_commission: minCommission.value,
+      slippage: slippageRate.value,
+      fill_ratio: fillRatio.value,
+      adjust_mode: adjustMode.value,
+      benchmark_code: benchmarkCode.value.trim() || '000300.SH',
+      symbols: parseSymbols(symbolInput.value),
+      match_mode: matchMode.value
     }
+  }
+}
+
+function buildBacktestParams(): BacktestParams {
+  return {
+    start_date: computedStartDate.value,
+    end_date: computedEndDate.value,
+    frequency: frequency.value,
+    initial_capital: initialCapital.value,
+    commission: commissionRate.value,
+    use_min_commission: useMinCommission.value,
+    min_commission: minCommission.value,
+    slippage: slippageRate.value,
+    fill_ratio: fillRatio.value,
+    adjust_mode: adjustMode.value,
+    benchmark_code: benchmarkCode.value.trim() || '000300.SH',
+    symbols: parseSymbols(symbolInput.value),
+    match_mode: matchMode.value
   }
 }
 
@@ -187,24 +273,26 @@ async function handleSave() {
   }
 }
 
-async function handlePreview() {
+function openParameterModal() {
+  parameterModalOpen.value = true
+}
+
+function closeParameterModal() {
+  if (isRunning.value) return
+  parameterModalOpen.value = false
+}
+
+async function executePreview() {
   if (!validateBeforeSubmit()) return
 
   isRunning.value = true
   addLog('INFO', '开始编译检查...')
 
   try {
-    const params: BacktestParams = {
-      start_date: computedStartDate.value,
-      end_date: computedEndDate.value,
-      frequency: frequency.value,
-      initial_capital: initialCapital.value
-    }
-
     const result = await previewStrategy({
       strategy_id: strategyId.value || undefined,
       code: strategyCode.value,
-      params
+      params: buildBacktestParams()
     })
 
     previewResult.value = result
@@ -239,7 +327,7 @@ async function handlePreview() {
   }
 }
 
-async function handleRunBacktest() {
+async function executeRunBacktest() {
   if (!validateBeforeSubmit()) return
 
   if (!strategyId.value) {
@@ -251,14 +339,10 @@ async function handleRunBacktest() {
   addLog('INFO', '创建回测任务...')
 
   try {
-    const params: BacktestParams = {
-      start_date: computedStartDate.value,
-      end_date: computedEndDate.value,
-      frequency: frequency.value,
-      initial_capital: initialCapital.value
-    }
+    await updateStrategy(strategyId.value!, buildStrategyPayload())
+    addLog('INFO', '已同步当前策略代码与回测参数')
 
-    const result = await createBacktest(strategyId.value, params)
+    const result = await createBacktest(strategyId.value, buildBacktestParams())
     addLog('SUCCESS', `回测任务已创建: ID ${result.backtest_id}`)
 
     await runBacktest(result.backtest_id)
@@ -274,7 +358,12 @@ async function handleRunBacktest() {
   } catch (error) {
     addLog('ERROR', `启动回测失败: ${error}`)
     isRunning.value = false
+    parameterModalOpen.value = false
   }
+}
+
+async function confirmModalAction() {
+  await executeRunBacktest()
 }
 
 function goBack() {
@@ -304,8 +393,8 @@ onMounted(() => {
 
 <template>
   <div class="flex-1 bg-white flex flex-col overflow-hidden min-h-0 h-full">
-    <header class="flex items-center justify-between px-6 h-14 border-b border-slate-200 bg-white shrink-0">
-      <div class="flex items-center">
+    <header class="flex items-center justify-between px-5 h-12 border-b border-slate-200 bg-white shrink-0">
+      <div class="flex items-center min-w-0">
         <button
           class="flex items-center gap-1 mr-6 text-sm text-slate-600 hover:text-primary transition-colors"
           @click="goBack"
@@ -314,88 +403,27 @@ onMounted(() => {
           返回
         </button>
         <div class="h-6 w-px bg-slate-200 mr-6"></div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 min-w-0">
           <span class="text-xs text-slate-500">策略:</span>
           <input
             v-model="strategyName"
-            type="text"
-            class="bg-transparent border border-slate-200 rounded px-2 py-1 text-sm font-medium text-slate-700 focus:outline-none focus:border-primary w-60"
+            class="w-72 rounded-md border border-border bg-card px-3 py-1 text-sm text-textMain focus:border-primary focus:outline-none"
             placeholder="请输入策略名称"
           />
         </div>
       </div>
 
-      <div class="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
-        <div class="flex items-center gap-2">
-          <label class="text-[11px] text-slate-500 whitespace-nowrap">时间范围</label>
-          <div class="flex items-center gap-3">
-            <label class="flex items-center gap-1 cursor-pointer">
-              <input
-                v-model="dateRangeOption"
-                type="radio"
-                value="custom"
-                class="accent-primary"
-              />
-              <span class="text-[11px] text-slate-600">自定义</span>
-            </label>
-            <label class="flex items-center gap-1 cursor-pointer">
-              <input
-                v-model="dateRangeOption"
-                type="radio"
-                value="3years"
-                class="accent-primary"
-              />
-              <span class="text-[11px] text-slate-600">近三年</span>
-            </label>
-          </div>
-        </div>
-        <div class="w-px h-3 bg-slate-300"></div>
-        <div class="flex items-center gap-1.5">
-          <label class="text-[11px] text-slate-500 whitespace-nowrap">开始日期</label>
-          <span class="text-xs text-slate-700 w-24">{{ computedStartDate }}</span>
-        </div>
-        <div class="w-px h-3 bg-slate-300"></div>
-        <div class="flex items-center gap-1.5">
-          <label class="text-[11px] text-slate-500 whitespace-nowrap">结束日期</label>
-          <span class="text-xs text-slate-700 w-24">{{ computedEndDate }}</span>
-        </div>
-        <div class="w-px h-3 bg-slate-300"></div>
-        <div class="flex items-center gap-1.5">
-          <label class="text-[11px] text-slate-500 whitespace-nowrap">初始资金</label>
-          <input
-            v-model.number="initialCapital"
-            type="number"
-            min="1"
-            step="10000"
-            class="bg-transparent border-none p-0 text-xs focus:ring-0 w-24 text-slate-700"
-          />
-        </div>
-        <div class="w-px h-3 bg-slate-300"></div>
-        <div class="flex items-center gap-1.5">
-          <label class="text-[11px] text-slate-500 whitespace-nowrap">数据频率</label>
-          <select
-            v-model="frequency"
-            class="bg-transparent border-none p-0 text-xs focus:ring-0 text-slate-700 cursor-pointer"
-          >
-            <option v-for="opt in frequencyOptions" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
-        </div>
-        <span class="text-[10px] text-slate-400 whitespace-nowrap">当前真实回测仅支持日线</span>
-      </div>
-
       <div class="flex items-center gap-3">
         <button
-          class="bg-primary text-white px-5 py-1.5 rounded text-sm font-semibold hover:bg-blue-700 shadow-sm shadow-blue-200 transition-all disabled:opacity-50"
+          class="bg-primary text-white px-3.5 py-1.5 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
           :disabled="isRunning"
-          @click="handleRunBacktest"
+          @click="openParameterModal"
         >
           <Icon v-if="isRunning" icon="mdi:loading" class="animate-spin" :size="16" />
           <span v-else>运行回测</span>
         </button>
         <button
-          class="border border-slate-200 px-5 py-1.5 rounded text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
+          class="border border-border bg-card px-3.5 py-1.5 rounded-lg text-sm font-medium text-textMain hover:bg-gray-50 transition-colors disabled:opacity-50"
           :disabled="isSaving"
           @click="handleSave"
         >
@@ -404,8 +432,9 @@ onMounted(() => {
       </div>
     </header>
 
-    <main class="flex-1 flex overflow-hidden">
-      <section class="w-[60%] bg-[#1e1e1e] flex flex-col relative">
+    <main class="flex-1 flex flex-col overflow-hidden">
+      <div class="flex-1 flex overflow-hidden">
+        <section class="w-[60%] bg-[#1e1e1e] flex flex-col relative">
         <div class="flex items-center justify-between px-4 py-2 border-b border-white/10 text-xs text-slate-400 bg-[#252526]">
           <span class="flex items-center">
             <span class="w-2 h-2 rounded-full bg-orange-400 mr-2"></span>
@@ -421,9 +450,9 @@ onMounted(() => {
         <div v-if="isLoadingStrategy" class="absolute inset-0 bg-black/30 flex items-center justify-center text-white text-sm">
           正在加载策略...
         </div>
-      </section>
+        </section>
 
-      <section class="w-[40%] flex flex-col border-l border-slate-200 bg-slate-50 overflow-hidden">
+        <section class="w-[40%] flex flex-col border-l border-slate-200 bg-slate-50 overflow-hidden">
         <div class="h-1/2 flex flex-col border-b border-slate-200">
           <div class="flex items-center justify-between px-4 py-2 bg-white border-b border-slate-200">
             <span class="text-xs font-bold text-slate-700 uppercase tracking-tight">运行日志 / 错误</span>
@@ -457,7 +486,7 @@ onMounted(() => {
             <button
               class="bg-primary text-white px-3 py-1 rounded text-[11px] font-medium hover:bg-blue-700 disabled:opacity-50"
               :disabled="isRunning"
-              @click="handlePreview"
+              @click="executePreview"
             >
               {{ isRunning ? '运行中...' : '编译运行' }}
             </button>
@@ -535,16 +564,165 @@ onMounted(() => {
             </div>
           </div>
         </div>
-      </section>
+        </section>
+      </div>
     </main>
 
-    <footer class="h-16 border-t border-slate-200 px-6 flex items-center bg-slate-50 shrink-0">
+    <footer class="h-8 border-t border-slate-200 px-6 flex items-center bg-slate-50 shrink-0">
       <div class="flex items-center space-x-2">
         <span class="text-xs text-slate-500">
           最后更新: {{ new Date().toLocaleString('zh-CN') }}
         </span>
       </div>
     </footer>
+
+    <a-modal
+      :open="parameterModalOpen"
+      title="确认回测参数"
+      width="720px"
+      :closable="!isRunning"
+      :mask-closable="!isRunning"
+      :keyboard="!isRunning"
+      @cancel="closeParameterModal"
+    >
+      <div class="space-y-4">
+        <div class="rounded-xl border border-border bg-gray-50 p-3">
+          <div class="mb-2 flex items-center justify-between">
+            <span class="text-xs font-semibold text-textMain">时间范围</span>
+            <div class="flex items-center gap-2">
+              <button
+                class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors"
+                :class="dateRangeOption === 'custom' ? 'bg-primary text-white' : 'bg-card text-textSub border border-border hover:text-primary'"
+                @click="setDateRangeOption('custom')"
+              >
+                自定义
+              </button>
+              <button
+                class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors"
+                :class="dateRangeOption === '3years' ? 'bg-primary text-white' : 'bg-card text-textSub border border-border hover:text-primary'"
+                @click="setDateRangeOption('3years')"
+              >
+                近三年
+              </button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2.5">
+            <label class="space-y-1">
+              <span class="block text-[11px] text-textSub">开始日期</span>
+              <input
+                v-model="startDate"
+                type="date"
+                :disabled="dateRangeOption === '3years'"
+                class="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-textMain focus:border-primary focus:outline-none disabled:bg-gray-100 disabled:text-textMute"
+              />
+            </label>
+            <label class="space-y-1">
+              <span class="block text-[11px] text-textSub">结束日期</span>
+              <input
+                v-model="endDate"
+                type="date"
+                :disabled="dateRangeOption === '3years'"
+                class="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-textMain focus:border-primary focus:outline-none disabled:bg-gray-100 disabled:text-textMute"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <label class="space-y-1">
+            <span class="block text-[11px] text-textSub">初始资金</span>
+            <input v-model.number="initialCapital" type="number" min="1" step="10000" class="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-textMain focus:border-primary focus:outline-none" />
+          </label>
+          <label class="space-y-1">
+            <span class="block text-[11px] text-textSub">数据频率</span>
+            <select v-model="frequency" class="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-textMain focus:border-primary focus:outline-none">
+              <option v-for="opt in frequencyOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
+          </label>
+          <label class="space-y-1">
+            <span class="block text-[11px] text-textSub">手续费率</span>
+            <input v-model.number="commissionRate" type="number" min="0" step="0.0001" class="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-textMain focus:border-primary focus:outline-none" />
+          </label>
+          <label class="space-y-1">
+            <span class="block text-[11px] text-textSub">最低手续费规则</span>
+            <label class="flex h-[34px] items-center gap-2 rounded-md border border-border bg-card px-2.5 text-sm text-textMain">
+              <input v-model="useMinCommission" type="checkbox" class="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary" />
+              <span>启用最低 5 元/笔</span>
+            </label>
+          </label>
+          <label class="space-y-1">
+            <span class="block text-[11px] text-textSub">最低手续费</span>
+            <input v-model.number="minCommission" type="number" min="0" step="1" :disabled="!useMinCommission" class="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-textMain focus:border-primary focus:outline-none disabled:bg-gray-100 disabled:text-textMute" />
+          </label>
+          <label class="space-y-1">
+            <span class="block text-[11px] text-textSub">滑点比率</span>
+            <input v-model.number="slippageRate" type="number" min="0" step="0.0001" class="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-textMain focus:border-primary focus:outline-none" />
+          </label>
+          <label class="space-y-1">
+            <span class="block text-[11px] text-textSub">成交比率</span>
+            <input v-model.number="fillRatio" type="number" min="0.01" max="1" step="0.01" class="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-textMain focus:border-primary focus:outline-none" />
+          </label>
+          <label class="space-y-1">
+            <span class="block text-[11px] text-textSub">复权方式</span>
+            <select v-model="adjustMode" class="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-textMain focus:border-primary focus:outline-none">
+              <option v-for="option in adjustModeOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <label class="space-y-1">
+            <span class="block text-[11px] text-textSub">成交模式</span>
+            <select v-model="matchMode" class="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-textMain focus:border-primary focus:outline-none">
+              <option v-for="option in matchModeOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <label class="space-y-1">
+            <span class="block text-[11px] text-textSub">基准代码</span>
+            <input v-model="benchmarkCode" type="text" class="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-textMain focus:border-primary focus:outline-none" placeholder="000300.SH" />
+          </label>
+        </div>
+
+        <label class="block space-y-1">
+          <span class="block text-[11px] text-textSub">回测标的 / 股票池</span>
+          <input
+            v-model="symbolInput"
+            type="text"
+            placeholder="例: 000001.SZ, 600519.SH"
+            class="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-textMain focus:border-primary focus:outline-none"
+          />
+        </label>
+
+        <div class="rounded-lg border border-border bg-gray-50 px-3 py-2 text-[11px] text-textMute">
+          当前操作:
+          <span class="font-medium text-textMain">运行回测</span>
+          <span class="ml-3">成交模式: {{ matchMode === 'close' ? '当前收盘撮合' : '下一根开盘撮合' }}</span>
+          <span class="ml-3">佣金: {{ useMinCommission ? `比例 + 最低 ${minCommission} 元` : '仅比例佣金' }}</span>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            class="border border-border bg-card px-3.5 py-1.5 rounded-lg text-sm font-medium text-textMain hover:bg-gray-50 transition-colors disabled:opacity-50"
+            :disabled="isRunning"
+            @click="closeParameterModal"
+          >
+            取消
+          </button>
+          <button
+            class="bg-primary text-white px-3.5 py-1.5 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+            :disabled="isRunning"
+            @click="confirmModalAction"
+          >
+            {{ isRunning ? '回测中...' : '确认运行回测' }}
+          </button>
+        </div>
+      </template>
+    </a-modal>
   </div>
 </template>
 

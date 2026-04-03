@@ -85,6 +85,53 @@ const runButtonText = computed(() => {
   if (detail.value?.status === 'running') return '运行中'
   return '刷新数据'
 })
+const tradingDays = computed(() => performance.value?.metrics?.trading_days ?? equityCurve.value.length ?? undefined)
+const performanceHighlightMetrics = computed(() => {
+  const metrics = performance.value?.metrics ?? {}
+  if (!detail.value) return []
+  return [
+    {
+      label: '期初资产',
+      value: formatNumber(detail.value.params.initial_capital),
+      className: 'text-textMain'
+    },
+    {
+      label: '期末资产',
+      value: formatNumber(detail.value.results.final_equity),
+      className: getReturnClass(detail.value.results.total_return)
+    },
+    {
+      label: '累计盈亏',
+      value: formatNumber(metrics.net_profit),
+      className: getReturnClass(metrics.net_profit)
+    },
+    {
+      label: '累计手续费',
+      value: formatNumber(metrics.total_commission),
+      className: 'text-textMain'
+    },
+    {
+      label: '最大回撤',
+      value: formatPercent(detail.value.results.max_drawdown),
+      className: 'text-down'
+    },
+    {
+      label: '交易天数',
+      value: formatInteger(tradingDays.value),
+      className: 'text-textMain'
+    },
+    {
+      label: '夏普比率',
+      value: formatDecimal(detail.value.results.sharpe_ratio),
+      className: 'text-textMain'
+    },
+    {
+      label: '所提诺比率',
+      value: formatDecimal(metrics.sortino_ratio),
+      className: 'text-textMain'
+    }
+  ]
+})
 const summaryMetrics = computed(() => {
   if (!detail.value) return []
   return [
@@ -97,16 +144,6 @@ const summaryMetrics = computed(() => {
       label: '年化收益',
       value: formatReturn(detail.value.results.annual_return),
       className: getReturnClass(detail.value.results.annual_return)
-    },
-    {
-      label: '最大回撤',
-      value: formatPercent(detail.value.results.max_drawdown),
-      className: 'text-down'
-    },
-    {
-      label: '夏普比率',
-      value: formatDecimal(detail.value.results.sharpe_ratio),
-      className: 'text-textMain'
     },
     {
       label: '胜率',
@@ -124,14 +161,27 @@ const extendedMetrics = computed(() => {
   const metrics = performance.value?.metrics ?? {}
   return [
     { label: 'Calmar', value: formatDecimal(metrics.calmar_ratio) },
-    { label: 'Sortino', value: formatDecimal(metrics.sortino_ratio) },
     { label: '波动率', value: formatPercent(metrics.volatility) },
+    { label: '超额收益', value: formatReturn(metrics.excess_return) },
     { label: 'Beta', value: formatDecimal(metrics.beta) },
     { label: 'Alpha', value: formatPercent(metrics.alpha) },
     { label: '信息比率', value: formatDecimal(metrics.information_ratio) },
     { label: '总交易数', value: formatInteger(metrics.total_trades) },
+    { label: '最大连胜', value: formatInteger(metrics.max_consecutive_wins) },
+    { label: '最大连亏', value: formatInteger(metrics.max_consecutive_losses) },
     { label: '平均持仓天数', value: formatDecimal(metrics.avg_holding_days) },
     { label: '单笔平均收益', value: formatDecimal(metrics.avg_profit_per_trade) }
+  ]
+})
+const commissionStats = computed(() => {
+  const metrics = performance.value?.metrics ?? {}
+  return [
+    { label: '佣金模型', value: metrics.commission_model === 'rate+min' ? `比例 + 最低 ${formatNumber(metrics.min_commission, 2)} 元` : '仅比例佣金' },
+    { label: '实际累计手续费', value: formatNumber(metrics.total_commission) },
+    { label: '纯比例手续费', value: formatNumber(metrics.total_commission_without_min) },
+    { label: '最低佣金额外影响', value: formatNumber(metrics.minimum_commission_impact) },
+    { label: '累计盈亏', value: formatNumber(metrics.net_profit) },
+    { label: '已平仓 / 胜 / 负', value: `${formatInteger(metrics.closed_trades)} / ${formatInteger(metrics.winning_trades)} / ${formatInteger(metrics.losing_trades)}` }
   ]
 })
 
@@ -400,7 +450,7 @@ onBeforeUnmount(() => {
           <div class="border-r border-slate-100 last:border-0">
             <p class="text-[10px] text-textMute uppercase font-bold tracking-wider mb-1">回测策略名称</p>
             <div class="flex items-center gap-2">
-              <Icon icon="mdi:code-braces" :size="20" class="text-primary" />
+              <Icon icon="tabler:edit" :size="20" class="text-primary" />
               <h1 class="text-sm font-bold truncate text-textMain">{{ detail.strategy_name || '-' }}</h1>
             </div>
           </div>
@@ -421,14 +471,17 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <div class="px-2">
-            <p class="text-[10px] text-textMute uppercase font-bold tracking-wider mb-1">当前状态</p>
+            <p class="text-[10px] text-textMute uppercase font-bold tracking-wider mb-1">当前状态 / 佣金模型</p>
             <div class="flex items-center gap-2">
               <span :class="['px-2 py-0.5 rounded text-[11px] font-bold', statusClass]">
                 {{ statusText }}
               </span>
               <span class="text-xs text-textSub font-mono">{{ detail.progress }}%</span>
             </div>
-            <p class="mt-2 text-xs text-textSub">{{ statusDescription }}</p>
+            <p class="mt-2 text-xs text-textSub">
+              {{ detail.params.use_min_commission ? `比例佣金 + 最低 ${formatNumber(detail.params.min_commission)} 元/笔` : '仅比例佣金' }}
+            </p>
+            <p class="mt-1 text-xs text-textSub">{{ statusDescription }}</p>
           </div>
         </section>
 
@@ -506,8 +559,8 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <div class="xl:col-span-1 border border-border rounded-lg bg-card shadow-sm">
+        <section class="space-y-4">
+          <div class="border border-border rounded-lg bg-card shadow-sm">
             <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
               <h3 class="text-sm font-bold text-textMain flex items-center gap-2">
                 <Icon icon="mdi:sigma" :size="18" />
@@ -515,31 +568,71 @@ onBeforeUnmount(() => {
               </h3>
               <span class="text-xs text-textMute">{{ performanceError || '结果摘要' }}</span>
             </div>
-            <div class="p-4 space-y-4">
-              <div class="grid grid-cols-2 gap-3">
-                <div
-                  v-for="item in summaryMetrics"
-                  :key="item.label"
-                  class="border border-slate-100 rounded-lg p-3 bg-slate-50/70"
-                >
-                  <p class="text-[10px] uppercase text-textMute">{{ item.label }}</p>
-                  <p class="mt-2 text-base font-bold" :class="item.className">{{ item.value }}</p>
+            <div class="p-4">
+              <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                <div class="rounded-lg border border-border bg-bgMain p-3">
+                  <div class="mb-3 flex items-center gap-2 text-[11px] font-semibold text-textSub">
+                    <Icon icon="mdi:chart-box-outline" :size="16" />
+                    核心表现
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div
+                      v-for="item in performanceHighlightMetrics"
+                      :key="item.label"
+                      class="rounded-md border border-border bg-card px-3 py-2"
+                    >
+                      <p class="text-[10px] uppercase tracking-wide text-textMute">{{ item.label }}</p>
+                      <p class="mt-1 text-sm font-semibold" :class="item.className">{{ item.value }}</p>
+                    </div>
+                    <div
+                      v-for="item in summaryMetrics"
+                      :key="item.label"
+                      class="rounded-md border border-border bg-card px-3 py-2"
+                    >
+                      <p class="text-[10px] uppercase tracking-wide text-textMute">{{ item.label }}</p>
+                      <p class="mt-1 text-sm font-semibold" :class="item.className">{{ item.value }}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div
-                  v-for="item in extendedMetrics"
-                  :key="item.label"
-                  class="text-sm"
-                >
-                  <p class="text-[10px] uppercase text-textMute">{{ item.label }}</p>
-                  <p class="mt-1 font-semibold text-textMain">{{ item.value }}</p>
+
+                <div class="rounded-lg border border-border bg-bgMain p-3">
+                  <div class="mb-3 flex items-center gap-2 text-[11px] font-semibold text-textSub">
+                    <Icon icon="mdi:tune-vertical" :size="16" />
+                    扩展统计
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div
+                      v-for="item in extendedMetrics"
+                      :key="item.label"
+                      class="rounded-md border border-border bg-card px-3 py-2"
+                    >
+                      <p class="text-[10px] uppercase tracking-wide text-textMute">{{ item.label }}</p>
+                      <p class="mt-1 text-sm font-semibold text-textMain">{{ item.value }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="rounded-lg border border-border bg-bgMain p-3">
+                  <div class="mb-3 flex items-center gap-2 text-[11px] font-semibold text-textSub">
+                    <Icon icon="mdi:cash-register" :size="16" />
+                    手续费影响
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div
+                      v-for="item in commissionStats"
+                      :key="item.label"
+                      class="rounded-md border border-border bg-card px-3 py-2"
+                    >
+                      <p class="text-[10px] uppercase tracking-wide text-textMute">{{ item.label }}</p>
+                      <p class="mt-1 text-sm font-semibold text-textMain">{{ item.value }}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="xl:col-span-1 border border-border rounded-lg bg-card shadow-sm flex flex-col overflow-hidden" style="height: 620px;">
+          <div class="border border-border rounded-lg bg-card shadow-sm overflow-hidden">
             <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
               <h3 class="text-sm font-bold text-textMain flex items-center gap-2">
                 <Icon icon="mdi:list-status" :size="18" />
@@ -547,13 +640,13 @@ onBeforeUnmount(() => {
               </h3>
               <span class="text-xs text-textMute">共 {{ trades.length }} 笔</span>
             </div>
-            <div v-if="tradesError" class="flex-1 flex items-center justify-center text-sm text-red-600">
+            <div v-if="tradesError" class="flex h-[420px] items-center justify-center p-8 text-sm text-red-600">
               {{ tradesError }}
             </div>
-            <div v-else-if="trades.length === 0" class="flex-1 flex items-center justify-center text-textMute">
+            <div v-else-if="trades.length === 0" class="flex h-[420px] items-center justify-center p-8 text-textMute">
               {{ isPolling ? '回测运行中，交易生成后会自动展示' : '暂无交易明细' }}
             </div>
-            <div v-else class="flex-1 overflow-auto">
+            <div v-else class="h-[420px] overflow-auto">
               <table class="w-full text-left text-[11px] border-collapse font-mono">
                 <thead class="sticky top-0 bg-white shadow-sm text-textMute font-bold uppercase">
                   <tr>
@@ -587,7 +680,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="xl:col-span-1 border border-border rounded-lg bg-card shadow-sm flex flex-col overflow-hidden" style="height: 620px;">
+          <div class="border border-border rounded-lg bg-card shadow-sm overflow-hidden">
             <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
               <h3 class="text-sm font-bold text-textMain flex items-center gap-2">
                 <Icon icon="mdi:terminal" :size="18" />
@@ -604,26 +697,31 @@ onBeforeUnmount(() => {
                 </span>
               </div>
             </div>
-            <div v-if="logsError" class="flex-1 flex items-center justify-center text-sm text-red-600">
+            <div v-if="logsError" class="flex h-[420px] items-center justify-center p-8 text-sm text-red-600">
               {{ logsError }}
             </div>
-            <div v-else-if="logs.length === 0" class="flex-1 flex items-center justify-center bg-slate-900 text-slate-400">
+            <div v-else-if="logs.length === 0" class="flex h-[420px] items-center justify-center p-8 bg-slate-900 text-slate-400">
               {{ isPolling ? '任务运行中，日志输出后会自动展示' : '暂无系统日志' }}
             </div>
-            <div v-else class="flex-1 bg-slate-900 p-4 font-mono text-[11px] text-slate-300 overflow-auto">
-              <div v-for="(log, index) in logs" :key="index" class="mb-1">
-                <span class="text-slate-500">[{{ log.time }}]</span>
-                <span
-                  :class="{
-                    'text-blue-400': log.level === 'INFO',
-                    'text-amber-500': log.level === 'WARNING',
-                    'text-red-400': log.level === 'ERROR',
-                    'text-green-400': log.level === 'SUCCESS'
-                  }"
-                >
-                  {{ log.level }}:
-                </span>
-                {{ log.message }}
+            <div v-else>
+              <div class="border-b border-slate-800 bg-slate-900/95 px-4 py-2 text-[11px] text-slate-400">
+                按时间顺序输出，便于和交易记录逐条对照
+              </div>
+              <div class="h-[420px] overflow-auto bg-slate-900 p-4 font-mono text-[11px] text-slate-300">
+                <div v-for="(log, index) in logs" :key="index" class="mb-1">
+                  <span class="text-slate-500">[{{ log.time }}]</span>
+                  <span
+                    :class="{
+                      'text-blue-400': log.level === 'INFO',
+                      'text-amber-500': log.level === 'WARNING',
+                      'text-red-400': log.level === 'ERROR',
+                      'text-green-400': log.level === 'SUCCESS'
+                    }"
+                  >
+                    {{ log.level }}:
+                  </span>
+                  {{ log.message }}
+                </div>
               </div>
             </div>
           </div>
