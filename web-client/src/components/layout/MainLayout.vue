@@ -15,6 +15,7 @@ const menuItems = computed(() => [
   { path: '/simulation', name: '模拟交易', icon: 'swap_horiz' },
   { path: '/holdings', name: '我的持仓', icon: 'inventory' },
   { path: '/trading', name: '股票交易', icon: 'trending_up' },
+  { path: '/trading-terminal', name: '交易终端', icon: 'analytics' },
   { path: '/risk-control', name: '风控系统', icon: 'shield' }
 ])
 

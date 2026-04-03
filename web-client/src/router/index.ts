@@ -80,6 +80,12 @@ const router = createRouter({
       meta: { title: '股票交易', icon: 'trending_up' }
     },
     {
+      path: '/trading-terminal',
+      name: '交易终端',
+      component: () => import('@/views/TradingTerminalView.vue'),
+      meta: { title: '交易终端', icon: 'analytics' }
+    },
+    {
       path: '/risk-control',
       name: '风控系统',
       component: () => import('@/views/RiskControlView.vue'),
