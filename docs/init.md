@@ -1,5 +1,5 @@
 Node       22.22.1
-pnpm       9.x
+npm        10.x
 vite       5.2.x
 vue        3.4.x
 typescript 5.4.x

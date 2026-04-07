@@ -71,44 +71,38 @@ Frontend commands should be run in `web-client/`, because the active `package.js
 **Development:**
 ```bash
 cd web-client
-pnpm dev
-# or
 npm run dev
 ```
 
 **Build:**
 ```bash
 cd web-client
-pnpm build
-# or
 npm run build
 ```
 
 **Preview:**
 ```bash
 cd web-client
-pnpm preview
-# or
 npm run preview
 ```
 
 **Linting & Formatting:**
 ```bash
 cd web-client
-pnpm lint
-pnpm format
+npm run lint
+npm run format
 ```
 
 **Testing:**
 ```bash
 cd web-client
-pnpm test
+npm run test
 # Run single test file:
-pnpm test path/to/test.spec.ts
+npm run test -- path/to/test.spec.ts
 # Run single test case by name:
-pnpm test -t "test name"
+npm run test -- -t "test name"
 # Run tests in watch mode:
-pnpm test --watch
+npm run test -- --watch
 ```
 
 **Backend Start:**
