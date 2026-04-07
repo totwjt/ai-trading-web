@@ -19,6 +19,9 @@ import logging
 import uuid
 
 import httpx
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
+from common.database import async_session_maker
 from recommendation.db import get_latest_news, get_news_by_id
 from backtest.src.routers import strategy_router, backtest_router, preview_router
 from trading.routers import trading_router
@@ -68,6 +71,14 @@ sid_terminal_map: Dict[str, str] = {}
 terminal_monitor_task: Optional[asyncio.Task] = None
 
 
+def log_terminal_event(event: str, **fields: Any) -> None:
+    details = " ".join(f"{k}={fields[k]}" for k in sorted(fields.keys()))
+    if details:
+        logger.info("[terminal] event=%s %s", event, details)
+    else:
+        logger.info("[terminal] event=%s", event)
+
+
 def now_iso() -> str:
     return datetime.now().isoformat()
 
@@ -111,6 +122,233 @@ def terminal_topic(user_id: str, terminal_id: str) -> str:
 
 def terminal_control_topic(user_id: str) -> str:
     return f"{TOPIC_TRADING_TERMINAL}.control.{user_id}"
+
+
+def normalize_mac(mac_address: str) -> str:
+    return mac_address.strip().lower()
+
+
+def find_terminal_key_by_mac(user_id: str, mac_address: str) -> Optional[str]:
+    normalized = normalize_mac(mac_address)
+    if not normalized:
+        return None
+
+    for key, info in terminal_registry.items():
+        if info.get("userId") != user_id:
+            continue
+        if normalize_mac(str(info.get("macAddress") or "")) == normalized:
+            return key
+    return None
+
+
+def resolve_terminal_key(
+    sid: str,
+    user_id: str,
+    terminal_id: str,
+    mac_address: str
+) -> Optional[str]:
+    key = sid_terminal_map.get(sid)
+    if key and key in terminal_registry:
+        return key
+
+    if user_id and terminal_id:
+        key_by_id = terminal_key(user_id, terminal_id)
+        if key_by_id in terminal_registry:
+            return key_by_id
+
+    if user_id and mac_address:
+        return find_terminal_key_by_mac(user_id, mac_address)
+
+    return None
+
+
+async def find_terminal_from_db_by_mac(user_id: str, mac_address: str) -> Optional[Dict[str, str]]:
+    normalized = normalize_mac(mac_address)
+    if not user_id or not normalized:
+        return None
+
+    query = text(
+        """
+        SELECT terminal_id, terminal_name, account_name, mac_address
+        FROM terminals
+        WHERE uid = :uid AND LOWER(mac_address) = :mac
+        ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+        LIMIT 1
+        """
+    )
+    try:
+        async with async_session_maker() as session:
+            result = await session.execute(query, {"uid": user_id, "mac": normalized})
+            row = result.fetchone()
+            if not row:
+                return None
+            return {
+                "terminalId": str(row[0] or "").strip(),
+                "terminalName": str(row[1] or "").strip(),
+                "accountName": str(row[2] or "").strip(),
+                "macAddress": str(row[3] or "").strip(),
+            }
+    except Exception as error:
+        logger.warning("query terminal from db failed: uid=%s mac=%s error=%s", user_id, normalized, error)
+        return None
+
+
+async def find_db_terminals_by_uid(user_id: str) -> Dict[str, Dict[str, str]]:
+    if not user_id:
+        return {}
+
+    query = text(
+        """
+        SELECT terminal_id, terminal_name, account_name, mac_address
+        FROM terminals
+        WHERE uid = :uid
+        """
+    )
+    result_map: Dict[str, Dict[str, str]] = {}
+    try:
+        async with async_session_maker() as session:
+            result = await session.execute(query, {"uid": user_id})
+            for row in result.fetchall():
+                mac = normalize_mac(str(row[3] or ""))
+                if not mac:
+                    continue
+                result_map[mac] = {
+                    "terminalId": str(row[0] or "").strip(),
+                    "terminalName": str(row[1] or "").strip(),
+                    "accountName": str(row[2] or "").strip(),
+                    "macAddress": str(row[3] or "").strip(),
+                }
+    except Exception as error:
+        logger.warning("query terminals by uid failed: uid=%s error=%s", user_id, error)
+    return result_map
+
+
+def mac_to_terminal_id(mac_address: str) -> str:
+    normalized = normalize_mac(mac_address).replace(":", "-").replace(".", "-")
+    return f"mac-{normalized}" if normalized else ""
+
+
+async def ensure_terminal_in_db(
+    user_id: str,
+    terminal_id: str,
+    terminal_name: str,
+    mac_address: str,
+    account_name: str
+) -> Optional[Dict[str, str]]:
+    normalized_mac = normalize_mac(mac_address)
+    if not user_id or not normalized_mac:
+        return None
+
+    requested_terminal_id = terminal_id or mac_to_terminal_id(mac_address)
+    requested_terminal_name = terminal_name or requested_terminal_id
+    requested_account_name = account_name or ""
+
+    select_by_mac_query = text(
+        """
+        SELECT id, terminal_id, terminal_name, account_name, mac_address
+        FROM terminals
+        WHERE uid = :uid AND LOWER(mac_address) = :mac
+        ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+        LIMIT 1
+        FOR UPDATE
+        """
+    )
+    update_by_id_query = text(
+        """
+        UPDATE terminals
+        SET
+          terminal_name = CASE
+            WHEN terminal_name IS NULL OR terminal_name = '' THEN :terminal_name
+            ELSE terminal_name
+          END,
+          account_name = CASE
+            WHEN account_name IS NULL OR account_name = '' THEN :account_name
+            ELSE account_name
+          END,
+          updated_at = NOW()
+        WHERE id = :id
+        """
+    )
+    insert_query = text(
+        """
+        INSERT INTO terminals (
+          uid, terminal_id, terminal_name, mac_address, account_name, active, created_at, updated_at
+        )
+        VALUES (
+          :uid, :terminal_id, :terminal_name, :mac_address, :account_name, TRUE, NOW(), NOW()
+        )
+        """
+    )
+    select_by_terminal_id_query = text(
+        """
+        SELECT uid, terminal_id
+        FROM terminals
+        WHERE terminal_id = :terminal_id
+        LIMIT 1
+        """
+    )
+
+    try:
+        async with async_session_maker() as session:
+            async with session.begin():
+                result = await session.execute(
+                    select_by_mac_query,
+                    {"uid": user_id, "mac": normalized_mac}
+                )
+                row = result.fetchone()
+                if row:
+                    db_id = row[0]
+                    canonical_terminal_id = str(row[1] or "").strip() or requested_terminal_id
+                    canonical_terminal_name = str(row[2] or "").strip() or requested_terminal_name
+                    canonical_account_name = str(row[3] or "").strip() or requested_account_name
+                    canonical_mac = str(row[4] or "").strip() or mac_address
+                    await session.execute(
+                        update_by_id_query,
+                        {
+                            "id": db_id,
+                            "terminal_name": requested_terminal_name,
+                            "account_name": requested_account_name
+                        }
+                    )
+                    return {
+                        "terminalId": canonical_terminal_id,
+                        "terminalName": canonical_terminal_name,
+                        "accountName": canonical_account_name,
+                        "macAddress": canonical_mac
+                    }
+
+                candidate_terminal_id = requested_terminal_id
+                terminal_id_owner = await session.execute(
+                    select_by_terminal_id_query,
+                    {"terminal_id": candidate_terminal_id}
+                )
+                owner_row = terminal_id_owner.fetchone()
+                if owner_row and str(owner_row[0]) != user_id:
+                    candidate_terminal_id = mac_to_terminal_id(mac_address) or candidate_terminal_id
+
+                await session.execute(
+                    insert_query,
+                    {
+                        "uid": user_id,
+                        "terminal_id": candidate_terminal_id,
+                        "terminal_name": requested_terminal_name or candidate_terminal_id,
+                        "mac_address": mac_address,
+                        "account_name": requested_account_name
+                    }
+                )
+
+                return {
+                    "terminalId": candidate_terminal_id,
+                    "terminalName": requested_terminal_name or candidate_terminal_id,
+                    "accountName": requested_account_name,
+                    "macAddress": mac_address
+                }
+    except IntegrityError as error:
+        logger.warning("ensure terminal in db integrity error: uid=%s mac=%s error=%s", user_id, mac_address, error)
+        return await find_terminal_from_db_by_mac(user_id, mac_address)
+    except Exception as error:
+        logger.warning("ensure terminal in db failed: uid=%s mac=%s error=%s", user_id, mac_address, error)
+        return None
 
 
 def build_terminal_event(
@@ -199,12 +437,21 @@ async def disconnect(sid):
     logger.info(f"Client disconnected: {sid}")
     key = sid_terminal_map.pop(sid, None)
     if not key or key not in terminal_registry:
+        log_terminal_event("disconnect.skip", sid=sid, reason="no_terminal_mapping")
         return
 
     info = terminal_registry[key]
     if info["online"]:
         info["online"] = False
         info["updatedAt"] = now_iso()
+        log_terminal_event(
+            "disconnect.offline_emit",
+            sid=sid,
+            userId=info["userId"],
+            terminalId=info["terminalId"],
+            macAddress=info.get("macAddress") or "",
+            reason="service_disconnect"
+        )
         await emit_terminal_control(
             info["userId"],
             info["terminalId"],
@@ -261,16 +508,98 @@ async def terminal_register(sid, data):
     mac_address = get_mac_address(data)
     account_name = get_account_name(data)
     initial_status = str(data.get("status") or "").strip().lower()
+    status_provided = initial_status in {"online", "offline"}
+    log_terminal_event(
+        "register.request",
+        sid=sid,
+        userId=user_id,
+        terminalId=terminal_id,
+        macAddress=mac_address,
+        status=initial_status or "empty",
+        statusProvided=status_provided
+    )
     if not user_id or not terminal_id:
         await sio.emit(
             "terminal_error",
             {"message": "userId and (terminalId or macAddress) are required"},
             room=sid
         )
+        log_terminal_event("register.reject", sid=sid, reason="missing_user_or_terminal")
+        return
+    if not mac_address:
+        await sio.emit(
+            "terminal_error",
+            {"message": "macAddress is required"},
+            room=sid
+        )
+        log_terminal_event("register.reject", sid=sid, reason="missing_mac_address")
         return
 
-    key = terminal_key(user_id, terminal_id)
+    db_terminal = await ensure_terminal_in_db(
+        user_id=user_id,
+        terminal_id=terminal_id,
+        terminal_name=terminal_name,
+        mac_address=mac_address,
+        account_name=account_name
+    )
+    if db_terminal:
+        log_terminal_event(
+            "register.db_sync",
+            sid=sid,
+            userId=user_id,
+            macAddress=mac_address,
+            terminalId=db_terminal.get("terminalId") or "",
+            terminalName=db_terminal.get("terminalName") or "",
+            accountName=db_terminal.get("accountName") or ""
+        )
+    else:
+        await sio.emit(
+            "terminal_error",
+            {"message": "register db sync failed"},
+            room=sid
+        )
+        log_terminal_event("register.reject", sid=sid, reason="db_sync_failed")
+        return
+
+    requested_key = terminal_key(user_id, terminal_id)
+    key = requested_key
+    existing_key_by_mac = find_terminal_key_by_mac(user_id, mac_address)
+    if existing_key_by_mac:
+        log_terminal_event(
+            "register.dedupe_hit",
+            sid=sid,
+            userId=user_id,
+            requestedTerminalId=terminal_id,
+            existingKey=existing_key_by_mac,
+            macAddress=mac_address
+        )
+        key = existing_key_by_mac
+    elif db_terminal and db_terminal.get("terminalId"):
+        key = terminal_key(user_id, db_terminal["terminalId"])
+
     prev = terminal_registry.get(key)
+    canonical_terminal_id = (
+        prev["terminalId"]
+        if prev else
+        (db_terminal.get("terminalId") if db_terminal and db_terminal.get("terminalId") else terminal_id)
+    )
+    terminal_name = (
+        (prev["terminalName"] if prev else "")
+        or (db_terminal.get("terminalName") if db_terminal else "")
+        or get_terminal_name(data)
+        or canonical_terminal_id
+    )
+    mac_address = (
+        mac_address
+        or (str(prev.get("macAddress") or "") if prev else "")
+        or (db_terminal.get("macAddress") if db_terminal else "")
+    )
+    account_name = (
+        (str(prev.get("accountName") or "") if prev else "")
+        or (db_terminal.get("accountName") if db_terminal else "")
+        or account_name
+    )
+
     if prev and prev.get("sid") and prev["sid"] != sid:
         old_sid = prev["sid"]
         sid_terminal_map.pop(old_sid, None)
@@ -279,32 +608,45 @@ async def terminal_register(sid, data):
         except Exception:
             logger.warning("disconnect previous terminal sid failed: %s", old_sid)
 
-    topic = terminal_topic(user_id, terminal_id)
+    topic = terminal_topic(user_id, canonical_terminal_id)
     control_topic = terminal_control_topic(user_id)
     await sio.enter_room(sid, topic)
     await sio.enter_room(sid, control_topic)
 
+    next_online = prev["online"] if (prev and not status_provided) else (initial_status == "online")
     terminal_registry[key] = {
         "userId": user_id,
-        "terminalId": terminal_id,
+        "terminalId": canonical_terminal_id,
         "terminalName": terminal_name,
         "macAddress": mac_address,
         "accountName": account_name,
         "sid": sid,
         # 在线状态由终端 Python 服务主动上报 terminal_status_update
-        "online": initial_status == "online",
+        "online": next_online,
         "statusSource": "terminal_service",
         "connectedAt": prev["connectedAt"] if prev else now_iso(),
         "lastHeartbeatAt": now_iso(),
         "updatedAt": now_iso(),
     }
     sid_terminal_map[sid] = key
+    log_terminal_event(
+        "register.applied",
+        sid=sid,
+        key=key,
+        isNew=prev is None,
+        userId=user_id,
+        terminalId=canonical_terminal_id,
+        requestedTerminalId=terminal_id,
+        macAddress=mac_address,
+        accountName=account_name,
+        online=next_online
+    )
 
     await sio.emit(
         "terminal_registered",
         {
             "userId": user_id,
-            "terminalId": terminal_id,
+            "terminalId": canonical_terminal_id,
             "terminalName": terminal_name,
             "macAddress": mac_address,
             "accountName": account_name,
@@ -314,20 +656,37 @@ async def terminal_register(sid, data):
         },
         room=sid
     )
-    await emit_terminal_control(
-        user_id,
-        terminal_id,
-        "terminal.added",
-        {
-            "terminalName": terminal_name,
-            "macAddress": mac_address,
-            "accountName": account_name
-        }
-    )
-    if initial_status == "online":
+
+    if not prev:
+        log_terminal_event(
+            "register.emit_added",
+            sid=sid,
+            userId=user_id,
+            terminalId=canonical_terminal_id,
+            macAddress=mac_address
+        )
         await emit_terminal_control(
             user_id,
-            terminal_id,
+            canonical_terminal_id,
+            "terminal.added",
+            {
+                "terminalName": terminal_name,
+                "macAddress": mac_address,
+                "accountName": account_name
+            }
+        )
+
+    if next_online:
+        log_terminal_event(
+            "register.emit_online",
+            sid=sid,
+            userId=user_id,
+            terminalId=canonical_terminal_id,
+            macAddress=mac_address
+        )
+        await emit_terminal_control(
+            user_id,
+            canonical_terminal_id,
             "terminal.online",
             {
                 "terminalName": terminal_name,
@@ -356,8 +715,18 @@ async def terminal_status_update(sid, data):
 
     user_id = get_user_id(data)
     terminal_id = get_terminal_id(data)
+    mac_address = get_mac_address(data)
     status = str(data.get("status") or "").strip().lower()
     reason = str(data.get("reason") or "").strip() or "terminal_service_report"
+    log_terminal_event(
+        "status_update.request",
+        sid=sid,
+        userId=user_id,
+        terminalId=terminal_id,
+        macAddress=mac_address,
+        status=status,
+        reason=reason
+    )
 
     if not user_id or not terminal_id or status not in {"online", "offline"}:
         await sio.emit(
@@ -365,21 +734,39 @@ async def terminal_status_update(sid, data):
             {"message": "userId, (terminalId or macAddress) and status(online/offline) are required"},
             room=sid
         )
+        log_terminal_event("status_update.reject", sid=sid, reason="invalid_payload")
         return
 
-    key = terminal_key(user_id, terminal_id)
-    if key not in terminal_registry:
+    key = resolve_terminal_key(sid, user_id, terminal_id, mac_address)
+    if not key or key not in terminal_registry:
         await sio.emit("terminal_error", {"message": "terminal not registered"}, room=sid)
+        log_terminal_event("status_update.reject", sid=sid, reason="terminal_not_registered")
         return
 
     info = terminal_registry[key]
     next_online = status == "online"
     if info["online"] == next_online:
         info["updatedAt"] = now_iso()
+        log_terminal_event(
+            "status_update.noop",
+            sid=sid,
+            userId=info["userId"],
+            terminalId=info["terminalId"],
+            status=status
+        )
         return
 
     info["online"] = next_online
     info["updatedAt"] = now_iso()
+    log_terminal_event(
+        "status_update.applied",
+        sid=sid,
+        userId=info["userId"],
+        terminalId=info["terminalId"],
+        macAddress=info.get("macAddress") or "",
+        status=status,
+        reason=reason
+    )
     event_type = "terminal.online" if next_online else "terminal.offline"
     await emit_terminal_control(
         info["userId"],
@@ -410,16 +797,33 @@ async def terminal_heartbeat(sid, data):
     payload = data if isinstance(data, dict) else {}
     user_id = get_user_id(payload)
     terminal_id = get_terminal_id(payload)
-    if not key and user_id and terminal_id:
-        key = terminal_key(user_id, terminal_id)
+    mac_address = get_mac_address(payload)
+    if not key:
+        key = resolve_terminal_key(sid, user_id, terminal_id, mac_address)
 
     if key and key in terminal_registry:
         terminal_registry[key]["lastHeartbeatAt"] = now_iso()
         terminal_registry[key]["updatedAt"] = now_iso()
+        info = terminal_registry[key]
+        log_terminal_event(
+            "heartbeat.ok",
+            sid=sid,
+            userId=info["userId"],
+            terminalId=info["terminalId"],
+            macAddress=info.get("macAddress") or ""
+        )
         await sio.emit("terminal_heartbeat_ack", {"status": "ok", "serverTime": now_iso()}, room=sid)
         return
 
     await sio.emit("terminal_error", {"message": "terminal not registered (terminalId/macAddress)"}, room=sid)
+    log_terminal_event(
+        "heartbeat.reject",
+        sid=sid,
+        userId=user_id,
+        terminalId=terminal_id,
+        macAddress=mac_address,
+        reason="terminal_not_registered"
+    )
 
 
 @sio.event
@@ -436,14 +840,30 @@ async def terminal_unregister(sid, data):
     payload = data if isinstance(data, dict) else {}
     user_id = get_user_id(payload)
     terminal_id = get_terminal_id(payload)
-    if not key and user_id and terminal_id:
-        key = terminal_key(user_id, terminal_id)
+    mac_address = get_mac_address(payload)
+    if not key:
+        key = resolve_terminal_key(sid, user_id, terminal_id, mac_address)
 
     if not key or key not in terminal_registry:
         await sio.emit("terminal_error", {"message": "terminal not found (terminalId/macAddress)"}, room=sid)
+        log_terminal_event(
+            "unregister.reject",
+            sid=sid,
+            userId=user_id,
+            terminalId=terminal_id,
+            macAddress=mac_address,
+            reason="terminal_not_found"
+        )
         return
 
     info = terminal_registry.pop(key)
+    log_terminal_event(
+        "unregister.applied",
+        sid=sid,
+        userId=info["userId"],
+        terminalId=info["terminalId"],
+        macAddress=info.get("macAddress") or ""
+    )
     await emit_terminal_control(
         info["userId"],
         info["terminalId"],
@@ -470,11 +890,33 @@ async def terminal_snapshot_request(sid, data):
     user_id = get_user_id(payload)
     if not user_id:
         await sio.emit("terminal_error", {"message": "userId is required"}, room=sid)
+        log_terminal_event("snapshot.reject", sid=sid, reason="missing_user")
         return
 
     control_topic = terminal_control_topic(user_id)
     await sio.enter_room(sid, control_topic)
     snapshot = build_terminal_snapshot(user_id)
+    db_terminals = await find_db_terminals_by_uid(user_id)
+    if db_terminals:
+        for item in snapshot:
+            mac = normalize_mac(str(item.get("macAddress") or ""))
+            db_item = db_terminals.get(mac)
+            if not db_item:
+                continue
+            if db_item.get("terminalId"):
+                item["terminalId"] = db_item["terminalId"]
+            if db_item.get("terminalName"):
+                item["terminalName"] = db_item["terminalName"]
+            if db_item.get("accountName"):
+                item["accountName"] = db_item["accountName"]
+            if db_item.get("macAddress"):
+                item["macAddress"] = db_item["macAddress"]
+    log_terminal_event(
+        "snapshot.emit",
+        sid=sid,
+        userId=user_id,
+        count=len(snapshot)
+    )
     await sio.emit(
         "terminal_snapshot",
         {
@@ -639,6 +1081,13 @@ async def terminal_heartbeat_monitor():
                 sid = info.get("sid")
                 if sid:
                     sid_terminal_map.pop(sid, None)
+                log_terminal_event(
+                    "monitor.timeout_offline_emit",
+                    userId=info["userId"],
+                    terminalId=info["terminalId"],
+                    macAddress=info.get("macAddress") or "",
+                    timeoutSeconds=TERMINAL_HEARTBEAT_TIMEOUT
+                )
                 await emit_terminal_control(
                     info["userId"],
                     info["terminalId"],

@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import Icon from '@/components/common/Icon.vue'
+import { useUserStore } from '@/stores/userStore'
 import {
   addToWatchlistAPI,
   getUserTerminals,
@@ -50,8 +51,9 @@ interface TerminalEnvelope {
   data?: Record<string, unknown>
 }
 
-const USER_ID = 'u_1001'
 const MAX_RECORDS_PER_TERMINAL = 200
+const userStore = useUserStore()
+const currentUid = computed(() => userStore.uid.trim())
 
 const searchKeyword = ref('')
 const searchResults = ref<StockSearchResult[] | null>(null)
@@ -65,10 +67,9 @@ const tradeMode = ref<'buy' | 'sell'>('buy')
 const terminals = ref<Record<string, TerminalState>>({})
 const terminalSeqMap = ref<Record<string, number>>({})
 const controlEventsCount = ref(0)
-const controlLastEventTime = ref('')
 
 const ws = useWebSocket()
-const controlTopic = 'trading-terminal.control.' + USER_ID
+const controlTopic = computed(() => (currentUid.value ? 'trading-terminal.control.' + currentUid.value : ''))
 
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 let offZixuan: (() => void) | null = null
@@ -88,7 +89,7 @@ const terminalList = computed(() => {
 
 const terminalCount = computed(() => terminalList.value.length)
 
-const terminalTopic = (terminalId: string) => 'trading-terminal.' + USER_ID + '.' + terminalId
+const terminalTopic = (uid: string, terminalId: string) => 'trading-terminal.' + uid + '.' + terminalId
 
 const ensureTerminalState = (terminalId: string, terminalName?: string): TerminalState => {
   const current = terminals.value[terminalId]
@@ -98,7 +99,7 @@ const ensureTerminalState = (terminalId: string, terminalName?: string): Termina
   }
 
   const created: TerminalState = {
-    userId: USER_ID,
+    userId: currentUid.value,
     terminalId,
     terminalName: terminalName || terminalId,
     macAddress: '',
@@ -125,7 +126,9 @@ const removeTerminal = (terminalId: string) => {
   delete nextSeq[terminalId]
   terminalSeqMap.value = nextSeq
 
-  const topic = terminalTopic(terminalId)
+  const uid = currentUid.value
+  if (!uid) return
+  const topic = terminalTopic(uid, terminalId)
   ws.unsubscribe([topic])
   const off = terminalTopicOffFns.get(topic)
   if (off) {
@@ -156,7 +159,9 @@ const updateSeq = (terminalId: string, seq?: number) => {
 }
 
 const subscribeTerminalTopic = (terminalId: string) => {
-  const topic = terminalTopic(terminalId)
+  const uid = currentUid.value
+  if (!uid) return
+  const topic = terminalTopic(uid, terminalId)
   if (terminalTopicOffFns.has(topic)) return
 
   ws.subscribe([topic])
@@ -199,6 +204,10 @@ const applySnapshot = (items: Array<Record<string, unknown>>) => {
     if (!terminalId) return
 
     const terminal = ensureTerminalState(terminalId, String(item.terminalName || terminalId))
+    const macAddress = String(item.macAddress || item.mac_address || '').trim()
+    const accountName = String(item.accountName || item.account_name || '').trim()
+    if (macAddress) terminal.macAddress = macAddress
+    if (accountName) terminal.accountName = accountName
     terminal.online = Boolean(item.online)
     terminal.lastHeartbeatAt = String(item.lastHeartbeatAt || '')
     terminal.connectedAt = String(item.connectedAt || '')
@@ -208,9 +217,23 @@ const applySnapshot = (items: Array<Record<string, unknown>>) => {
   })
 }
 
+const loadUserTerminals = async (uid: string) => {
+  if (!uid) return
+  const items = await getUserTerminals(uid)
+  items.forEach((item: UserTerminal) => {
+    const terminal = ensureTerminalState(item.terminal_id, item.terminal_name || item.terminal_id)
+    terminal.userId = item.uid
+    terminal.macAddress = item.mac_address
+    terminal.accountName = item.account_name
+    terminal.online = Boolean(item.active)
+    terminal.updatedAt = item.updated_at || terminal.updatedAt
+    subscribeTerminalTopic(item.terminal_id)
+  })
+}
+
 const handleControlEvent = (payload: unknown) => {
   const envelope = payload as TerminalEnvelope
-  if (envelope.userId !== USER_ID || !envelope.terminalId) return
+  if (envelope.userId !== currentUid.value || !envelope.terminalId) return
 
   const terminalId = envelope.terminalId
   const terminalName = String(envelope.data?.terminalName || terminalId)
@@ -221,7 +244,6 @@ const handleControlEvent = (payload: unknown) => {
   if (typeof accountName === 'string' && accountName) terminal.accountName = accountName
 
   controlEventsCount.value += 1
-  controlLastEventTime.value = new Date().toLocaleTimeString()
 
   if (envelope.eventType === 'terminal.added') {
     terminal.updatedAt = envelope.ts || terminal.updatedAt
@@ -249,19 +271,8 @@ const handleControlEvent = (payload: unknown) => {
 }
 
 const requestSnapshot = () => {
-  ws.emit('terminal_snapshot_request', { userId: USER_ID })
-}
-
-const loadUserTerminals = async () => {
-  const items = await getUserTerminals(USER_ID)
-  items.forEach((item: UserTerminal) => {
-    const terminal = ensureTerminalState(item.terminal_id, item.terminal_name || item.terminal_id)
-    terminal.userId = item.uid
-    terminal.macAddress = item.mac_address
-    terminal.accountName = item.account_name
-    terminal.updatedAt = item.updated_at || terminal.updatedAt
-    subscribeTerminalTopic(item.terminal_id)
-  })
+  if (!currentUid.value) return
+  ws.emit('terminal_snapshot_request', { userId: currentUid.value })
 }
 
 const loadWatchlist = async () => {
@@ -330,9 +341,8 @@ const removeFromWatchlist = async (tsCode: string) => {
 }
 
 onMounted(() => {
-  loadUserTerminals()
   loadWatchlist()
-  ws.subscribe(['zixuan', controlTopic])
+  ws.subscribe(['zixuan'])
 
   offZixuan = ws.onZixuan((data) => {
     if (Array.isArray(data) && data.length > 0) {
@@ -342,24 +352,53 @@ onMounted(() => {
     }
   })
 
-  offControlTopic = ws.onEvent(controlTopic, handleControlEvent)
-
   offTerminalSnapshot = ws.onEvent('terminal_snapshot', (payload) => {
     const snapshot = payload as { userId?: string; terminals?: Array<Record<string, unknown>> }
-    if (snapshot.userId !== USER_ID) return
+    if (snapshot.userId !== currentUid.value) return
     applySnapshot(snapshot.terminals || [])
   })
 
   offWsConnect = ws.onConnect(() => {
-    ws.subscribe([controlTopic])
+    if (controlTopic.value) ws.subscribe([controlTopic.value])
     requestSnapshot()
   })
 
-  requestSnapshot()
+  watch(currentUid, async (uid, prevUid) => {
+    if (prevUid) {
+      ws.unsubscribe(['trading-terminal.control.' + prevUid])
+    }
+
+    if (offControlTopic) {
+      offControlTopic()
+      offControlTopic = null
+    }
+
+    terminalTopicOffFns.forEach((off, topic) => {
+      ws.unsubscribe([topic])
+      off()
+    })
+    terminalTopicOffFns.clear()
+
+    terminals.value = {}
+    terminalSeqMap.value = {}
+    controlEventsCount.value = 0
+
+    if (!uid) return
+
+    const nextControlTopic = 'trading-terminal.control.' + uid
+    ws.subscribe([nextControlTopic])
+    offControlTopic = ws.onEvent(nextControlTopic, handleControlEvent)
+
+    await loadUserTerminals(uid)
+    requestSnapshot()
+  }, { immediate: true })
 })
 
 onUnmounted(() => {
-  ws.unsubscribe(['zixuan', controlTopic])
+  ws.unsubscribe(['zixuan'])
+  if (controlTopic.value) {
+    ws.unsubscribe([controlTopic.value])
+  }
   offZixuan?.()
   offControlTopic?.()
   offTerminalSnapshot?.()
@@ -376,8 +415,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-full min-h-[calc(100vh-48px)] bg-bgMain p-3">
-    <div class="h-full flex flex-col gap-3">
+  <div class="min-h-[calc(100vh-48px)] bg-bgMain p-3">
+    <div class="flex flex-col gap-3">
       <section class="grid grid-cols-1 xl:grid-cols-2 gap-3 min-h-[280px]">
         <div class="bg-card rounded-lg border border-border shadow-sm flex flex-col min-h-[280px]">
           <div class="px-3 py-2 border-b border-border bg-bgMain/60 flex items-center justify-between gap-3">
@@ -538,14 +577,14 @@ onUnmounted(() => {
           </div>
 
           <div class="text-xxs text-textMute flex items-center justify-between">
-            <span>UID: <span class="font-numeric">{{ USER_ID }}</span></span>
+            <span>UID: <span class="font-numeric">{{ currentUid || '-' }}</span></span>
             <span>终端数: <span class="font-numeric text-primary">{{ terminalCount }}</span></span>
             <span>控制事件: <span class="font-numeric">{{ controlEventsCount }}</span></span>
           </div>
         </div>
       </section>
 
-      <section class="bg-card rounded-lg border border-border shadow-sm p-3 flex flex-col gap-3 flex-1 min-h-[220px]">
+      <section class="bg-card rounded-lg border border-border shadow-sm p-3 flex flex-col gap-3">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <Icon icon="mdi:console-network-outline" :size="16" class="text-primary" />
@@ -556,11 +595,16 @@ onUnmounted(() => {
           </p>
         </div>
 
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 flex-1 min-h-[180px]">
+
+          <div v-if="terminalList.length === 0" class="py-10 flex items-center justify-center text-xs text-textMute">
+            暂无终端
+          </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-3" v-else>
           <article
             v-for="terminal in terminalList"
             :key="terminal.terminalId"
-            class="bg-bgMain/40 rounded-lg border border-border overflow-hidden flex flex-col min-h-[180px]"
+            class="bg-bgMain/40 rounded-lg border border-border overflow-hidden flex flex-col"
           >
             <div class="px-3 py-2 bg-card/70 border-b border-border flex items-center justify-between">
               <div class="min-w-0">
@@ -611,12 +655,6 @@ onUnmounted(() => {
             </div>
           </article>
 
-          <article v-if="terminalList.length === 0" class="bg-bgMain/30 rounded-lg border border-dashed border-border flex items-center justify-center min-h-[220px] xl:col-span-2">
-            <div class="text-center text-textMute text-xs">
-              <p>等待终端注册...</p>
-              <p v-if="controlLastEventTime" class="mt-1">最后控制事件: {{ controlLastEventTime }}</p>
-            </div>
-          </article>
         </div>
       </section>
     </div>

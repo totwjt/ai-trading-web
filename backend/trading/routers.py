@@ -398,9 +398,25 @@ async def get_user_terminals(
         query = text(
             """
             SELECT uid, terminal_id, terminal_name, mac_address, account_name, active, created_at, updated_at
-            FROM terminals
-            WHERE uid = :uid
-            ORDER BY created_at ASC, id ASC
+            FROM (
+              SELECT
+                uid,
+                terminal_id,
+                terminal_name,
+                mac_address,
+                account_name,
+                active,
+                created_at,
+                updated_at,
+                ROW_NUMBER() OVER (
+                  PARTITION BY LOWER(mac_address)
+                  ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+                ) AS rn
+              FROM terminals
+              WHERE uid = :uid
+            ) dedup
+            WHERE rn = 1
+            ORDER BY COALESCE(updated_at, created_at) DESC, terminal_id ASC
             """
         )
         result = await db.execute(query, {"uid": uid})
