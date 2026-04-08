@@ -5,14 +5,21 @@ import Icon from '@/components/common/Icon.vue'
 import { useUserStore } from '@/stores/userStore'
 import {
   addToWatchlistAPI,
+  createPendingOrderAPI,
   createOrderAPI,
+  getPendingOrderConfigAPI,
+  getPendingOrdersAPI,
   getTradeRecordsByMachine,
   getUserTerminals,
   getWatchlist,
   removeFromWatchlistAPI,
+  removePendingOrderAPI,
   searchStocks,
   updateTerminalNameAPI,
+  updatePendingOrderAPI,
   type MachineTradeRecord,
+  type PendingOrderConfig,
+  type PendingOrderItem,
   type StockSearchResult,
   type UserTerminal,
   type WatchlistItem
@@ -57,6 +64,7 @@ interface TerminalEnvelope {
 }
 
 const MAX_RECORDS_PER_TERMINAL = 200
+const ACTION_COOLDOWN_MS = 1200
 const userStore = useUserStore()
 const currentUid = computed(() => userStore.uid.trim())
 
@@ -77,6 +85,23 @@ const isSubmittingOrder = ref(false)
 const orderSearchResults = ref<StockSearchResult[] | null>(null)
 const isOrderSearching = ref(false)
 const suppressOrderSearch = ref(false)
+const pendingDrawerOpen = ref(false)
+const pendingOrders = ref<PendingOrderItem[]>([])
+const pendingTimeMap = ref<Record<number, string>>({})
+const isPendingLoading = ref(false)
+const isPendingSaving = ref(false)
+const pendingConfig = ref<PendingOrderConfig>({
+  uid: '',
+  enabled: true,
+  default_delay_minutes: 10,
+  auto_submit: false
+})
+const pendingOrderColumns = [
+  { title: '股票代码', dataIndex: 'stock_code', key: 'stock_code', width: 104 },
+  { title: '股票名称', dataIndex: 'stock_name', key: 'stock_name', width: 112 },
+  { title: '挂单时间', dataIndex: 'scheduled_at', key: 'scheduled_at' },
+  { title: '操作', key: 'actions', width: 72, align: 'center' as const }
+]
 
 const terminals = ref<Record<string, TerminalState>>({})
 const terminalSeqMap = ref<Record<string, number>>({})
@@ -86,6 +111,7 @@ const controlEventsCount = ref(0)
 const editingTerminalId = ref<string>('')
 const editingTerminalName = ref<string>('')
 const terminalRenameTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const actionLastTriggerAt = new Map<string, number>()
 
 const ws = useWebSocket()
 const controlTopic = computed(() => (currentUid.value ? 'trading-terminal.control.' + currentUid.value : ''))
@@ -108,6 +134,17 @@ const terminalList = computed(() => {
 const terminalCount = computed(() => terminalList.value.length)
 
 const terminalTopic = (uid: string, terminalId: string) => 'trading-terminal.' + uid + '.' + terminalId
+
+const allowSubmitAction = (actionKey: string, cooldownMs = ACTION_COOLDOWN_MS) => {
+  const now = Date.now()
+  const last = actionLastTriggerAt.get(actionKey) || 0
+  if (now - last < cooldownMs) {
+    message.warning('操作过于频繁，请稍后重试')
+    return false
+  }
+  actionLastTriggerAt.set(actionKey, now)
+  return true
+}
 
 const ensureTerminalState = (terminalId: string, terminalName?: string): TerminalState => {
   const current = terminals.value[terminalId]
@@ -500,6 +537,8 @@ watch(orderStockCode, (value) => {
 const isInWatchlist = (tsCode: string) => watchlist.value.some((item) => item.ts_code === tsCode)
 
 const addToWatchlist = async (stock: StockSearchResult) => {
+  if (!allowSubmitAction('watchlist-add-' + stock.ts_code)) return
+
   if (isInWatchlist(stock.ts_code)) {
     message.warning('该股票已在自选列表中')
     return
@@ -523,6 +562,8 @@ const addToWatchlist = async (stock: StockSearchResult) => {
 }
 
 const removeFromWatchlist = async (tsCode: string) => {
+  if (!allowSubmitAction('watchlist-remove-' + tsCode)) return
+
   try {
     const success = await removeFromWatchlistAPI(tsCode)
     if (success) {
@@ -535,6 +576,201 @@ const removeFromWatchlist = async (tsCode: string) => {
 }
 
 const normalizeStockCode = (code: string) => code.trim().toUpperCase()
+
+const pad2 = (value: number) => String(value).padStart(2, '0')
+
+const toDateTimeInputValue = (value: string): string => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return [
+    date.getFullYear(),
+    '-',
+    pad2(date.getMonth() + 1),
+    '-',
+    pad2(date.getDate()),
+    'T',
+    pad2(date.getHours()),
+    ':',
+    pad2(date.getMinutes())
+  ].join('')
+}
+
+const toIsoFromDateTimeInput = (value: string): string => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return [
+    date.getFullYear(),
+    '-',
+    pad2(date.getMonth() + 1),
+    '-',
+    pad2(date.getDate()),
+    'T',
+    pad2(date.getHours()),
+    ':',
+    pad2(date.getMinutes()),
+    ':00'
+  ].join('')
+}
+
+const defaultPendingTimeInput = () => {
+  const now = new Date()
+  now.setHours(21, 0, 0, 0)
+  return [
+    now.getFullYear(),
+    '-',
+    pad2(now.getMonth() + 1),
+    '-',
+    pad2(now.getDate()),
+    'T',
+    pad2(now.getHours()),
+    ':',
+    pad2(now.getMinutes())
+  ].join('')
+}
+
+const syncPendingTimeMap = (items: PendingOrderItem[]) => {
+  const map: Record<number, string> = {}
+  items.forEach((item) => {
+    map[item.id] = toDateTimeInputValue(item.scheduled_at)
+  })
+  pendingTimeMap.value = map
+}
+
+const loadPendingConfig = async (uid: string) => {
+  if (!uid) return
+  try {
+    pendingConfig.value = await getPendingOrderConfigAPI(uid)
+  } catch (error: any) {
+    console.warn('[TradingTerminal] load pending config failed', error)
+  }
+}
+
+const loadPendingOrders = async (uid: string) => {
+  if (!uid) {
+    pendingOrders.value = []
+    pendingTimeMap.value = {}
+    return
+  }
+  isPendingLoading.value = true
+  try {
+    const items = await getPendingOrdersAPI(uid)
+    pendingOrders.value = items
+    syncPendingTimeMap(items)
+  } catch (error: any) {
+    message.error(error?.message || '获取挂单列表失败')
+  } finally {
+    isPendingLoading.value = false
+  }
+}
+
+const addPendingOrder = async (stockCodeRaw: string, stockNameRaw: string) => {
+  const stockCodeKey = normalizeStockCode(stockCodeRaw)
+  if (!allowSubmitAction('pending-add-' + stockCodeKey)) return
+
+  const uid = currentUid.value
+  const stockCode = stockCodeKey
+  const stockName = String(stockNameRaw || '').trim()
+
+  if (!uid) {
+    message.warning('UID 缺失，无法挂单')
+    return
+  }
+  if (!stockCode || !stockName) {
+    message.warning('股票代码或名称缺失，无法挂单')
+    return
+  }
+
+  const scheduledInput = defaultPendingTimeInput()
+  const scheduledAt = toIsoFromDateTimeInput(scheduledInput)
+  if (!scheduledAt) {
+    message.warning('挂单时间无效')
+    return
+  }
+
+  isPendingSaving.value = true
+  try {
+    const created = await createPendingOrderAPI({
+      uid,
+      stock_code: stockCode,
+      stock_name: stockName,
+      scheduled_at: scheduledAt
+    })
+    pendingOrders.value = [created, ...pendingOrders.value]
+    pendingTimeMap.value = {
+      ...pendingTimeMap.value,
+      [created.id]: toDateTimeInputValue(created.scheduled_at)
+    }
+    pendingDrawerOpen.value = true
+    message.success('已加入挂单列表')
+  } catch (error: any) {
+    message.error(error?.message || '新增挂单失败')
+  } finally {
+    isPendingSaving.value = false
+  }
+}
+
+const addPendingFromWatchlist = async (stock: WatchlistItem) => {
+  await addPendingOrder(stock.ts_code || '', stock.name || '')
+}
+
+const onPendingTimeChange = async (item: PendingOrderItem) => {
+  if (!allowSubmitAction('pending-update-' + item.id)) return
+
+  const timeInput = pendingTimeMap.value[item.id] || ''
+  const scheduledAt = toIsoFromDateTimeInput(timeInput)
+  if (!scheduledAt) {
+    message.warning('请选择有效挂单时间')
+    pendingTimeMap.value = {
+      ...pendingTimeMap.value,
+      [item.id]: toDateTimeInputValue(item.scheduled_at)
+    }
+    return
+  }
+
+  if (scheduledAt === item.scheduled_at) {
+    return
+  }
+
+  isPendingSaving.value = true
+  try {
+    await updatePendingOrderAPI(item.id, { scheduled_at: scheduledAt })
+    pendingOrders.value = pendingOrders.value.map((row) => (
+      row.id === item.id
+        ? {
+          ...row,
+          scheduled_at: scheduledAt
+        }
+        : row
+    ))
+    message.success('挂单时间已更新')
+  } catch (error: any) {
+    message.error(error?.message || '更新挂单失败')
+    pendingTimeMap.value = {
+      ...pendingTimeMap.value,
+      [item.id]: toDateTimeInputValue(item.scheduled_at)
+    }
+  } finally {
+    isPendingSaving.value = false
+  }
+}
+
+const removePendingOrder = async (id: number) => {
+  if (!allowSubmitAction('pending-remove-' + id)) return
+
+  isPendingSaving.value = true
+  try {
+    await removePendingOrderAPI(id)
+    pendingOrders.value = pendingOrders.value.filter((item) => item.id !== id)
+    const next = { ...pendingTimeMap.value }
+    delete next[id]
+    pendingTimeMap.value = next
+    message.success('挂单已删除')
+  } catch (error: any) {
+    message.error(error?.message || '删除挂单失败')
+  } finally {
+    isPendingSaving.value = false
+  }
+}
 
 const debouncedOrderSearch = (keyword: string) => {
   if (orderSearchDebounceTimer) clearTimeout(orderSearchDebounceTimer)
@@ -573,6 +809,8 @@ const selectOrderStock = (stock: StockSearchResult) => {
 }
 
 const quickSubmitFromWatchlist = async (stock: WatchlistItem) => {
+  if (!allowSubmitAction('order-quick-submit-' + String(stock.ts_code || ''))) return
+
   const stockCode = normalizeStockCode(stock.ts_code || '')
   const stockName = String(stock.name || '').trim()
   const price = Number(stock.close ?? 0)
@@ -599,7 +837,10 @@ const quickSubmitFromWatchlist = async (stock: WatchlistItem) => {
 }
 
 const submitOrder = async (positionLevel?: number) => {
+  if (!allowSubmitAction('order-submit')) return
+
   const stockCode = normalizeStockCode(orderStockCode.value)
+  const stockName = String(orderStockName.value || '').trim() || stockCode
   const price = Number(orderPriceValue.value || 0)
   const quantity = Number(orderQuantity.value || 0)
 
@@ -624,6 +865,7 @@ const submitOrder = async (positionLevel?: number) => {
     const selectedLevel = typeof selectedPositionLevel.value === 'number' ? selectedPositionLevel.value : undefined
     await createOrderAPI({
       stock_code: stockCode,
+      stock_name: stockName,
       price,
       quantity,
       ...(validPositionLevel ? { position_level: validPositionLevel } : (selectedLevel ? { position_level: selectedLevel } : {}))
@@ -658,6 +900,8 @@ const validateOrderInputs = () => {
 }
 
 const confirmPositionOrder = (positionLevel: number, label: string) => {
+  if (!allowSubmitAction('order-confirm-' + positionLevel, 500)) return
+
   const validation = validateOrderInputs()
   if (!validation) return
 
@@ -721,6 +965,14 @@ onMounted(() => {
     terminalRenameTimers.forEach((timer) => clearTimeout(timer))
     terminalRenameTimers.clear()
     controlEventsCount.value = 0
+    pendingOrders.value = []
+    pendingTimeMap.value = {}
+    pendingConfig.value = {
+      uid: '',
+      enabled: true,
+      default_delay_minutes: 10,
+      auto_submit: false
+    }
 
     if (!uid) return
 
@@ -728,7 +980,11 @@ onMounted(() => {
     ws.subscribe([nextControlTopic])
     offControlTopic = ws.onEvent(nextControlTopic, handleControlEvent)
 
-    await loadUserTerminals(uid)
+    await Promise.all([
+      loadUserTerminals(uid),
+      loadPendingConfig(uid),
+      loadPendingOrders(uid)
+    ])
     requestSnapshot()
   }, { immediate: true })
 })
@@ -838,6 +1094,14 @@ onUnmounted(() => {
                       >
                         一键下单
                       </button>
+                      <button
+                        type="button"
+                        class="h-6 px-2 rounded border border-border text-textSub hover:bg-bgMain transition-colors disabled:opacity-50"
+                        :disabled="isPendingSaving"
+                        @click="addPendingFromWatchlist(stock)"
+                      >
+                        加入挂单
+                      </button>
                       <a-button
                         class="rounded hover:bg-down/10 transition-colors"
                         @click="removeFromWatchlist(stock.ts_code)"
@@ -876,6 +1140,14 @@ onUnmounted(() => {
                 @click="tradeMode = 'sell'"
               >
                 卖出(S)
+              </button>
+              <button
+                type="button"
+                class="px-4 py-1 rounded font-medium"
+                :class="pendingDrawerOpen ? 'bg-primary text-white' : 'text-textSub'"
+                @click="pendingDrawerOpen = !pendingDrawerOpen"
+              >
+                挂单
               </button>
             </div>
           </div>
@@ -1098,6 +1370,64 @@ onUnmounted(() => {
         </div>
       </section>
     </div>
+
+    <a-drawer
+      v-model:open="pendingDrawerOpen"
+      title="挂单列表"
+      placement="right"
+      width="600"
+      :body-style="{ padding: '12px' }"
+    >
+      <div class="text-xxs text-textMute mb-2 flex items-center justify-between">
+        <span>UID: <span class="font-numeric">{{ currentUid || '-' }}</span></span>
+        <span>挂单数: <span class="font-numeric text-primary">{{ pendingOrders.length }}</span></span>
+      </div>
+
+      <div v-if="isPendingLoading" class="py-6 text-center text-xs text-textMute">挂单加载中...</div>
+      <div v-else-if="pendingOrders.length === 0" class="py-6 text-center text-xs text-textMute">暂无挂单</div>
+      <div v-else class="pending-orders-wrap">
+        <a-table
+          :columns="pendingOrderColumns"
+          :data-source="pendingOrders"
+          :pagination="false"
+          :row-key="(record: PendingOrderItem) => record.id"
+          size="small"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'stock_code'">
+              <span class="font-numeric text-textMain">{{ record.stock_code }}</span>
+            </template>
+            <template v-else-if="column.key === 'stock_name'">
+              <span class="text-textMain">{{ record.stock_name }}</span>
+            </template>
+            <template v-else-if="column.key === 'scheduled_at'">
+              <div class="min-w-[170px]">
+                <input
+                  v-model="pendingTimeMap[record.id]"
+                  type="datetime-local"
+                  class="h-7 w-full rounded border border-border bg-card px-2 text-xxs text-textMain font-numeric"
+                  :disabled="isPendingSaving"
+                  @change="onPendingTimeChange(record)"
+                />
+              </div>
+            </template>
+            <template v-else-if="column.key === 'actions'">
+              <a-button
+                type="text"
+                danger
+                size="small"
+                class="h-7 w-7 !inline-flex !items-center !justify-center disabled:opacity-50"
+                :disabled="isPendingSaving"
+                @click="removePendingOrder(record.id)"
+                :title="'删除挂单'"
+              >
+                <Icon icon="mdi:delete-outline" :size="14" />
+              </a-button>
+            </template>
+          </template>
+        </a-table>
+      </div>
+    </a-drawer>
   </div>
 </template>
 
@@ -1206,4 +1536,10 @@ onUnmounted(() => {
 .watchlist-scroll-wrap thead {
   box-shadow: inset 0 -1px 0 0 var(--color-border);
 }
+
+.pending-orders-wrap {
+  max-height: calc(100vh - 170px);
+  overflow-y: auto;
+}
+
 </style>

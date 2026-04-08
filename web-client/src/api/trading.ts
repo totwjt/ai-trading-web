@@ -101,6 +101,7 @@ export interface UserTerminal {
 
 export interface OrderRequest {
   stock_code: string
+  stock_name: string
   price: number
   quantity: number
   position_level?: number
@@ -124,6 +125,43 @@ export interface TerminalRenameRequest {
   terminal_name: string
   terminal_id?: string
   mac_address?: string
+}
+
+export interface PendingOrderItem {
+  id: number
+  uid: string
+  stock_code: string
+  stock_name: string
+  scheduled_at: string
+  status: 'pending' | 'success' | 'triggered' | 'cancelled'
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface PendingOrderCreateRequest {
+  uid: string
+  stock_code: string
+  stock_name: string
+  scheduled_at: string
+}
+
+export interface PendingOrderUpdateRequest {
+  scheduled_at: string
+}
+
+export interface PendingOrderConfig {
+  uid: string
+  enabled: boolean
+  default_delay_minutes: number
+  auto_submit: boolean
+  updated_at?: string | null
+}
+
+export interface PendingOrderConfigUpdateRequest {
+  uid: string
+  enabled: boolean
+  default_delay_minutes: number
+  auto_submit: boolean
 }
 
 // ==================== API 函数 ====================
@@ -325,6 +363,66 @@ export async function updateTerminalNameAPI(payload: TerminalRenameRequest): Pro
   const response = await apiClient.patch<{ code: number; message?: string }>('/api/trading/terminals/name', payload)
   if (response.data.code !== 0) {
     throw new Error(response.data.message || '更新终端名称失败')
+  }
+  return true
+}
+
+export async function getPendingOrdersAPI(uid: string): Promise<PendingOrderItem[]> {
+  if (!uid.trim()) return []
+  const response = await apiClient.get<{ code: number; message?: string; data: PendingOrderItem[] }>('/api/trading/pending-orders', {
+    params: { uid }
+  })
+  if (response.data.code !== 0) {
+    throw new Error(response.data.message || '获取挂单列表失败')
+  }
+  return response.data.data || []
+}
+
+export async function createPendingOrderAPI(payload: PendingOrderCreateRequest): Promise<PendingOrderItem> {
+  const response = await apiClient.post<{ code: number; message?: string; data?: PendingOrderItem }>(
+    '/api/trading/pending-orders',
+    payload
+  )
+  if (response.data.code !== 0 || !response.data.data) {
+    throw new Error(response.data.message || '新增挂单失败')
+  }
+  return response.data.data
+}
+
+export async function updatePendingOrderAPI(id: number, payload: PendingOrderUpdateRequest): Promise<boolean> {
+  const response = await apiClient.patch<{ code: number; message?: string }>(`/api/trading/pending-orders/${id}`, payload)
+  if (response.data.code !== 0) {
+    throw new Error(response.data.message || '更新挂单失败')
+  }
+  return true
+}
+
+export async function removePendingOrderAPI(id: number): Promise<boolean> {
+  const response = await apiClient.delete<{ code: number; message?: string }>(`/api/trading/pending-orders/${id}`)
+  if (response.data.code !== 0) {
+    throw new Error(response.data.message || '删除挂单失败')
+  }
+  return true
+}
+
+export async function getPendingOrderConfigAPI(uid: string): Promise<PendingOrderConfig> {
+  if (!uid.trim()) {
+    return { uid: '', enabled: true, default_delay_minutes: 10, auto_submit: false }
+  }
+  const response = await apiClient.get<{ code: number; message?: string; data?: PendingOrderConfig }>(
+    '/api/trading/pending-order-config',
+    { params: { uid } }
+  )
+  if (response.data.code !== 0 || !response.data.data) {
+    throw new Error(response.data.message || '获取挂单配置失败')
+  }
+  return response.data.data
+}
+
+export async function updatePendingOrderConfigAPI(payload: PendingOrderConfigUpdateRequest): Promise<boolean> {
+  const response = await apiClient.put<{ code: number; message?: string }>('/api/trading/pending-order-config', payload)
+  if (response.data.code !== 0) {
+    throw new Error(response.data.message || '保存挂单配置失败')
   }
   return true
 }

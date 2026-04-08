@@ -4,7 +4,7 @@
 
 from fastapi import APIRouter, Query, HTTPException, Depends
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Literal
 from datetime import datetime
 import logging
 import httpx
@@ -63,6 +63,7 @@ class TerminalItem(BaseModel):
 
 class OrderRequest(BaseModel):
     stock_code: str
+    stock_name: str
     price: float
     quantity: int
     position_level: Optional[int] = None
@@ -73,6 +74,30 @@ class TerminalRenameRequest(BaseModel):
     terminal_name: str
     terminal_id: Optional[str] = None
     mac_address: Optional[str] = None
+
+
+class PendingOrderCreateRequest(BaseModel):
+    uid: str
+    stock_code: str
+    stock_name: str
+    scheduled_at: str
+
+
+class PendingOrderUpdateRequest(BaseModel):
+    scheduled_at: str
+
+
+class PendingOrderStatusUpdateRequest(BaseModel):
+    status: Literal["pending", "success", "triggered", "cancelled"]
+    terminal_id: Optional[str] = None
+    remark: Optional[str] = None
+
+
+class PendingOrderConfigUpsertRequest(BaseModel):
+    uid: str
+    enabled: bool = True
+    default_delay_minutes: int = 10
+    auto_submit: bool = False
 
 
 def get_stock_name_initials(name: str) -> str:
@@ -89,6 +114,17 @@ def get_stock_name_initials(name: str) -> str:
         errors=lambda chars: [ch.lower() for ch in chars if ch.isalnum()]
     )
     return "".join(part.lower() for part in initials if part and part.isalnum())
+
+
+def parse_iso_datetime(value: str) -> datetime:
+    raw = str(value or "").strip()
+    if not raw:
+        raise ValueError("scheduled_at is required")
+    normalized = raw.replace("Z", "+00:00")
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is not None:
+        return parsed.astimezone().replace(tzinfo=None)
+    return parsed
 
 
 def get_stock_match_score(keyword: str, ts_code: str, name: str) -> Optional[int]:
@@ -554,6 +590,7 @@ async def create_order(order: OrderRequest):
     try:
         payload = {
             "stock_code": order.stock_code,
+            "stock_name": order.stock_name,
             "price": order.price,
             "quantity": order.quantity
         }
@@ -583,6 +620,345 @@ async def create_order(order: OrderRequest):
             "code": 1,
             "message": str(e),
             "data": {},
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@trading_router.get("/pending-orders")
+async def get_pending_orders(
+    uid: str = Query(..., description="用户ID，例如 u_1001"),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取挂单列表"""
+    try:
+        query = text(
+            """
+            SELECT id, uid, stock_code, stock_name, scheduled_at, status, created_at, updated_at
+            FROM pending_orders
+            WHERE uid = :uid AND status = 'pending'
+            ORDER BY scheduled_at ASC, id DESC
+            """
+        )
+        result = await db.execute(query, {"uid": uid})
+        rows = result.fetchall()
+        return {
+            "code": 0,
+            "message": "success",
+            "data": [
+                {
+                    "id": row[0],
+                    "uid": row[1],
+                    "stock_code": row[2],
+                    "stock_name": row[3],
+                    "scheduled_at": row[4].isoformat() if row[4] else None,
+                    "status": row[5] or "pending",
+                    "created_at": row[6].isoformat() if row[6] else None,
+                    "updated_at": row[7].isoformat() if row[7] else None,
+                }
+                for row in rows
+            ],
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error("获取挂单列表失败: %s", e)
+        return {
+            "code": 1,
+            "message": str(e),
+            "data": [],
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@trading_router.post("/pending-orders")
+async def create_pending_order(
+    payload: PendingOrderCreateRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """新增挂单"""
+    try:
+        uid = payload.uid.strip()
+        stock_code = payload.stock_code.strip().upper()
+        stock_name = payload.stock_name.strip()
+        if not uid or not stock_code or not stock_name:
+            return {
+                "code": 1,
+                "message": "uid, stock_code, stock_name are required",
+                "timestamp": datetime.now().isoformat()
+            }
+
+        scheduled_at = parse_iso_datetime(payload.scheduled_at)
+
+        query = text(
+            """
+            INSERT INTO pending_orders (uid, stock_code, stock_name, scheduled_at, status, created_at, updated_at)
+            VALUES (:uid, :stock_code, :stock_name, :scheduled_at, 'pending', NOW(), NOW())
+            RETURNING id, uid, stock_code, stock_name, scheduled_at, status, created_at, updated_at
+            """
+        )
+        result = await db.execute(
+            query,
+            {
+                "uid": uid,
+                "stock_code": stock_code,
+                "stock_name": stock_name,
+                "scheduled_at": scheduled_at,
+            }
+        )
+        row = result.fetchone()
+        return {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "id": row[0],
+                "uid": row[1],
+                "stock_code": row[2],
+                "stock_name": row[3],
+                "scheduled_at": row[4].isoformat() if row[4] else None,
+                "status": row[5] or "pending",
+                "created_at": row[6].isoformat() if row[6] else None,
+                "updated_at": row[7].isoformat() if row[7] else None,
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+    except ValueError as e:
+        return {
+            "code": 1,
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error("新增挂单失败: %s", e)
+        return {
+            "code": 1,
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@trading_router.patch("/pending-orders/{pending_order_id}")
+async def update_pending_order(
+    pending_order_id: int,
+    payload: PendingOrderUpdateRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """更新挂单时间"""
+    try:
+        scheduled_at = parse_iso_datetime(payload.scheduled_at)
+        query = text(
+            """
+            UPDATE pending_orders
+            SET scheduled_at = :scheduled_at, updated_at = NOW()
+            WHERE id = :id AND status = 'pending'
+            RETURNING id
+            """
+        )
+        result = await db.execute(query, {"id": pending_order_id, "scheduled_at": scheduled_at})
+        row = result.fetchone()
+        if not row:
+            return {
+                "code": 1,
+                "message": "pending order not found",
+                "timestamp": datetime.now().isoformat()
+            }
+        return {
+            "code": 0,
+            "message": "success",
+            "timestamp": datetime.now().isoformat()
+        }
+    except ValueError as e:
+        return {
+            "code": 1,
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error("更新挂单失败: %s", e)
+        return {
+            "code": 1,
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@trading_router.patch("/pending-orders/{pending_order_id}/status")
+async def update_pending_order_status(
+    pending_order_id: int,
+    payload: PendingOrderStatusUpdateRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """更新挂单状态（供终端回调使用）"""
+    try:
+        query = text(
+            """
+            UPDATE pending_orders
+            SET status = :status, updated_at = NOW()
+            WHERE id = :id
+            RETURNING id, status, updated_at
+            """
+        )
+        result = await db.execute(
+            query,
+            {
+                "id": pending_order_id,
+                "status": payload.status
+            }
+        )
+        row = result.fetchone()
+        if not row:
+            return {
+                "code": 1,
+                "message": "pending order not found",
+                "timestamp": datetime.now().isoformat()
+            }
+
+        return {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "id": row[0],
+                "status": row[1],
+                "updated_at": row[2].isoformat() if row[2] else None,
+                "terminal_id": payload.terminal_id,
+                "remark": payload.remark
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error("更新挂单状态失败: %s", e)
+        return {
+            "code": 1,
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@trading_router.delete("/pending-orders/{pending_order_id}")
+async def delete_pending_order(
+    pending_order_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """删除挂单"""
+    try:
+        query = text("DELETE FROM pending_orders WHERE id = :id")
+        result = await db.execute(query, {"id": pending_order_id})
+        if result.rowcount == 0:
+            return {
+                "code": 1,
+                "message": "pending order not found",
+                "timestamp": datetime.now().isoformat()
+            }
+        return {
+            "code": 0,
+            "message": "success",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error("删除挂单失败: %s", e)
+        return {
+            "code": 1,
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@trading_router.get("/pending-order-config")
+async def get_pending_order_config(
+    uid: str = Query(..., description="用户ID，例如 u_1001"),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取挂单配置"""
+    try:
+        query = text(
+            """
+            SELECT uid, enabled, default_delay_minutes, auto_submit, updated_at
+            FROM pending_order_configs
+            WHERE uid = :uid
+            LIMIT 1
+            """
+        )
+        result = await db.execute(query, {"uid": uid})
+        row = result.fetchone()
+        if not row:
+            return {
+                "code": 0,
+                "message": "success",
+                "data": {
+                    "uid": uid,
+                    "enabled": True,
+                    "default_delay_minutes": 10,
+                    "auto_submit": False,
+                    "updated_at": None
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        return {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "uid": row[0],
+                "enabled": bool(row[1]),
+                "default_delay_minutes": int(row[2] or 10),
+                "auto_submit": bool(row[3]),
+                "updated_at": row[4].isoformat() if row[4] else None
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error("获取挂单配置失败: %s", e)
+        return {
+            "code": 1,
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@trading_router.put("/pending-order-config")
+async def update_pending_order_config(
+    payload: PendingOrderConfigUpsertRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """保存挂单配置"""
+    try:
+        uid = payload.uid.strip()
+        if not uid:
+            return {
+                "code": 1,
+                "message": "uid is required",
+                "timestamp": datetime.now().isoformat()
+            }
+        delay = max(1, min(1440, int(payload.default_delay_minutes)))
+
+        query = text(
+            """
+            INSERT INTO pending_order_configs (uid, enabled, default_delay_minutes, auto_submit, created_at, updated_at)
+            VALUES (:uid, :enabled, :default_delay_minutes, :auto_submit, NOW(), NOW())
+            ON CONFLICT (uid)
+            DO UPDATE SET
+              enabled = EXCLUDED.enabled,
+              default_delay_minutes = EXCLUDED.default_delay_minutes,
+              auto_submit = EXCLUDED.auto_submit,
+              updated_at = NOW()
+            """
+        )
+        await db.execute(
+            query,
+            {
+                "uid": uid,
+                "enabled": payload.enabled,
+                "default_delay_minutes": delay,
+                "auto_submit": payload.auto_submit,
+            }
+        )
+        return {
+            "code": 0,
+            "message": "success",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error("保存挂单配置失败: %s", e)
+        return {
+            "code": 1,
+            "message": str(e),
             "timestamp": datetime.now().isoformat()
         }
 

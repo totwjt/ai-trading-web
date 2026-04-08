@@ -49,3 +49,35 @@ class Watchlist(Base):
     __table_args__ = (
         Index('idx_user_ts_code', 'ts_code'),
     )
+
+
+class PendingOrder(Base):
+    """挂单表"""
+    __tablename__ = "pending_orders"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    uid = Column(String(64), ForeignKey("users.uid"), nullable=False, index=True, comment="用户ID")
+    stock_code = Column(String(20), nullable=False, index=True, comment="股票代码")
+    stock_name = Column(String(64), nullable=False, comment="股票名称")
+    scheduled_at = Column(DateTime, nullable=False, index=True, comment="计划挂单时间")
+    status = Column(String(16), nullable=False, default="pending", comment="状态: pending/success/triggered/cancelled")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间")
+
+    __table_args__ = (
+        Index("idx_pending_orders_uid_status", "uid", "status"),
+        Index("idx_pending_orders_uid_scheduled", "uid", "scheduled_at"),
+    )
+
+
+class PendingOrderConfig(Base):
+    """挂单配置表"""
+    __tablename__ = "pending_order_configs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    uid = Column(String(64), ForeignKey("users.uid"), nullable=False, unique=True, index=True, comment="用户ID")
+    enabled = Column(Boolean, nullable=False, default=True, comment="是否启用挂单")
+    default_delay_minutes = Column(Integer, nullable=False, default=10, comment="默认挂单延迟分钟")
+    auto_submit = Column(Boolean, nullable=False, default=False, comment="是否自动提交")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间")
