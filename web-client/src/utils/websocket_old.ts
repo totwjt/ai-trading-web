@@ -257,5 +257,3 @@ export function parseStockInfo(stock: string | StockInfo): { code: string; name:
     score: match[3] ? parseInt(match[3]) : 0
   }
 }
-
-export { createWebSocketClient, type WebSocketOptions } from './websocket_old'

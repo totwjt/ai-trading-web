@@ -26,7 +26,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-EXTERNAL_API = "http://192.168.66.141:8000"
+EXTERNAL_API = "http://192.168.66.143:8000"
 SOCKETIO_URL = "http://localhost:8766"
 
 

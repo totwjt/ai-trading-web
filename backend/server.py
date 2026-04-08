@@ -35,6 +35,7 @@ TOPIC_BACKTEST = "backtest"
 TOPIC_TRADING = "trading"
 TOPIC_RISK = "risk"
 TOPIC_TRADING_TERMINAL = "trading-terminal"
+TOPIC_ORDER = "order"
 
 TERMINAL_HEARTBEAT_TIMEOUT = 30
 TERMINAL_HEARTBEAT_CHECK_INTERVAL = 5
@@ -122,6 +123,10 @@ def terminal_topic(user_id: str, terminal_id: str) -> str:
 
 def terminal_control_topic(user_id: str) -> str:
     return f"{TOPIC_TRADING_TERMINAL}.control.{user_id}"
+
+
+def order_topic(user_id: str) -> str:
+    return f"{TOPIC_ORDER}.{user_id}"
 
 
 def normalize_mac(mac_address: str) -> str:
@@ -372,6 +377,23 @@ def build_terminal_event(
     return payload
 
 
+def build_order_event(
+    user_id: str,
+    event_type: str,
+    data: Optional[Dict[str, Any]] = None,
+    source: str = "signal_platform"
+) -> Dict[str, Any]:
+    return {
+        "v": "1.0",
+        "msgId": str(uuid.uuid4()),
+        "ts": now_iso(),
+        "userId": user_id,
+        "eventType": event_type,
+        "source": source,
+        "data": data or {}
+    }
+
+
 async def emit_terminal_control(
     user_id: str,
     terminal_id: str,
@@ -394,6 +416,7 @@ def build_terminal_snapshot(user_id: str) -> List[Dict[str, Any]]:
             "terminalName": info.get("terminalName") or info["terminalId"],
             "macAddress": info.get("macAddress") or "",
             "accountName": info.get("accountName") or "",
+            "connected": bool(info.get("connected", False)),
             "online": info["online"],
             "statusSource": info.get("statusSource") or "terminal_service",
             "lastHeartbeatAt": info["lastHeartbeatAt"],
@@ -441,17 +464,30 @@ async def disconnect(sid):
         return
 
     info = terminal_registry[key]
-    if info["online"]:
+    info["connected"] = False
+    was_online = bool(info.get("online"))
+    if was_online:
         info["online"] = False
-        info["updatedAt"] = now_iso()
-        log_terminal_event(
-            "disconnect.offline_emit",
-            sid=sid,
-            userId=info["userId"],
-            terminalId=info["terminalId"],
-            macAddress=info.get("macAddress") or "",
-            reason="service_disconnect"
-        )
+    info["updatedAt"] = now_iso()
+    log_terminal_event(
+        "disconnect.disconnected_emit",
+        sid=sid,
+        userId=info["userId"],
+        terminalId=info["terminalId"],
+        macAddress=info.get("macAddress") or "",
+        reason="service_disconnect"
+    )
+    await emit_terminal_control(
+        info["userId"],
+        info["terminalId"],
+        "terminal.disconnected",
+        {
+            "terminalName": info.get("terminalName") or info["terminalId"],
+            "reason": "service_disconnect",
+            "statusSource": "terminal_service"
+        }
+    )
+    if was_online:
         await emit_terminal_control(
             info["userId"],
             info["terminalId"],
@@ -610,8 +646,10 @@ async def terminal_register(sid, data):
 
     topic = terminal_topic(user_id, canonical_terminal_id)
     control_topic = terminal_control_topic(user_id)
+    uid_order_topic = order_topic(user_id)
     await sio.enter_room(sid, topic)
     await sio.enter_room(sid, control_topic)
+    await sio.enter_room(sid, uid_order_topic)
 
     next_online = prev["online"] if (prev and not status_provided) else (initial_status == "online")
     terminal_registry[key] = {
@@ -621,6 +659,7 @@ async def terminal_register(sid, data):
         "macAddress": mac_address,
         "accountName": account_name,
         "sid": sid,
+        "connected": True,
         # 在线状态由终端 Python 服务主动上报 terminal_status_update
         "online": next_online,
         "statusSource": "terminal_service",
@@ -652,9 +691,21 @@ async def terminal_register(sid, data):
             "accountName": account_name,
             "topic": topic,
             "controlTopic": control_topic,
+            "orderTopic": uid_order_topic,
             "status": "ok",
         },
         room=sid
+    )
+    await emit_terminal_control(
+        user_id,
+        canonical_terminal_id,
+        "terminal.connected",
+        {
+            "terminalName": terminal_name,
+            "macAddress": mac_address,
+            "accountName": account_name,
+            "statusSource": "terminal_service"
+        }
     )
 
     if not prev:
@@ -737,13 +788,46 @@ async def terminal_status_update(sid, data):
         log_terminal_event("status_update.reject", sid=sid, reason="invalid_payload")
         return
 
-    key = resolve_terminal_key(sid, user_id, terminal_id, mac_address)
+    key = sid_terminal_map.get(sid)
     if not key or key not in terminal_registry:
         await sio.emit("terminal_error", {"message": "terminal not registered"}, room=sid)
         log_terminal_event("status_update.reject", sid=sid, reason="terminal_not_registered")
         return
 
     info = terminal_registry[key]
+    # 业务状态上报必须由终端自身当前会话上报，避免其它 client 通过 terminalId/macAddress 越权更新
+    if info.get("userId") != user_id:
+        await sio.emit("terminal_error", {"message": "terminal sid/user mismatch"}, room=sid)
+        log_terminal_event(
+            "status_update.reject",
+            sid=sid,
+            reason="sid_user_mismatch",
+            requestUserId=user_id,
+            mappedUserId=info.get("userId"),
+            mappedTerminalId=info.get("terminalId")
+        )
+        return
+    if terminal_id and info.get("terminalId") != terminal_id:
+        await sio.emit("terminal_error", {"message": "terminal sid/terminal mismatch"}, room=sid)
+        log_terminal_event(
+            "status_update.reject",
+            sid=sid,
+            reason="sid_terminal_mismatch",
+            requestTerminalId=terminal_id,
+            mappedTerminalId=info.get("terminalId")
+        )
+        return
+    if mac_address and normalize_mac(str(info.get("macAddress") or "")) != normalize_mac(mac_address):
+        await sio.emit("terminal_error", {"message": "terminal sid/mac mismatch"}, room=sid)
+        log_terminal_event(
+            "status_update.reject",
+            sid=sid,
+            reason="sid_mac_mismatch",
+            requestMacAddress=mac_address,
+            mappedMacAddress=info.get("macAddress") or ""
+        )
+        return
+
     next_online = status == "online"
     if info["online"] == next_online:
         info["updatedAt"] = now_iso()
@@ -798,13 +882,45 @@ async def terminal_heartbeat(sid, data):
     user_id = get_user_id(payload)
     terminal_id = get_terminal_id(payload)
     mac_address = get_mac_address(payload)
-    if not key:
-        key = resolve_terminal_key(sid, user_id, terminal_id, mac_address)
 
     if key and key in terminal_registry:
-        terminal_registry[key]["lastHeartbeatAt"] = now_iso()
-        terminal_registry[key]["updatedAt"] = now_iso()
         info = terminal_registry[key]
+        # 心跳同样要求来自终端自身当前会话
+        if info.get("userId") != user_id:
+            await sio.emit("terminal_error", {"message": "terminal sid/user mismatch"}, room=sid)
+            log_terminal_event(
+                "heartbeat.reject",
+                sid=sid,
+                reason="sid_user_mismatch",
+                requestUserId=user_id,
+                mappedUserId=info.get("userId"),
+                mappedTerminalId=info.get("terminalId")
+            )
+            return
+        if terminal_id and info.get("terminalId") != terminal_id:
+            await sio.emit("terminal_error", {"message": "terminal sid/terminal mismatch"}, room=sid)
+            log_terminal_event(
+                "heartbeat.reject",
+                sid=sid,
+                reason="sid_terminal_mismatch",
+                requestTerminalId=terminal_id,
+                mappedTerminalId=info.get("terminalId")
+            )
+            return
+        if mac_address and normalize_mac(str(info.get("macAddress") or "")) != normalize_mac(mac_address):
+            await sio.emit("terminal_error", {"message": "terminal sid/mac mismatch"}, room=sid)
+            log_terminal_event(
+                "heartbeat.reject",
+                sid=sid,
+                reason="sid_mac_mismatch",
+                requestMacAddress=mac_address,
+                mappedMacAddress=info.get("macAddress") or ""
+            )
+            return
+
+        info["lastHeartbeatAt"] = now_iso()
+        info["updatedAt"] = now_iso()
+        info["connected"] = True
         log_terminal_event(
             "heartbeat.ok",
             sid=sid,
@@ -945,13 +1061,13 @@ async def push_from_external(sid, data):
     """
     topic = data.get('topic')
     payload = data.get('data')
-    
+
     if not topic or payload is None:
         logger.warning(f"[push_from_external] 缺少 topic 或 data: {data}")
         return
-    
+
     logger.info(f"[push_from_external] 收到推送 -> topic: {topic}, data: {str(payload)[:100]}...")
-    
+
     if topic == TOPIC_ZIXUAN:
         await sio.emit(TOPIC_ZIXUAN, payload, room=TOPIC_ZIXUAN)
     elif topic == TOPIC_RECOMMENDATION:
@@ -964,10 +1080,12 @@ async def push_from_external(sid, data):
         await sio.emit(TOPIC_RISK, payload, room=TOPIC_RISK)
     elif topic == TOPIC_TRADING_TERMINAL or topic.startswith(f"{TOPIC_TRADING_TERMINAL}."):
         await sio.emit(topic, payload, room=topic)
+    elif topic == TOPIC_ORDER or topic.startswith(f"{TOPIC_ORDER}."):
+        await sio.emit(topic, payload, room=topic)
     else:
         # 通用主题广播
         await sio.emit(topic, payload, room=topic)
-    
+
     # 确认推送成功
     await sio.emit('push_ack', {'topic': topic, 'status': 'ok'}, room=sid)
 
@@ -991,6 +1109,7 @@ async def push_trading_terminal(sid, data):
 
     user_id = get_user_id(data)
     terminal_id = get_terminal_id(data)
+    mac_address = get_mac_address(data)
     event_type = str(data.get("eventType") or data.get("event_type") or "").strip()
     payload = data.get("data")
     seq = data.get("seq")
@@ -1003,6 +1122,42 @@ async def push_trading_terminal(sid, data):
         )
         return
 
+    key = sid_terminal_map.get(sid)
+    if not key or key not in terminal_registry:
+        await sio.emit("terminal_error", {"message": "terminal not registered"}, room=sid)
+        log_terminal_event("push_trading_terminal.reject", sid=sid, reason="terminal_not_registered")
+        return
+
+    info = terminal_registry[key]
+    if info.get("userId") != user_id:
+        await sio.emit("terminal_error", {"message": "terminal sid/user mismatch"}, room=sid)
+        log_terminal_event(
+            "push_trading_terminal.reject",
+            sid=sid,
+            reason="sid_user_mismatch",
+            requestUserId=user_id,
+            mappedUserId=info.get("userId"),
+            mappedTerminalId=info.get("terminalId")
+        )
+        return
+    mapped_terminal_id = str(info.get("terminalId") or "")
+    if terminal_id and mapped_terminal_id and terminal_id != mapped_terminal_id:
+        log_terminal_event(
+            "push_trading_terminal.override_terminal_id",
+            sid=sid,
+            requestTerminalId=terminal_id,
+            mappedTerminalId=mapped_terminal_id
+        )
+    if mac_address and normalize_mac(str(info.get("macAddress") or "")) != normalize_mac(mac_address):
+        log_terminal_event(
+            "push_trading_terminal.override_mac",
+            sid=sid,
+            requestMacAddress=mac_address,
+            mappedMacAddress=info.get("macAddress") or ""
+        )
+
+    terminal_id = mapped_terminal_id or terminal_id
+
     terminal_event = build_terminal_event(
         user_id=user_id,
         terminal_id=terminal_id,
@@ -1012,6 +1167,116 @@ async def push_trading_terminal(sid, data):
     )
     topic = terminal_topic(user_id, terminal_id)
     await sio.emit(topic, terminal_event, room=topic)
+    log_terminal_event(
+        "push_trading_terminal.emit",
+        sid=sid,
+        userId=user_id,
+        terminalId=terminal_id,
+        macAddress=info.get("macAddress") or "",
+        eventType=event_type
+    )
+    await sio.emit(
+        "push_ack",
+        {
+            "topic": topic,
+            "status": "ok",
+            "eventType": event_type
+        },
+        room=sid
+    )
+
+
+@sio.event
+async def push_order(sid, data):
+    """
+    按 uid 广播下单事件（交易信号平台 -> 多终端）
+    data:
+    {
+      "userId": "u_1001",
+      "eventType": "order.create",
+      "source": "signal_platform",
+      "data": {
+        "orderId": "o_10001",
+        "symbol": "600519",
+        "side": "buy",
+        "price": 1723.4,
+        "qty": 100
+      }
+    }
+    """
+    if not isinstance(data, dict):
+        await sio.emit("terminal_error", {"message": "invalid payload"}, room=sid)
+        return
+
+    user_id = get_user_id(data)
+    event_type = str(data.get("eventType") or data.get("event_type") or "").strip() or "order.create"
+    source = str(data.get("source") or "").strip() or "signal_platform"
+    payload = data.get("data")
+    if not user_id:
+        await sio.emit("terminal_error", {"message": "userId is required"}, room=sid)
+        return
+
+    order_data: Dict[str, Any]
+    if isinstance(payload, dict):
+        stock_code = str(payload.get("stock_code") or "").strip()
+        price_raw = payload.get("price")
+        quantity_raw = payload.get("quantity")
+        position_level_raw = payload.get("position_level")
+
+        if not stock_code:
+            await sio.emit("terminal_error", {"message": "data.stock_code is required"}, room=sid)
+            return
+        if price_raw is None:
+            await sio.emit("terminal_error", {"message": "data.price is required"}, room=sid)
+            return
+        if quantity_raw is None:
+            await sio.emit("terminal_error", {"message": "data.quantity is required"}, room=sid)
+            return
+
+        try:
+            price = float(price_raw)
+        except (TypeError, ValueError):
+            await sio.emit("terminal_error", {"message": "data.price must be a number"}, room=sid)
+            return
+
+        try:
+            quantity = int(quantity_raw)
+        except (TypeError, ValueError):
+            await sio.emit("terminal_error", {"message": "data.quantity must be an integer"}, room=sid)
+            return
+
+        if quantity <= 0:
+            await sio.emit("terminal_error", {"message": "data.quantity must be > 0"}, room=sid)
+            return
+
+        order_data = {
+            "stock_code": stock_code,
+            "price": price,
+            "quantity": quantity
+        }
+
+        if position_level_raw is not None:
+            try:
+                position_level = int(position_level_raw)
+            except (TypeError, ValueError):
+                await sio.emit("terminal_error", {"message": "data.position_level must be an integer"}, room=sid)
+                return
+            if position_level not in {1, 2, 3, 4}:
+                await sio.emit("terminal_error", {"message": "data.position_level must be one of 1,2,3,4"}, room=sid)
+                return
+            order_data["position_level"] = position_level
+    else:
+        await sio.emit("terminal_error", {"message": "data must be an object"}, room=sid)
+        return
+
+    event_payload = build_order_event(
+        user_id=user_id,
+        event_type=event_type,
+        data=order_data,
+        source=source
+    )
+    topic = order_topic(user_id)
+    await sio.emit(topic, event_payload, room=topic)
     await sio.emit(
         "push_ack",
         {
@@ -1044,6 +1309,12 @@ async def publish_risk(data: dict):
     await sio.emit(TOPIC_RISK, data, room=TOPIC_RISK)
 
 
+async def publish_order(user_id: str, event_type: str, data: Optional[Dict[str, Any]] = None):
+    topic = order_topic(user_id)
+    payload = build_order_event(user_id=user_id, event_type=event_type, data=data)
+    await sio.emit(topic, payload, room=topic)
+
+
 async def publish_trading_terminal(
     user_id: str,
     terminal_id: str,
@@ -1067,7 +1338,7 @@ async def terminal_heartbeat_monitor():
         await asyncio.sleep(TERMINAL_HEARTBEAT_CHECK_INTERVAL)
         now = datetime.now()
         for key, info in list(terminal_registry.items()):
-            if not info["online"]:
+            if not bool(info.get("connected", False)):
                 continue
             try:
                 last = datetime.fromisoformat(info["lastHeartbeatAt"])
@@ -1076,13 +1347,16 @@ async def terminal_heartbeat_monitor():
                 continue
 
             if (now - last).total_seconds() > TERMINAL_HEARTBEAT_TIMEOUT:
-                info["online"] = False
+                was_online = bool(info.get("online"))
+                info["connected"] = False
+                if was_online:
+                    info["online"] = False
                 info["updatedAt"] = now_iso()
                 sid = info.get("sid")
                 if sid:
                     sid_terminal_map.pop(sid, None)
                 log_terminal_event(
-                    "monitor.timeout_offline_emit",
+                    "monitor.timeout_disconnected_emit",
                     userId=info["userId"],
                     terminalId=info["terminalId"],
                     macAddress=info.get("macAddress") or "",
@@ -1091,13 +1365,24 @@ async def terminal_heartbeat_monitor():
                 await emit_terminal_control(
                     info["userId"],
                     info["terminalId"],
-                    "terminal.offline",
+                    "terminal.disconnected",
                     {
                         "terminalName": info.get("terminalName") or info["terminalId"],
                         "reason": "service_heartbeat_timeout",
                         "statusSource": "terminal_service"
                     }
                 )
+                if was_online:
+                    await emit_terminal_control(
+                        info["userId"],
+                        info["terminalId"],
+                        "terminal.offline",
+                        {
+                            "terminalName": info.get("terminalName") or info["terminalId"],
+                            "reason": "service_heartbeat_timeout",
+                            "statusSource": "terminal_service"
+                        }
+                    )
 
 
 @app.on_event("startup")
@@ -1125,7 +1410,7 @@ app.include_router(backtest_router, prefix="/api")
 app.include_router(preview_router, prefix="/api")
 app.include_router(trading_router)
 
-EXTERNAL_API = "http://192.168.66.141:8000"
+EXTERNAL_API = "http://192.168.66.143:8000"
 
 
 @app.get("/strategy_info")
@@ -1160,7 +1445,7 @@ async def strategy_action(request: dict):
 async def get_news_latest(limit: int = Query(default=10, ge=1, le=100)):
     try:
         news_list = get_latest_news(limit=limit)
-        
+
         result = []
         for item in news_list:
             result.append(NewsItem(
@@ -1172,7 +1457,7 @@ async def get_news_latest(limit: int = Query(default=10, ge=1, le=100)):
                 sectors=item['sectors'],
                 stocks=[StockItem(**s) for s in item['stocks']]
             ))
-        
+
         return ApiResponse(
             code=0,
             message="success",
@@ -1190,7 +1475,7 @@ async def get_news_detail(news_id: int):
         news = get_news_by_id(news_id)
         if not news:
             raise HTTPException(status_code=404, detail="News not found")
-        
+
         return ApiResponse(
             code=0,
             message="success",
@@ -1219,10 +1504,10 @@ async def health_check():
 
 async def main():
     import uvicorn
-    
+
     config = uvicorn.Config(app, host="0.0.0.0", port=8766, log_level="info")
     server = uvicorn.Server(config)
-    
+
     logger.info("=" * 50)
     logger.info("HTTP API + Socket.IO 服务启动: http://0.0.0.0:8766")
     logger.info("Socket.IO: ws://0.0.0.0:8766/socket.io")
@@ -1233,7 +1518,7 @@ async def main():
     logger.info("  - /socket.io         (WebSocket Pub/Sub)")
     logger.info("  - /push_from_external (外部推送入口)")
     logger.info("=" * 50)
-    
+
     await server.serve()
 
 

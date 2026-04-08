@@ -99,6 +99,33 @@ export interface UserTerminal {
   updated_at?: string | null
 }
 
+export interface OrderRequest {
+  stock_code: string
+  price: number
+  quantity: number
+  position_level?: number
+}
+
+export interface MachineTradeRecord {
+  id?: number | null
+  stock_code: string
+  trade_type: string
+  price: number
+  quantity: number
+  amount?: number
+  trade_time?: string | null
+  status?: string
+  remark?: string | null
+  machine_code: string
+}
+
+export interface TerminalRenameRequest {
+  uid: string
+  terminal_name: string
+  terminal_id?: string
+  mac_address?: string
+}
+
 // ==================== API 函数 ====================
 
 /**
@@ -268,4 +295,36 @@ export async function getUserTerminals(uid: string): Promise<UserTerminal[]> {
     console.error('获取终端列表失败:', error)
     return []
   }
+}
+
+export async function createOrderAPI(payload: OrderRequest): Promise<boolean> {
+  const response = await apiClient.post<{ code: number; message?: string }>('/api/trading/order', payload)
+  if (response.data.code !== 0) {
+    throw new Error(response.data.message || '下单失败')
+  }
+  return true
+}
+
+export async function getTradeRecordsByMachine(machineCode: string): Promise<MachineTradeRecord[]> {
+  if (!machineCode.trim()) return []
+  const response = await apiClient.get<{ code: number; message: string; data: MachineTradeRecord[] }>(
+    '/api/trading/trade-records/by-machine',
+    {
+      params: {
+        machine_code: machineCode
+      }
+    }
+  )
+  if (response.data.code !== 0) {
+    return []
+  }
+  return response.data.data || []
+}
+
+export async function updateTerminalNameAPI(payload: TerminalRenameRequest): Promise<boolean> {
+  const response = await apiClient.patch<{ code: number; message?: string }>('/api/trading/terminals/name', payload)
+  if (response.data.code !== 0) {
+    throw new Error(response.data.message || '更新终端名称失败')
+  }
+  return true
 }

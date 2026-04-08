@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import Icon from '@/components/common/Icon.vue'
 import { useUserStore } from '@/stores/userStore'
 import {
   addToWatchlistAPI,
+  createOrderAPI,
+  getTradeRecordsByMachine,
   getUserTerminals,
   getWatchlist,
   removeFromWatchlistAPI,
   searchStocks,
+  updateTerminalNameAPI,
+  type MachineTradeRecord,
   type StockSearchResult,
   type UserTerminal,
   type WatchlistItem
@@ -33,6 +37,7 @@ interface TerminalState {
   terminalName: string
   macAddress: string
   accountName: string
+  connected: boolean
   online: boolean
   lastHeartbeatAt: string
   connectedAt: string
@@ -63,22 +68,35 @@ const watchlist = ref<WatchlistItem[]>([])
 const pushCount = ref(0)
 const lastPushTime = ref('')
 const tradeMode = ref<'buy' | 'sell'>('buy')
+const orderStockCode = ref('')
+const orderStockName = ref('')
+const orderPriceValue = ref<number | null>(null)
+const orderQuantity = ref<number>(100)
+const selectedPositionLevel = ref<number | null>(null)
+const isSubmittingOrder = ref(false)
+const orderSearchResults = ref<StockSearchResult[] | null>(null)
+const isOrderSearching = ref(false)
+const suppressOrderSearch = ref(false)
 
 const terminals = ref<Record<string, TerminalState>>({})
 const terminalSeqMap = ref<Record<string, number>>({})
+const terminalHistoryLoaded = ref<Record<string, boolean>>({})
+const terminalHistoryLoading = ref<Record<string, boolean>>({})
 const controlEventsCount = ref(0)
+const editingTerminalId = ref<string>('')
+const editingTerminalName = ref<string>('')
+const terminalRenameTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
 const ws = useWebSocket()
 const controlTopic = computed(() => (currentUid.value ? 'trading-terminal.control.' + currentUid.value : ''))
 
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+let orderSearchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 let offZixuan: (() => void) | null = null
 let offControlTopic: (() => void) | null = null
 let offTerminalSnapshot: (() => void) | null = null
 let offWsConnect: (() => void) | null = null
 const terminalTopicOffFns = new Map<string, () => void>()
-
-const activeStock = computed(() => watchlist.value[0])
 
 const terminalList = computed(() => {
   return Object.values(terminals.value).sort((a, b) => {
@@ -104,6 +122,7 @@ const ensureTerminalState = (terminalId: string, terminalName?: string): Termina
     terminalName: terminalName || terminalId,
     macAddress: '',
     accountName: '',
+    connected: false,
     online: false,
     lastHeartbeatAt: '',
     connectedAt: '',
@@ -125,6 +144,23 @@ const removeTerminal = (terminalId: string) => {
   const nextSeq = { ...terminalSeqMap.value }
   delete nextSeq[terminalId]
   terminalSeqMap.value = nextSeq
+
+  const nextLoaded = { ...terminalHistoryLoaded.value }
+  delete nextLoaded[terminalId]
+  terminalHistoryLoaded.value = nextLoaded
+
+  const nextLoading = { ...terminalHistoryLoading.value }
+  delete nextLoading[terminalId]
+  terminalHistoryLoading.value = nextLoading
+  if (editingTerminalId.value === terminalId) {
+    editingTerminalId.value = ''
+    editingTerminalName.value = ''
+  }
+  const timer = terminalRenameTimers.get(terminalId)
+  if (timer) {
+    clearTimeout(timer)
+    terminalRenameTimers.delete(terminalId)
+  }
 
   const uid = currentUid.value
   if (!uid) return
@@ -175,13 +211,13 @@ const subscribeTerminalTopic = (terminalId: string) => {
     terminal.updatedAt = envelope.ts || terminal.updatedAt
 
     if (envelope.eventType === 'trade.record.append') {
-      appendRecord(terminalId, (envelope.data || {}) as TerminalTradeRecord)
+      appendRecord(terminalId, normalizeTradeRecord(envelope.data || {}))
       return
     }
 
     if (envelope.eventType === 'trade.record.batch') {
       const records = (envelope.data?.records as TerminalTradeRecord[]) || []
-      replaceRecords(terminalId, records)
+      replaceRecords(terminalId, records.map((item) => normalizeTradeRecord(item)))
       return
     }
 
@@ -192,10 +228,93 @@ const subscribeTerminalTopic = (terminalId: string) => {
 
     if (envelope.eventType === 'terminal.offline') {
       terminal.online = false
+      return
+    }
+
+    if (envelope.eventType === 'terminal.connected') {
+      terminal.connected = true
+      return
+    }
+
+    if (envelope.eventType === 'terminal.disconnected') {
+      terminal.connected = false
+      terminal.online = false
     }
   })
 
   terminalTopicOffFns.set(topic, off)
+}
+
+const toNumber = (value: unknown, fallback = 0): number => {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : fallback
+}
+
+const normalizeSide = (value: unknown): string => {
+  const raw = String(value || '').toLowerCase()
+  if (!raw) return 'buy'
+  if (raw.includes('sell') || raw.includes('卖') || raw.includes('short')) return 'sell'
+  return 'buy'
+}
+
+const normalizeTradeRecord = (item: Record<string, unknown>): TerminalTradeRecord => {
+  const symbol = String(item.symbol || item.stock_code || item.ts_code || item.code || '').trim()
+  const name = String(
+    item.name ||
+    item.stock_name ||
+    item.stockName ||
+    item.security_name ||
+    item.securityName ||
+    item.remark ||
+    symbol
+  ).trim()
+
+  const qty = toNumber(item.qty ?? item.quantity, 0)
+  const price = toNumber(item.price ?? item.deal_price, 0)
+  const amount = toNumber(item.amount, Number((price * qty).toFixed(2)))
+
+  return {
+    tradeId: String(item.tradeId || item.trade_id || item.id || ''),
+    time: String(item.time || item.trade_time || item.ts || item.timestamp || ''),
+    symbol,
+    name,
+    side: normalizeSide(item.side ?? item.direction ?? item.trade_type),
+    price,
+    qty,
+    amount
+  }
+}
+
+const mapMachineRecordsToTerminalRecords = (items: MachineTradeRecord[]): TerminalTradeRecord[] => {
+  const mapped = items.map((item) => normalizeTradeRecord(item as unknown as Record<string, unknown>))
+
+  mapped.sort((a, b) => String(b.time || '').localeCompare(String(a.time || '')))
+  return mapped.slice(0, MAX_RECORDS_PER_TERMINAL)
+}
+
+const initTerminalRecordsByMachine = async (terminalId: string, macAddress?: string) => {
+  const mac = String(macAddress || '').trim()
+  if (!terminalId || !mac) return
+  if (terminalHistoryLoaded.value[terminalId] || terminalHistoryLoading.value[terminalId]) return
+
+  terminalHistoryLoading.value = {
+    ...terminalHistoryLoading.value,
+    [terminalId]: true
+  }
+  try {
+    const rows = await getTradeRecordsByMachine(mac)
+    replaceRecords(terminalId, mapMachineRecordsToTerminalRecords(rows))
+    terminalHistoryLoaded.value = {
+      ...terminalHistoryLoaded.value,
+      [terminalId]: true
+    }
+  } catch (error) {
+    console.warn('[TradingTerminal] init records by machine failed', terminalId, mac, error)
+  } finally {
+    const next = { ...terminalHistoryLoading.value }
+    delete next[terminalId]
+    terminalHistoryLoading.value = next
+  }
 }
 
 const applySnapshot = (items: Array<Record<string, unknown>>) => {
@@ -208,12 +327,14 @@ const applySnapshot = (items: Array<Record<string, unknown>>) => {
     const accountName = String(item.accountName || item.account_name || '').trim()
     if (macAddress) terminal.macAddress = macAddress
     if (accountName) terminal.accountName = accountName
-    terminal.online = Boolean(item.online)
+    terminal.connected = Boolean(item.connected)
+    terminal.online = terminal.connected ? Boolean(item.online) : false
     terminal.lastHeartbeatAt = String(item.lastHeartbeatAt || '')
     terminal.connectedAt = String(item.connectedAt || '')
     terminal.updatedAt = String(item.updatedAt || '')
 
     subscribeTerminalTopic(terminalId)
+    void initTerminalRecordsByMachine(terminalId, terminal.macAddress)
   })
 }
 
@@ -225,9 +346,11 @@ const loadUserTerminals = async (uid: string) => {
     terminal.userId = item.uid
     terminal.macAddress = item.mac_address
     terminal.accountName = item.account_name
-    terminal.online = Boolean(item.active)
+    terminal.connected = false
+    terminal.online = false
     terminal.updatedAt = item.updated_at || terminal.updatedAt
     subscribeTerminalTopic(item.terminal_id)
+    void initTerminalRecordsByMachine(item.terminal_id, terminal.macAddress)
   })
 }
 
@@ -248,6 +371,7 @@ const handleControlEvent = (payload: unknown) => {
   if (envelope.eventType === 'terminal.added') {
     terminal.updatedAt = envelope.ts || terminal.updatedAt
     subscribeTerminalTopic(terminalId)
+    void initTerminalRecordsByMachine(terminalId, terminal.macAddress)
     return
   }
 
@@ -265,6 +389,19 @@ const handleControlEvent = (payload: unknown) => {
     return
   }
 
+  if (envelope.eventType === 'terminal.connected') {
+    terminal.connected = true
+    terminal.updatedAt = envelope.ts || terminal.updatedAt
+    return
+  }
+
+  if (envelope.eventType === 'terminal.disconnected') {
+    terminal.connected = false
+    terminal.online = false
+    terminal.updatedAt = envelope.ts || terminal.updatedAt
+    return
+  }
+
   if (envelope.eventType === 'terminal.removed') {
     removeTerminal(terminalId)
   }
@@ -273,6 +410,57 @@ const handleControlEvent = (payload: unknown) => {
 const requestSnapshot = () => {
   if (!currentUid.value) return
   ws.emit('terminal_snapshot_request', { userId: currentUid.value })
+}
+
+const beginEditTerminalName = (terminalId: string) => {
+  const terminal = terminals.value[terminalId]
+  if (!terminal) return
+  editingTerminalId.value = terminalId
+  editingTerminalName.value = terminal.terminalName || terminalId
+}
+
+const cancelEditTerminalName = () => {
+  editingTerminalId.value = ''
+  editingTerminalName.value = ''
+}
+
+const applyRenameLocal = (terminalId: string, nextName: string) => {
+  const terminal = terminals.value[terminalId]
+  if (!terminal) return
+  terminal.terminalName = nextName
+}
+
+const commitTerminalNameDebounced = (terminalId: string) => {
+  const terminal = terminals.value[terminalId]
+  if (!terminal) return
+  const nextName = editingTerminalName.value.trim()
+  if (!nextName || nextName === terminal.terminalName) return
+
+  const prevTimer = terminalRenameTimers.get(terminalId)
+  if (prevTimer) clearTimeout(prevTimer)
+
+  const timer = setTimeout(async () => {
+    try {
+      await updateTerminalNameAPI({
+        uid: currentUid.value,
+        terminal_id: terminal.terminalId,
+        mac_address: terminal.macAddress,
+        terminal_name: nextName
+      })
+      applyRenameLocal(terminalId, nextName)
+    } catch (error: any) {
+      message.error(error?.message || '终端名称更新失败')
+    } finally {
+      terminalRenameTimers.delete(terminalId)
+    }
+  }, 450)
+
+  terminalRenameTimers.set(terminalId, timer)
+}
+
+const finishEditTerminalName = (terminalId: string) => {
+  commitTerminalNameDebounced(terminalId)
+  cancelEditTerminalName()
 }
 
 const loadWatchlist = async () => {
@@ -301,6 +489,12 @@ const debouncedSearch = (keyword: string) => {
 
 watch(searchKeyword, (value) => {
   debouncedSearch(value)
+})
+
+watch(orderStockCode, (value) => {
+  if (suppressOrderSearch.value) return
+  orderPriceValue.value = null
+  debouncedOrderSearch(value)
 })
 
 const isInWatchlist = (tsCode: string) => watchlist.value.some((item) => item.ts_code === tsCode)
@@ -338,6 +532,145 @@ const removeFromWatchlist = async (tsCode: string) => {
   } catch (error: any) {
     message.error(error?.message || '删除失败')
   }
+}
+
+const normalizeStockCode = (code: string) => code.trim().toUpperCase()
+
+const debouncedOrderSearch = (keyword: string) => {
+  if (orderSearchDebounceTimer) clearTimeout(orderSearchDebounceTimer)
+
+  orderSearchDebounceTimer = setTimeout(async () => {
+    if (!keyword.trim()) {
+      orderSearchResults.value = null
+      orderStockName.value = ''
+      return
+    }
+
+    isOrderSearching.value = true
+    try {
+      orderSearchResults.value = await searchStocks(keyword, 20)
+    } catch {
+      orderSearchResults.value = []
+    } finally {
+      isOrderSearching.value = false
+    }
+  }, 300)
+}
+
+const choosePositionLevel = (positionLevel: number) => {
+  selectedPositionLevel.value = positionLevel
+}
+
+const selectOrderStock = (stock: StockSearchResult) => {
+  suppressOrderSearch.value = true
+  orderStockCode.value = stock.ts_code
+  orderStockName.value = stock.name
+  orderPriceValue.value = null
+  orderSearchResults.value = null
+  setTimeout(() => {
+    suppressOrderSearch.value = false
+  }, 0)
+}
+
+const quickSubmitFromWatchlist = async (stock: WatchlistItem) => {
+  const stockCode = normalizeStockCode(stock.ts_code || '')
+  const stockName = String(stock.name || '').trim()
+  const price = Number(stock.close ?? 0)
+
+  if (!stockCode || !stockName) {
+    message.warning('该自选股票缺少代码或名称，无法下单')
+    return
+  }
+  if (!Number.isFinite(price) || price <= 0) {
+    message.warning('该自选股票价格无效，无法一键下单')
+    return
+  }
+
+  suppressOrderSearch.value = true
+  orderStockCode.value = stockCode
+  orderStockName.value = stockName
+  orderPriceValue.value = Number(price.toFixed(2))
+  orderSearchResults.value = null
+  setTimeout(() => {
+    suppressOrderSearch.value = false
+  }, 0)
+
+  await submitOrder()
+}
+
+const submitOrder = async (positionLevel?: number) => {
+  const stockCode = normalizeStockCode(orderStockCode.value)
+  const price = Number(orderPriceValue.value || 0)
+  const quantity = Number(orderQuantity.value || 0)
+
+  if (!stockCode) {
+    message.warning('请先输入并选择证券代码')
+    return
+  }
+
+  if (!Number.isFinite(price) || price <= 0) {
+    message.warning('请输入有效委托价格')
+    return
+  }
+
+  if (!Number.isInteger(quantity) || quantity < 100) {
+    message.warning('委托数量最小为 100')
+    return
+  }
+
+  isSubmittingOrder.value = true
+  try {
+    const validPositionLevel = typeof positionLevel === 'number' ? positionLevel : undefined
+    const selectedLevel = typeof selectedPositionLevel.value === 'number' ? selectedPositionLevel.value : undefined
+    await createOrderAPI({
+      stock_code: stockCode,
+      price,
+      quantity,
+      ...(validPositionLevel ? { position_level: validPositionLevel } : (selectedLevel ? { position_level: selectedLevel } : {}))
+    })
+    message.success(`${tradeMode.value === 'buy' ? '买入' : '卖出'}下单成功`)
+  } catch (error: any) {
+    message.error(error?.message || '下单失败')
+  } finally {
+    isSubmittingOrder.value = false
+  }
+}
+
+const validateOrderInputs = () => {
+  const stockCode = normalizeStockCode(orderStockCode.value)
+  if (!stockCode) {
+    message.warning('请先输入并选择证券代码')
+    return null
+  }
+
+  const price = Number(orderPriceValue.value || 0)
+  if (!Number.isFinite(price) || price <= 0) {
+    message.warning('请输入有效委托价格')
+    return null
+  }
+
+  const quantity = Number(orderQuantity.value || 0)
+  if (!Number.isInteger(quantity) || quantity < 100) {
+    message.warning('委托数量最小为 100')
+    return null
+  }
+  return { stockCode, price, quantity }
+}
+
+const confirmPositionOrder = (positionLevel: number, label: string) => {
+  const validation = validateOrderInputs()
+  if (!validation) return
+
+  choosePositionLevel(positionLevel)
+  Modal.confirm({
+    title: `确认${tradeMode.value === 'buy' ? '买入' : '卖出'}${label}下单`,
+    content: `证券 ${validation.stockCode}，价格 ${validation.price.toFixed(2)}，数量 ${validation.quantity}`,
+    okText: '确认下单',
+    cancelText: '取消',
+    onOk: async () => {
+      await submitOrder(positionLevel)
+    }
+  })
 }
 
 onMounted(() => {
@@ -381,6 +714,12 @@ onMounted(() => {
 
     terminals.value = {}
     terminalSeqMap.value = {}
+    terminalHistoryLoaded.value = {}
+    terminalHistoryLoading.value = {}
+    editingTerminalId.value = ''
+    editingTerminalName.value = ''
+    terminalRenameTimers.forEach((timer) => clearTimeout(timer))
+    terminalRenameTimers.clear()
     controlEventsCount.value = 0
 
     if (!uid) return
@@ -409,8 +748,11 @@ onUnmounted(() => {
     off()
   })
   terminalTopicOffFns.clear()
+  terminalRenameTimers.forEach((timer) => clearTimeout(timer))
+  terminalRenameTimers.clear()
 
   if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  if (orderSearchDebounceTimer) clearTimeout(orderSearchDebounceTimer)
 })
 </script>
 
@@ -464,7 +806,10 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="flex-1 overflow-auto">
+          <div v-if="watchlist.length === 0" class="flex-1 flex items-center justify-center text-textMute text-xs">
+            暂无自选股票
+          </div>
+          <div v-else class="watchlist-scroll-wrap overflow-y-auto h-[224px]">
             <table class="density-table w-full text-xs">
               <thead>
                 <tr class="bg-bgMain/70">
@@ -472,7 +817,6 @@ onUnmounted(() => {
                   <th class="text-left text-textSub font-medium">名称</th>
                   <th class="text-right text-textSub font-medium">收盘</th>
                   <th class="text-right text-textSub font-medium">涨跌</th>
-                  <th class="text-right text-textSub font-medium">幅%</th>
                   <th class="text-center text-textSub font-medium">操作</th>
                 </tr>
               </thead>
@@ -484,28 +828,33 @@ onUnmounted(() => {
                   <td class="text-right font-numeric" :class="(stock.change ?? 0) >= 0 ? 'text-up' : 'text-down'">
                     {{ (stock.change ?? 0).toFixed(2) }}
                   </td>
-                  <td class="text-right font-numeric" :class="(stock.change_pct ?? 0) >= 0 ? 'text-up' : 'text-down'">
-                    {{ (stock.change_pct ?? 0).toFixed(2) }}%
-                  </td>
                   <td class="text-center">
-                    <button
-                      type="button"
-                      class="text-up hover:underline"
-                      @click="removeFromWatchlist(stock.ts_code)"
-                    >
-                      删除
-                    </button>
+                    <div class="inline-flex items-center gap-2">
+                      <button
+                        type="button"
+                        class="h-6 px-2 rounded border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                        :disabled="isSubmittingOrder"
+                        @click="quickSubmitFromWatchlist(stock)"
+                      >
+                        一键下单
+                      </button>
+                      <a-button
+                        class="rounded hover:bg-down/10 transition-colors"
+                        @click="removeFromWatchlist(stock.ts_code)"
+                        danger
+                        size="small"
+                      >
+                        删除
+                      </a-button>
+                    </div>
                   </td>
-                </tr>
-                <tr v-if="watchlist.length === 0">
-                  <td colspan="6" class="text-center py-8 text-textMute">暂无自选股票</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <div class="bg-card rounded-lg border border-border shadow-sm p-3 flex flex-col gap-3 min-h-[280px]">
+        <div class="bg-card rounded-lg border border-border shadow-sm p-3 flex flex-col gap-3 min-h-[280px] quick-terminal-panel">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <Icon icon="analytics" :size="16" class="text-primary" />
@@ -534,18 +883,43 @@ onUnmounted(() => {
           <div class="grid grid-cols-2 gap-2 rounded border border-border bg-bgMain/70 p-3 text-xs">
             <div class="space-y-1">
               <label class="text-textSub">证券代码</label>
-              <input
-                type="text"
-                :value="activeStock?.ts_code || ''"
-                class="h-8 w-full rounded border border-border bg-card px-2 text-textMain font-numeric"
-                readonly
-              />
+              <div class="relative">
+                <input
+                  v-model="orderStockCode"
+                  type="text"
+                  class="h-8 w-full rounded border border-border bg-card pl-8 pr-2 text-textMain font-numeric placeholder-textMute focus:border-primary focus:outline-none"
+                  placeholder="代码/名称检索"
+                />
+                <Icon icon="search" :size="14" class="absolute left-2.5 top-2 text-textMute" />
+
+                <div
+                  v-if="orderStockCode && (isOrderSearching || orderSearchResults)"
+                  class="absolute top-9 left-0 right-0 z-20 rounded border border-border bg-card shadow-sm max-h-52 overflow-y-auto"
+                >
+                  <div v-if="isOrderSearching" class="px-3 py-2 text-xs text-textMute">搜索中...</div>
+                  <div v-else-if="orderSearchResults && orderSearchResults.length === 0" class="px-3 py-2 text-xs text-textMute">未找到匹配股票</div>
+                  <button
+                    v-for="stock in orderSearchResults || []"
+                    :key="stock.ts_code"
+                    type="button"
+                    class="w-full px-3 py-2 text-left hover:bg-primary/5 border-b border-border last:border-b-0"
+                    @click="selectOrderStock(stock)"
+                  >
+                    <div class="flex items-center justify-between">
+                      <div class="min-w-0">
+                        <p class="text-xs text-textMain truncate">{{ stock.name }}</p>
+                        <p class="text-xxs text-textSub font-numeric">{{ stock.ts_code }}</p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
             </div>
             <div class="space-y-1">
               <label class="text-textSub">名称</label>
               <input
                 type="text"
-                :value="activeStock?.name || ''"
+                :value="orderStockName"
                 class="h-8 w-full rounded border border-border bg-card px-2 text-textMain"
                 readonly
               />
@@ -553,26 +927,66 @@ onUnmounted(() => {
             <div class="space-y-1">
               <label class="text-textSub">委托价格</label>
               <input
+                v-model.number="orderPriceValue"
                 type="number"
-                :value="activeStock?.close || 0"
+                min="0"
+                step="0.01"
+                placeholder="输入委托价格"
                 class="h-8 w-full rounded border border-border bg-card px-2 text-textMain font-numeric"
-                readonly
               />
             </div>
             <div class="space-y-1">
               <label class="text-textSub">委托数量</label>
               <input
+                v-model.number="orderQuantity"
                 type="number"
-                placeholder="0"
+                min="100"
+                step="100"
+                placeholder="最小100"
                 class="h-8 w-full rounded border border-border bg-card px-2 text-textMain font-numeric"
               />
             </div>
             <div class="col-span-2 flex items-center gap-2 mt-1">
-              <button type="button" class="flex-1 h-7 rounded border border-border bg-card text-textSub">1/4</button>
-              <button type="button" class="flex-1 h-7 rounded border border-border bg-card text-textSub">1/3</button>
-              <button type="button" class="flex-1 h-7 rounded border border-border bg-card text-textSub">1/2</button>
-              <button type="button" class="flex-1 h-7 rounded border border-border bg-card text-textSub">全仓</button>
-              <button type="button" class="h-7 px-4 rounded bg-primary text-white font-medium">确认下单</button>
+              <button
+                type="button"
+                class="flex-1 h-7 rounded border border-border bg-card text-textSub"
+                :class="selectedPositionLevel === 4 ? 'border-primary text-primary' : ''"
+                @click="confirmPositionOrder(4, '1/4仓')"
+              >
+                1/4
+              </button>
+              <button
+                type="button"
+                class="flex-1 h-7 rounded border border-border bg-card text-textSub"
+                :class="selectedPositionLevel === 3 ? 'border-primary text-primary' : ''"
+                @click="confirmPositionOrder(3, '1/3仓')"
+              >
+                1/3
+              </button>
+              <button
+                type="button"
+                class="flex-1 h-7 rounded border border-border bg-card text-textSub"
+                :class="selectedPositionLevel === 2 ? 'border-primary text-primary' : ''"
+                @click="confirmPositionOrder(2, '1/2仓')"
+              >
+                1/2
+              </button>
+              <button
+                type="button"
+                class="flex-1 h-7 rounded border border-border bg-card text-textSub"
+                :class="selectedPositionLevel === 1 ? 'border-primary text-primary' : ''"
+                @click="confirmPositionOrder(1, '全仓')"
+              >
+                全仓
+              </button>
+              <button
+                type="button"
+                class="h-7 px-4 rounded bg-primary text-white font-medium disabled:opacity-50"
+                :disabled="isSubmittingOrder"
+                @click="submitOrder()"
+              >
+                {{ isSubmittingOrder ? '下单中...' : '确认下单' }}
+              </button>
             </div>
           </div>
 
@@ -610,30 +1024,56 @@ onUnmounted(() => {
               <div class="min-w-0">
                 <div class="flex items-center gap-2 text-textSub min-w-0">
                   <Icon icon="mdi:console" :size="14" />
-                  <span class="text-xxs font-numeric truncate">{{ (terminal.macAddress || '-') + ' ' + (terminal.accountName || '-') }}</span>
+                  <span class="text-xxs font-numeric truncate">{{ terminal.terminalId }} {{ terminal.macAddress || '-' }}</span>
                 </div>
-                <p class="text-xxs text-textMute truncate mt-0.5">
-                  {{ terminal.terminalName }} ({{ terminal.terminalId }})
-                </p>
+                <div class="mt-0.5">
+                  <button
+                    v-if="editingTerminalId !== terminal.terminalId"
+                    type="button"
+                    class="text-xxs text-textMute truncate max-w-full text-left hover:text-primary"
+                    @click="beginEditTerminalName(terminal.terminalId)"
+                  >
+                    {{ terminal.terminalName || terminal.terminalId }}
+                  </button>
+                  <input
+                    v-else
+                    v-model="editingTerminalName"
+                    type="text"
+                    class="h-6 w-44 max-w-full rounded border border-primary/40 bg-card px-2 text-xxs text-textMain focus:border-primary focus:outline-none"
+                    @input="commitTerminalNameDebounced(terminal.terminalId)"
+                    @keydown.enter.prevent="finishEditTerminalName(terminal.terminalId)"
+                    @blur="finishEditTerminalName(terminal.terminalId)"
+                  />
+                </div>
               </div>
-              <div class="flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full" :class="terminal.online ? 'bg-down' : 'bg-border'" />
-                <span class="text-xxs" :class="terminal.online ? 'text-down' : 'text-textMute'">
-                  {{ terminal.online ? 'Connected' : 'Offline' }}
-                </span>
+              <div class="flex items-center gap-2 status-panel">
+                <div class="status-input">
+                  <span class="status-addon">系统</span>
+                  <span class="status-value" :class="terminal.connected ? 'text-down' : 'text-up'">
+                    <span class="w-1.5 h-1.5 rounded-full inline-block mr-1" :class="terminal.connected ? 'bg-down' : 'bg-up'" />
+                    {{ terminal.connected ? 'Connected' : 'Disconnected' }}
+                  </span>
+                </div>
+                <div class="status-input">
+                  <span class="status-addon">交易机</span>
+                  <span class="status-value" :class="terminal.connected && terminal.online ? 'text-down' : 'text-up'">
+                    <span class="w-1.5 h-1.5 rounded-full inline-block mr-1" :class="terminal.connected && terminal.online ? 'bg-down' : 'bg-up'" />
+                    {{ terminal.connected && terminal.online ? 'Online' : 'Offline' }}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div class="flex-1 p-3 overflow-auto">
+            <div class="p-3 terminal-records-wrap">
               <div v-if="terminal.records.length === 0" class="h-full flex items-center justify-center text-xs text-textMute">
                 暂无交易记录
               </div>
               <table v-else class="w-full text-xs terminal-table">
                 <thead>
                   <tr>
-                    <th>时间</th>
-                    <th>代码</th>
-                    <th>名称</th>
+                    <th class="text-left">时间</th>
+                    <th class="text-left">代码</th>
+                    <th class="text-left">名称</th>
                     <th class="text-center">方向</th>
                     <th class="text-right">成交价</th>
                     <th class="text-right">成交量</th>
@@ -641,9 +1081,9 @@ onUnmounted(() => {
                 </thead>
                 <tbody>
                   <tr v-for="(record, idx) in terminal.records" :key="record.tradeId || (terminal.terminalId + '-' + idx)">
-                    <td class="font-numeric text-textMute">{{ String(record.time || '-') }}</td>
-                    <td class="font-numeric text-textSub">{{ String(record.symbol || '-') }}</td>
-                    <td class="text-textMain">{{ String(record.name || '-') }}</td>
+                    <td class="font-numeric text-textMute text-left truncate">{{ String(record.time || '-') }}</td>
+                    <td class="font-numeric text-textSub text-left truncate">{{ String(record.symbol || '-') }}</td>
+                    <td class="text-textMain text-left truncate">{{ String(record.name || '-') }}</td>
                     <td class="text-center font-medium" :class="String(record.side || '').toLowerCase() === 'sell' ? 'text-down' : 'text-up'">
                       {{ String(record.side || '').toLowerCase() === 'sell' ? '卖出' : '买入' }}
                     </td>
@@ -666,11 +1106,104 @@ onUnmounted(() => {
 .terminal-table td {
   padding: 4px 6px;
   border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.terminal-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.terminal-table thead th {
+  position: sticky;
+  top: -12px;
+  z-index: 1;
+  background-color: rgb(var(--color-card));
+}
+
+.terminal-table thead {
+  background-color: rgb(var(--color-card));
+  box-shadow: inset 0 -1px 0 0 var(--color-border);
 }
 
 .terminal-table th {
   color: var(--color-text-sub);
   font-weight: 500;
-  text-align: left;
+}
+
+.terminal-records-wrap {
+  height: 160px;
+  max-height: 160px;
+  min-height: 160px;
+  overflow-y: auto;
+}
+
+.status-panel {
+  padding: 2px 0;
+}
+
+.status-input {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--color-card);
+  min-height: 22px;
+}
+
+.status-addon {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 11px;
+  color: var(--color-text-sub);
+  background: rgba(15, 23, 42, 0.04);
+  border-right: 1px solid var(--color-border);
+}
+
+.status-value {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.quick-terminal-panel,
+.quick-terminal-panel input,
+.quick-terminal-panel button,
+.quick-terminal-panel label {
+  font-family: inherit;
+}
+
+.quick-terminal-panel {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.quick-terminal-panel input {
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.quick-terminal-panel input::placeholder {
+  font-size: 12px;
+}
+
+.watchlist-scroll-wrap {
+  min-height: 224px;
+  max-height: 224px;
+}
+
+.watchlist-scroll-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: rgb(var(--color-bg-main));
+}
+
+.watchlist-scroll-wrap thead {
+  box-shadow: inset 0 -1px 0 0 var(--color-border);
 }
 </style>

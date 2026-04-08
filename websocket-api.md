@@ -10,6 +10,58 @@
 - 命名空间：默认 `/`
 - 连接路径：`/socket.io`
 
+### 1.1 调用方式（重要）
+
+本文档中所有“客户端 -> 服务端”的业务事件，均通过 Socket.IO `emit` 调用，不是 HTTP 接口。
+
+- 发送：`socket.emit('<event_name>', payload)`
+- 接收：`socket.on('<event_name>', handler)`
+
+最小示例：
+
+```js
+import { io } from 'socket.io-client'
+
+const socket = io('http://192.168.66.186:8766', {
+  path: '/socket.io',
+  transports: ['websocket', 'polling']
+})
+
+socket.on('connect', () => {
+  // 终端注册（终端平台）
+  socket.emit('terminal_register', {
+    userId: 'u_1001',
+    macAddress: 'AA:BB:CC:DD:EE:FF',
+    terminalName: '柜台A',
+    accountName: 'trader01',
+    status: 'online'
+  })
+
+  // 下单广播（交易信号平台）
+  socket.emit('push_order', {
+    userId: 'u_1001',
+    eventType: 'order.create',
+    source: 'signal_platform',
+    data: {
+      stock_code: '600519',
+      price: 1723.4,
+      quantity: 100,
+      position_level: 2
+    }
+  })
+})
+
+socket.on('terminal_registered', (msg) => {
+  // 终端侧拿到 orderTopic/controlTopic/topic
+  console.log(msg)
+})
+
+socket.on('order.u_1001', (orderMsg) => {
+  // 多终端接收同一 uid 的下单事件
+  console.log(orderMsg)
+})
+```
+
 ## 2. Topic 约定
 
 ### 2.1 历史通道（兼容）
@@ -24,6 +76,7 @@
 
 - `trading-terminal.control.{userId}`：终端控制通道（新增/上线/离线/移除）
 - `trading-terminal.{userId}.{terminalId}`：终端业务通道（实时交易记录/订单状态）
+- `order.{userId}`：下单通道（交易信号平台按 uid 广播，用户下所有终端接收）
 
 说明：
 - `terminalId` 是动态值（例如 `terminal-node-1`、`desktop-a001`）。
@@ -87,6 +140,7 @@
   "terminalName": "柜台A",
   "topic": "trading-terminal.u_1001.terminal-node-1",
   "controlTopic": "trading-terminal.control.u_1001",
+  "orderTopic": "order.u_1001",
   "status": "ok"
 }
 ```
@@ -208,6 +262,57 @@
 服务端行为：
 - 转发到 `trading-terminal.{userId}.{terminalId}`
 - 回 `push_ack`
+
+---
+
+### 4.1.6 `push_order`
+
+用途：交易信号平台按 `uid` 广播下单事件，用户下多个终端同时接收。
+
+请求：
+
+```json
+{
+  "userId": "u_1001",
+  "eventType": "order.create",
+  "source": "signal_platform",
+  "data": {
+    "stock_code": "600519",
+    "price": 1723.4,
+    "quantity": 100,
+    "position_level": 2
+  }
+}
+```
+
+服务端行为：
+- 转发到 `order.{userId}`
+- 回 `push_ack`
+
+`data` 字段定义：
+- `stock_code` (string, 必填)
+- `price` (number, 必填)
+- `quantity` (integer, 必填, > 0)
+- `position_level` (integer, 可选): `1=全仓, 2=1/2仓, 3=1/3仓, 4=1/4仓`
+
+`order.{userId}` 事件消息壳：
+
+```json
+{
+  "v": "1.0",
+  "msgId": "9d16d514-1483-43df-b705-3b6f302bfdd4",
+  "ts": "2026-04-07T16:10:00.100200",
+  "userId": "u_1001",
+  "eventType": "order.create",
+  "source": "signal_platform",
+  "data": {
+    "stock_code": "600519",
+    "price": 1723.4,
+    "quantity": 100,
+    "position_level": 2
+  }
+}
+```
 
 ---
 

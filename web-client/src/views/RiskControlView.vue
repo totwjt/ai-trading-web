@@ -7,16 +7,17 @@ const ws = useWebSocket()
 
 const riskPushCount = ref(0)
 const lastPushTime = ref('')
+let offRiskConnect: (() => void) | null = null
+let offRiskEvent: (() => void) | null = null
 
 onMounted(() => {
-  return
   ws.subscribe(['risk'])
 
-  ws.onConnect(() => {
+  offRiskConnect = ws.onConnect(() => {
     console.log('[RiskControl] WebSocket 已连接')
   })
 
-  ws.onRisk((data) => {
+  offRiskEvent = ws.onEvent('risk', (data: unknown) => {
     console.log('[RiskControl] 收到风控推送:', data)
     riskPushCount.value++
     lastPushTime.value = new Date().toLocaleTimeString()
@@ -24,8 +25,11 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  return
   ws.unsubscribe(['risk'])
+  offRiskConnect?.()
+  offRiskEvent?.()
+  offRiskConnect = null
+  offRiskEvent = null
 })
 
 // 行业集中度数据

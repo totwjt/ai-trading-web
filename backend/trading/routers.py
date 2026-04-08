@@ -24,8 +24,10 @@ logger = logging.getLogger(__name__)
 
 trading_router = APIRouter(prefix="/api/trading", tags=["trading"])
 
-EXTERNAL_API = "http://192.168.66.141:8000"
+EXTERNAL_API = "http://192.168.66.143:8000"
 TRADER_API = "http://192.168.66.155:8003"
+ORDER_API = "http://192.168.66.135:8000"
+TRADE_RECORD_API = "http://192.168.66.135:8001"
 
 
 # ==================== 数据模型 ====================
@@ -57,6 +59,20 @@ class TerminalItem(BaseModel):
     active: bool = True
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+
+
+class OrderRequest(BaseModel):
+    stock_code: str
+    price: float
+    quantity: int
+    position_level: Optional[int] = None
+
+
+class TerminalRenameRequest(BaseModel):
+    uid: str
+    terminal_name: str
+    terminal_id: Optional[str] = None
+    mac_address: Optional[str] = None
 
 
 def get_stock_name_initials(name: str) -> str:
@@ -454,6 +470,166 @@ async def get_user_terminals(
         }
 
 
+@trading_router.patch("/terminals/name")
+async def update_terminal_name(
+    payload: TerminalRenameRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """更新终端显示名称（优先按 uid+mac_address，fallback uid+terminal_id）"""
+    try:
+        uid = payload.uid.strip()
+        terminal_name = payload.terminal_name.strip()
+        terminal_id = (payload.terminal_id or "").strip()
+        mac_address = (payload.mac_address or "").strip()
+
+        if not uid or not terminal_name:
+            return {
+                "code": 1,
+                "message": "uid and terminal_name are required",
+                "timestamp": datetime.now().isoformat()
+            }
+
+        updated = 0
+        if mac_address:
+            update_by_mac = text(
+                """
+                UPDATE terminals
+                SET terminal_name = :terminal_name, updated_at = NOW()
+                WHERE uid = :uid AND LOWER(mac_address) = LOWER(:mac_address)
+                """
+            )
+            result = await db.execute(
+                update_by_mac,
+                {"uid": uid, "mac_address": mac_address, "terminal_name": terminal_name}
+            )
+            updated = result.rowcount or 0
+
+        if updated == 0 and terminal_id:
+            update_by_terminal_id = text(
+                """
+                UPDATE terminals
+                SET terminal_name = :terminal_name, updated_at = NOW()
+                WHERE uid = :uid AND terminal_id = :terminal_id
+                """
+            )
+            result = await db.execute(
+                update_by_terminal_id,
+                {"uid": uid, "terminal_id": terminal_id, "terminal_name": terminal_name}
+            )
+            updated = result.rowcount or 0
+
+        if updated == 0:
+            return {
+                "code": 1,
+                "message": "terminal not found",
+                "timestamp": datetime.now().isoformat()
+            }
+
+        await db.commit()
+        return {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "uid": uid,
+                "terminal_id": terminal_id,
+                "mac_address": mac_address,
+                "terminal_name": terminal_name,
+                "updated_rows": updated
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"更新终端名称失败: {e}")
+        return {
+            "code": 1,
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@trading_router.post("/order")
+async def create_order(order: OrderRequest):
+    """快速交易下单（代理到外部交易接口）"""
+    try:
+        payload = {
+            "stock_code": order.stock_code,
+            "price": order.price,
+            "quantity": order.quantity
+        }
+        if order.position_level is not None:
+            payload["position_level"] = order.position_level
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(f"{ORDER_API}/api/order", json=payload)
+            result = response.json() if response.content else {}
+            if response.status_code >= 400:
+                return {
+                    "code": 1,
+                    "message": result.get("detail") if isinstance(result, dict) else f"下单失败: {response.status_code}",
+                    "data": result if isinstance(result, dict) else {},
+                    "timestamp": datetime.now().isoformat()
+                }
+
+            return {
+                "code": 0,
+                "message": "success",
+                "data": result if isinstance(result, dict) else {},
+                "timestamp": datetime.now().isoformat()
+            }
+    except Exception as e:
+        logger.error(f"快速下单失败: {e}")
+        return {
+            "code": 1,
+            "message": str(e),
+            "data": {},
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@trading_router.get("/trade-records/by-machine")
+async def get_trade_records_by_machine(
+    machine_code: str = Query(..., description="终端MAC地址"),
+    start_time: Optional[str] = Query(default=None, description="开始时间 ISO8601"),
+    end_time: Optional[str] = Query(default=None, description="结束时间 ISO8601"),
+):
+    """按终端机器编码（MAC）获取交易记录（代理外部交易记录服务）"""
+    try:
+        params = {"machine_code": machine_code}
+        if start_time:
+            params["start_time"] = start_time
+        if end_time:
+            params["end_time"] = end_time
+
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            response = await client.get(f"{TRADE_RECORD_API}/api/trade-records/by-machine", params=params)
+            if response.status_code >= 400:
+                logger.error("按机器查询交易记录失败: status=%s machine_code=%s", response.status_code, machine_code)
+                return {
+                    "code": 1,
+                    "message": f"获取交易记录失败: {response.status_code}",
+                    "data": [],
+                    "timestamp": datetime.now().isoformat()
+                }
+            records = response.json()
+            if not isinstance(records, list):
+                records = []
+            return {
+                "code": 0,
+                "message": "success",
+                "data": records,
+                "timestamp": datetime.now().isoformat()
+            }
+    except Exception as e:
+        logger.error(f"按机器查询交易记录异常 machine_code={machine_code}: {e}")
+        return {
+            "code": 1,
+            "message": str(e),
+            "data": [],
+            "timestamp": datetime.now().isoformat()
+        }
+
+
 # ==================== 交易记录接口 ====================
 
 @trading_router.get("/trades")
@@ -632,7 +808,7 @@ async def strategy_action(request: StrategyActionRequest):
             payload["type"] = request.type
         if request.value is not None:
             payload["value"] = request.value
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.post(f"{EXTERNAL_API}/strategy_action", json=payload)
             if response.status_code == 200:
