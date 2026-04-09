@@ -132,6 +132,8 @@ export interface PendingOrderItem {
   uid: string
   stock_code: string
   stock_name: string
+  order_price: number
+  order_quantity: number
   scheduled_at: string
   status: 'pending' | 'success' | 'triggered' | 'cancelled'
   created_at?: string | null
@@ -142,11 +144,15 @@ export interface PendingOrderCreateRequest {
   uid: string
   stock_code: string
   stock_name: string
+  order_price: number
+  order_quantity: number
   scheduled_at: string
 }
 
 export interface PendingOrderUpdateRequest {
-  scheduled_at: string
+  scheduled_at?: string
+  order_price?: number
+  order_quantity?: number
 }
 
 export interface PendingOrderConfig {

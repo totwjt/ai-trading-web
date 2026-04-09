@@ -80,11 +80,15 @@ class PendingOrderCreateRequest(BaseModel):
     uid: str
     stock_code: str
     stock_name: str
+    order_price: float
+    order_quantity: int
     scheduled_at: str
 
 
 class PendingOrderUpdateRequest(BaseModel):
-    scheduled_at: str
+    scheduled_at: Optional[str] = None
+    order_price: Optional[float] = None
+    order_quantity: Optional[int] = None
 
 
 class PendingOrderStatusUpdateRequest(BaseModel):
@@ -633,7 +637,7 @@ async def get_pending_orders(
     try:
         query = text(
             """
-            SELECT id, uid, stock_code, stock_name, scheduled_at, status, created_at, updated_at
+            SELECT id, uid, stock_code, stock_name, order_price, order_quantity, scheduled_at, status, created_at, updated_at
             FROM pending_orders
             WHERE uid = :uid AND status = 'pending'
             ORDER BY scheduled_at ASC, id DESC
@@ -650,10 +654,12 @@ async def get_pending_orders(
                     "uid": row[1],
                     "stock_code": row[2],
                     "stock_name": row[3],
-                    "scheduled_at": row[4].isoformat() if row[4] else None,
-                    "status": row[5] or "pending",
-                    "created_at": row[6].isoformat() if row[6] else None,
-                    "updated_at": row[7].isoformat() if row[7] else None,
+                    "order_price": float(row[4] or 0),
+                    "order_quantity": int(row[5] or 0),
+                    "scheduled_at": row[6].isoformat() if row[6] else None,
+                    "status": row[7] or "pending",
+                    "created_at": row[8].isoformat() if row[8] else None,
+                    "updated_at": row[9].isoformat() if row[9] else None,
                 }
                 for row in rows
             ],
@@ -679,10 +685,24 @@ async def create_pending_order(
         uid = payload.uid.strip()
         stock_code = payload.stock_code.strip().upper()
         stock_name = payload.stock_name.strip()
+        order_price = round(float(payload.order_price), 3)
+        order_quantity = int(payload.order_quantity)
         if not uid or not stock_code or not stock_name:
             return {
                 "code": 1,
                 "message": "uid, stock_code, stock_name are required",
+                "timestamp": datetime.now().isoformat()
+            }
+        if order_price <= 0:
+            return {
+                "code": 1,
+                "message": "order_price must be greater than 0",
+                "timestamp": datetime.now().isoformat()
+            }
+        if order_quantity < 1:
+            return {
+                "code": 1,
+                "message": "order_quantity must be greater than 0",
                 "timestamp": datetime.now().isoformat()
             }
 
@@ -690,9 +710,13 @@ async def create_pending_order(
 
         query = text(
             """
-            INSERT INTO pending_orders (uid, stock_code, stock_name, scheduled_at, status, created_at, updated_at)
-            VALUES (:uid, :stock_code, :stock_name, :scheduled_at, 'pending', NOW(), NOW())
-            RETURNING id, uid, stock_code, stock_name, scheduled_at, status, created_at, updated_at
+            INSERT INTO pending_orders (
+                uid, stock_code, stock_name, order_price, order_quantity, scheduled_at, status, created_at, updated_at
+            )
+            VALUES (
+                :uid, :stock_code, :stock_name, :order_price, :order_quantity, :scheduled_at, 'pending', NOW(), NOW()
+            )
+            RETURNING id, uid, stock_code, stock_name, order_price, order_quantity, scheduled_at, status, created_at, updated_at
             """
         )
         result = await db.execute(
@@ -701,6 +725,8 @@ async def create_pending_order(
                 "uid": uid,
                 "stock_code": stock_code,
                 "stock_name": stock_name,
+                "order_price": order_price,
+                "order_quantity": order_quantity,
                 "scheduled_at": scheduled_at,
             }
         )
@@ -713,10 +739,12 @@ async def create_pending_order(
                 "uid": row[1],
                 "stock_code": row[2],
                 "stock_name": row[3],
-                "scheduled_at": row[4].isoformat() if row[4] else None,
-                "status": row[5] or "pending",
-                "created_at": row[6].isoformat() if row[6] else None,
-                "updated_at": row[7].isoformat() if row[7] else None,
+                "order_price": float(row[4] or 0),
+                "order_quantity": int(row[5] or 0),
+                "scheduled_at": row[6].isoformat() if row[6] else None,
+                "status": row[7] or "pending",
+                "created_at": row[8].isoformat() if row[8] else None,
+                "updated_at": row[9].isoformat() if row[9] else None,
             },
             "timestamp": datetime.now().isoformat()
         }
@@ -741,18 +769,52 @@ async def update_pending_order(
     payload: PendingOrderUpdateRequest,
     db: AsyncSession = Depends(get_db)
 ):
-    """更新挂单时间"""
+    """更新挂单信息"""
     try:
-        scheduled_at = parse_iso_datetime(payload.scheduled_at)
+        scheduled_at = parse_iso_datetime(payload.scheduled_at) if payload.scheduled_at else None
+        order_price = round(float(payload.order_price), 3) if payload.order_price is not None else None
+        order_quantity = int(payload.order_quantity) if payload.order_quantity is not None else None
+
+        if scheduled_at is None and order_price is None and order_quantity is None:
+            return {
+                "code": 1,
+                "message": "at least one field is required",
+                "timestamp": datetime.now().isoformat()
+            }
+        if order_price is not None and order_price <= 0:
+            return {
+                "code": 1,
+                "message": "order_price must be greater than 0",
+                "timestamp": datetime.now().isoformat()
+            }
+        if order_quantity is not None and order_quantity < 1:
+            return {
+                "code": 1,
+                "message": "order_quantity must be greater than 0",
+                "timestamp": datetime.now().isoformat()
+            }
+
         query = text(
             """
             UPDATE pending_orders
-            SET scheduled_at = :scheduled_at, updated_at = NOW()
+            SET
+                scheduled_at = COALESCE(:scheduled_at, scheduled_at),
+                order_price = COALESCE(:order_price, order_price),
+                order_quantity = COALESCE(:order_quantity, order_quantity),
+                updated_at = NOW()
             WHERE id = :id AND status = 'pending'
             RETURNING id
             """
         )
-        result = await db.execute(query, {"id": pending_order_id, "scheduled_at": scheduled_at})
+        result = await db.execute(
+            query,
+            {
+                "id": pending_order_id,
+                "scheduled_at": scheduled_at,
+                "order_price": order_price,
+                "order_quantity": order_quantity,
+            }
+        )
         row = result.fetchone()
         if not row:
             return {

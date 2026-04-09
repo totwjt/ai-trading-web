@@ -3,7 +3,7 @@
 """
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Index, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Index, ForeignKey, Boolean, Float
 
 from common.database import Base
 
@@ -59,6 +59,8 @@ class PendingOrder(Base):
     uid = Column(String(64), ForeignKey("users.uid"), nullable=False, index=True, comment="用户ID")
     stock_code = Column(String(20), nullable=False, index=True, comment="股票代码")
     stock_name = Column(String(64), nullable=False, comment="股票名称")
+    order_price = Column(Float, nullable=False, comment="挂单价格")
+    order_quantity = Column(Integer, nullable=False, comment="挂单数量")
     scheduled_at = Column(DateTime, nullable=False, index=True, comment="计划挂单时间")
     status = Column(String(16), nullable=False, default="pending", comment="状态: pending/success/triggered/cancelled")
     created_at = Column(DateTime, default=datetime.now, comment="创建时间")

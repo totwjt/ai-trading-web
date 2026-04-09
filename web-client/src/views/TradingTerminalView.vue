@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { h } from 'vue'
+import { DeleteOutlined } from '@ant-design/icons-vue'
 import { message, Modal } from 'ant-design-vue'
 import Icon from '@/components/common/Icon.vue'
 import { useUserStore } from '@/stores/userStore'
@@ -88,6 +90,8 @@ const suppressOrderSearch = ref(false)
 const pendingDrawerOpen = ref(false)
 const pendingOrders = ref<PendingOrderItem[]>([])
 const pendingTimeMap = ref<Record<number, string>>({})
+const pendingPriceMap = ref<Record<number, number | null>>({})
+const pendingQuantityMap = ref<Record<number, number | null>>({})
 const isPendingLoading = ref(false)
 const isPendingSaving = ref(false)
 const pendingConfig = ref<PendingOrderConfig>({
@@ -97,9 +101,7 @@ const pendingConfig = ref<PendingOrderConfig>({
   auto_submit: false
 })
 const pendingOrderColumns = [
-  { title: '股票代码', dataIndex: 'stock_code', key: 'stock_code', width: 104 },
-  { title: '股票名称', dataIndex: 'stock_name', key: 'stock_name', width: 112 },
-  { title: '挂单时间', dataIndex: 'scheduled_at', key: 'scheduled_at' },
+  { title: '挂单信息', key: 'summary' },
   { title: '操作', key: 'actions', width: 72, align: 'center' as const }
 ]
 
@@ -111,6 +113,7 @@ const controlEventsCount = ref(0)
 const editingTerminalId = ref<string>('')
 const editingTerminalName = ref<string>('')
 const terminalRenameTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const pendingFieldTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const actionLastTriggerAt = new Map<string, number>()
 
 const ws = useWebSocket()
@@ -629,11 +632,17 @@ const defaultPendingTimeInput = () => {
 }
 
 const syncPendingTimeMap = (items: PendingOrderItem[]) => {
-  const map: Record<number, string> = {}
+  const timeMap: Record<number, string> = {}
+  const priceMap: Record<number, number | null> = {}
+  const quantityMap: Record<number, number | null> = {}
   items.forEach((item) => {
-    map[item.id] = toDateTimeInputValue(item.scheduled_at)
+    timeMap[item.id] = toDateTimeInputValue(item.scheduled_at)
+    priceMap[item.id] = item.order_price
+    quantityMap[item.id] = item.order_quantity
   })
-  pendingTimeMap.value = map
+  pendingTimeMap.value = timeMap
+  pendingPriceMap.value = priceMap
+  pendingQuantityMap.value = quantityMap
 }
 
 const loadPendingConfig = async (uid: string) => {
@@ -649,6 +658,8 @@ const loadPendingOrders = async (uid: string) => {
   if (!uid) {
     pendingOrders.value = []
     pendingTimeMap.value = {}
+    pendingPriceMap.value = {}
+    pendingQuantityMap.value = {}
     return
   }
   isPendingLoading.value = true
@@ -663,7 +674,15 @@ const loadPendingOrders = async (uid: string) => {
   }
 }
 
-const addPendingOrder = async (stockCodeRaw: string, stockNameRaw: string) => {
+const resolvePendingOrderDraft = (fallbackPrice?: number | null) => {
+  const orderPrice = Number(fallbackPrice ?? orderPriceValue.value ?? 0)
+  const orderQty = Number(orderQuantity.value || 0)
+  const price = Number.isFinite(orderPrice) ? Number(orderPrice.toFixed(2)) : 0
+  const quantity = Number.isInteger(orderQty) && orderQty > 0 ? orderQty : 0
+  return { price, quantity }
+}
+
+const addPendingOrder = async (stockCodeRaw: string, stockNameRaw: string, fallbackPrice?: number | null) => {
   const stockCodeKey = normalizeStockCode(stockCodeRaw)
   if (!allowSubmitAction('pending-add-' + stockCodeKey)) return
 
@@ -680,6 +699,16 @@ const addPendingOrder = async (stockCodeRaw: string, stockNameRaw: string) => {
     return
   }
 
+  const draft = resolvePendingOrderDraft(fallbackPrice)
+  if (!Number.isFinite(draft.price) || draft.price <= 0) {
+    message.warning('请输入有效挂单价格')
+    return
+  }
+  if (!Number.isInteger(draft.quantity) || draft.quantity < 1) {
+    message.warning('请输入有效挂单数量')
+    return
+  }
+
   const scheduledInput = defaultPendingTimeInput()
   const scheduledAt = toIsoFromDateTimeInput(scheduledInput)
   if (!scheduledAt) {
@@ -693,12 +722,22 @@ const addPendingOrder = async (stockCodeRaw: string, stockNameRaw: string) => {
       uid,
       stock_code: stockCode,
       stock_name: stockName,
+      order_price: draft.price,
+      order_quantity: draft.quantity,
       scheduled_at: scheduledAt
     })
     pendingOrders.value = [created, ...pendingOrders.value]
     pendingTimeMap.value = {
       ...pendingTimeMap.value,
       [created.id]: toDateTimeInputValue(created.scheduled_at)
+    }
+    pendingPriceMap.value = {
+      ...pendingPriceMap.value,
+      [created.id]: created.order_price
+    }
+    pendingQuantityMap.value = {
+      ...pendingQuantityMap.value,
+      [created.id]: created.order_quantity
     }
     pendingDrawerOpen.value = true
     message.success('已加入挂单列表')
@@ -710,10 +749,29 @@ const addPendingOrder = async (stockCodeRaw: string, stockNameRaw: string) => {
 }
 
 const addPendingFromWatchlist = async (stock: WatchlistItem) => {
-  await addPendingOrder(stock.ts_code || '', stock.name || '')
+  await addPendingOrder(stock.ts_code || '', stock.name || '', Number(stock.close ?? 0))
 }
 
-const onPendingTimeChange = async (item: PendingOrderItem) => {
+const clearPendingFieldTimer = (key: string) => {
+  const timer = pendingFieldTimers.get(key)
+  if (!timer) return
+  clearTimeout(timer)
+  pendingFieldTimers.delete(key)
+}
+
+const schedulePendingFieldCommit = (key: string, task: () => Promise<void>) => {
+  clearPendingFieldTimer(key)
+  const timer = setTimeout(async () => {
+    try {
+      await task()
+    } finally {
+      pendingFieldTimers.delete(key)
+    }
+  }, 450)
+  pendingFieldTimers.set(key, timer)
+}
+
+const commitPendingTimeChange = async (item: PendingOrderItem) => {
   if (!allowSubmitAction('pending-update-' + item.id)) return
 
   const timeInput = pendingTimeMap.value[item.id] || ''
@@ -754,16 +812,125 @@ const onPendingTimeChange = async (item: PendingOrderItem) => {
   }
 }
 
+const commitPendingPriceChange = async (item: PendingOrderItem) => {
+  if (!allowSubmitAction('pending-price-update-' + item.id)) return
+
+  const nextPrice = Number(pendingPriceMap.value[item.id] ?? 0)
+  if (!Number.isFinite(nextPrice) || nextPrice <= 0) {
+    message.warning('请输入有效挂单价格')
+    pendingPriceMap.value = {
+      ...pendingPriceMap.value,
+      [item.id]: item.order_price
+    }
+    return
+  }
+
+  const normalizedPrice = Number(nextPrice.toFixed(2))
+  if (normalizedPrice === item.order_price) {
+    pendingPriceMap.value = {
+      ...pendingPriceMap.value,
+      [item.id]: normalizedPrice
+    }
+    return
+  }
+
+  isPendingSaving.value = true
+  try {
+    await updatePendingOrderAPI(item.id, { order_price: normalizedPrice })
+    pendingOrders.value = pendingOrders.value.map((row) => (
+      row.id === item.id
+        ? {
+          ...row,
+          order_price: normalizedPrice
+        }
+        : row
+    ))
+    pendingPriceMap.value = {
+      ...pendingPriceMap.value,
+      [item.id]: normalizedPrice
+    }
+    message.success('挂单价格已更新')
+  } catch (error: any) {
+    message.error(error?.message || '更新挂单失败')
+    pendingPriceMap.value = {
+      ...pendingPriceMap.value,
+      [item.id]: item.order_price
+    }
+  } finally {
+    isPendingSaving.value = false
+  }
+}
+
+const commitPendingQuantityChange = async (item: PendingOrderItem) => {
+  if (!allowSubmitAction('pending-quantity-update-' + item.id)) return
+
+  const nextQuantity = Number(pendingQuantityMap.value[item.id] ?? 0)
+  if (!Number.isInteger(nextQuantity) || nextQuantity < 1) {
+    message.warning('请输入有效挂单数量')
+    pendingQuantityMap.value = {
+      ...pendingQuantityMap.value,
+      [item.id]: item.order_quantity
+    }
+    return
+  }
+
+  if (nextQuantity === item.order_quantity) {
+    return
+  }
+
+  isPendingSaving.value = true
+  try {
+    await updatePendingOrderAPI(item.id, { order_quantity: nextQuantity })
+    pendingOrders.value = pendingOrders.value.map((row) => (
+      row.id === item.id
+        ? {
+          ...row,
+          order_quantity: nextQuantity
+        }
+        : row
+    ))
+    message.success('挂单数量已更新')
+  } catch (error: any) {
+    message.error(error?.message || '更新挂单失败')
+    pendingQuantityMap.value = {
+      ...pendingQuantityMap.value,
+      [item.id]: item.order_quantity
+    }
+  } finally {
+    isPendingSaving.value = false
+  }
+}
+
+const onPendingTimeChange = async (item: PendingOrderItem) => {
+  await commitPendingTimeChange(item)
+}
+
+const onPendingPriceInput = (item: PendingOrderItem) => {
+  schedulePendingFieldCommit('price-' + item.id, () => commitPendingPriceChange(item))
+}
+
+const onPendingQuantityInput = (item: PendingOrderItem) => {
+  schedulePendingFieldCommit('quantity-' + item.id, () => commitPendingQuantityChange(item))
+}
+
 const removePendingOrder = async (id: number) => {
   if (!allowSubmitAction('pending-remove-' + id)) return
 
   isPendingSaving.value = true
   try {
     await removePendingOrderAPI(id)
+    clearPendingFieldTimer('price-' + id)
+    clearPendingFieldTimer('quantity-' + id)
     pendingOrders.value = pendingOrders.value.filter((item) => item.id !== id)
-    const next = { ...pendingTimeMap.value }
-    delete next[id]
-    pendingTimeMap.value = next
+    const nextTime = { ...pendingTimeMap.value }
+    delete nextTime[id]
+    pendingTimeMap.value = nextTime
+    const nextPrice = { ...pendingPriceMap.value }
+    delete nextPrice[id]
+    pendingPriceMap.value = nextPrice
+    const nextQuantity = { ...pendingQuantityMap.value }
+    delete nextQuantity[id]
+    pendingQuantityMap.value = nextQuantity
     message.success('挂单已删除')
   } catch (error: any) {
     message.error(error?.message || '删除挂单失败')
@@ -964,9 +1131,13 @@ onMounted(() => {
     editingTerminalName.value = ''
     terminalRenameTimers.forEach((timer) => clearTimeout(timer))
     terminalRenameTimers.clear()
+    pendingFieldTimers.forEach((timer) => clearTimeout(timer))
+    pendingFieldTimers.clear()
     controlEventsCount.value = 0
     pendingOrders.value = []
     pendingTimeMap.value = {}
+    pendingPriceMap.value = {}
+    pendingQuantityMap.value = {}
     pendingConfig.value = {
       uid: '',
       enabled: true,
@@ -1006,6 +1177,8 @@ onUnmounted(() => {
   terminalTopicOffFns.clear()
   terminalRenameTimers.forEach((timer) => clearTimeout(timer))
   terminalRenameTimers.clear()
+  pendingFieldTimers.forEach((timer) => clearTimeout(timer))
+  pendingFieldTimers.clear()
 
   if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
   if (orderSearchDebounceTimer) clearTimeout(orderSearchDebounceTimer)
@@ -1375,7 +1548,7 @@ onUnmounted(() => {
       v-model:open="pendingDrawerOpen"
       title="挂单列表"
       placement="right"
-      width="600"
+      width="520"
       :body-style="{ padding: '12px' }"
     >
       <div class="text-xxs text-textMute mb-2 flex items-center justify-between">
@@ -1387,28 +1560,59 @@ onUnmounted(() => {
       <div v-else-if="pendingOrders.length === 0" class="py-6 text-center text-xs text-textMute">暂无挂单</div>
       <div v-else class="pending-orders-wrap">
         <a-table
+          bordered
           :columns="pendingOrderColumns"
           :data-source="pendingOrders"
           :pagination="false"
           :row-key="(record: PendingOrderItem) => record.id"
           size="small"
+          class="pending-orders-table ant-table-striped"
         >
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'stock_code'">
-              <span class="font-numeric text-textMain">{{ record.stock_code }}</span>
-            </template>
-            <template v-else-if="column.key === 'stock_name'">
-              <span class="text-textMain">{{ record.stock_name }}</span>
-            </template>
-            <template v-else-if="column.key === 'scheduled_at'">
-              <div class="min-w-[170px]">
-                <input
-                  v-model="pendingTimeMap[record.id]"
-                  type="datetime-local"
-                  class="h-7 w-full rounded border border-border bg-card px-2 text-xxs text-textMain font-numeric"
-                  :disabled="isPendingSaving"
-                  @change="onPendingTimeChange(record)"
-                />
+            <template v-if="column.key === 'summary'">
+              <div class="flex flex-col gap-1 py-1">
+                <div class="flex items-center gap-2 min-w-0 text-xs font-bold">
+                  <span class="font-numeric text-textMain shrink-0">{{ record.stock_code }}</span>
+                  <span class="text-textSub truncate">{{ record.stock_name }}</span>
+                </div>
+                <div class="grid grid-cols-[84px_84px_minmax(0,1fr)] gap-2 items-center">
+                  <input
+                    v-model.number="pendingPriceMap[record.id]"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    class="h-7 w-full rounded border border-border bg-card px-2 text-xxs text-textMain font-numeric"
+                    :disabled="isPendingSaving"
+                    @input="onPendingPriceInput(record)"
+                  />
+                  <input
+                    v-model.number="pendingQuantityMap[record.id]"
+                    type="number"
+                    min="1"
+                    step="100"
+                    class="h-7 w-full rounded border border-border bg-card px-2 text-xxs text-textMain font-numeric"
+                    :disabled="isPendingSaving"
+                    @input="onPendingQuantityInput(record)"
+                  />
+                  <div class="flex items-center gap-1">
+                    <a-date-picker
+                      v-model:value="pendingTimeMap[record.id]"
+                      show-time
+                      value-format="YYYY-MM-DDTHH:mm"
+                      format="YYYY-MM-DD HH:mm"
+                      input-read-only
+                      :allow-clear="false"
+                      :disabled="isPendingSaving"
+                      class="pending-time-picker"
+                      @change="onPendingTimeChange(record)"
+                    />
+                  </div>
+                </div>
+                <div class="grid grid-cols-[84px_84px_minmax(0,1fr)] gap-2 text-[11px] leading-none text-textMute">
+                  <span>价格</span>
+                  <span>数量</span>
+                  <span>时间</span>
+                </div>
               </div>
             </template>
             <template v-else-if="column.key === 'actions'">
@@ -1420,8 +1624,8 @@ onUnmounted(() => {
                 :disabled="isPendingSaving"
                 @click="removePendingOrder(record.id)"
                 :title="'删除挂单'"
+                :icon="h(DeleteOutlined)"
               >
-                <Icon icon="mdi:delete-outline" :size="14" />
               </a-button>
             </template>
           </template>
@@ -1467,6 +1671,27 @@ onUnmounted(() => {
   max-height: 160px;
   min-height: 160px;
   overflow-y: auto;
+}
+
+:deep(.pending-orders-table .ant-table-thead > tr > th) {
+  padding: 6px 8px;
+}
+
+:deep(.pending-orders-table .ant-table-tbody > tr > td) {
+  padding: 6px 8px;
+  vertical-align: top;
+}
+
+:deep(.pending-orders-table .ant-table-thead > tr > th:last-child),
+:deep(.pending-orders-table .ant-table-tbody > tr > td:last-child) {
+  width: 72px;
+  white-space: nowrap;
+  vertical-align: middle;
+  text-align: center;
+}
+
+:deep(.pending-time-picker) {
+  width: 180px;
 }
 
 .status-panel {
