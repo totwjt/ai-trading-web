@@ -9,8 +9,9 @@ AI Trading Server
 """
 
 import socketio
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -1411,6 +1412,7 @@ app.include_router(preview_router, prefix="/api")
 app.include_router(trading_router)
 
 EXTERNAL_API = "http://192.168.66.143:8000"
+USER_API = "http://192.168.66.198:8001"
 
 
 @app.get("/strategy_info")
@@ -1439,6 +1441,138 @@ async def strategy_action(request: dict):
     except Exception as e:
         logger.error(f"策略操作失败: {e}")
         return {"code": 1, "message": str(e)}
+
+
+def _proxy_response_content(response: httpx.Response) -> Any:
+    if not response.content:
+        return {}
+    try:
+        return response.json()
+    except Exception:
+        return {"detail": response.text}
+
+
+def _standard_success(data: Any) -> Dict[str, Any]:
+    return {
+        "code": 0,
+        "message": "success",
+        "data": data,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+def _standard_error(message: str, data: Any = None) -> Dict[str, Any]:
+    return {
+        "code": 1,
+        "message": message,
+        "data": data or {},
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+def _upstream_error(op_name: str, upstream_url: str, response: httpx.Response, content: Any) -> Dict[str, Any]:
+    raw_text = response.text if isinstance(response.text, str) else str(response.text)
+    detail = ""
+    if isinstance(content, dict):
+        detail = str(content.get("detail") or content.get("message") or "").strip()
+    if not detail:
+        detail = raw_text.strip()
+    detail = detail[:500] if detail else "unknown upstream error"
+    message = f"{op_name}失败: external api {response.status_code} {upstream_url} - {detail}"
+    return _standard_error(
+        message,
+        {
+            "upstream_url": upstream_url,
+            "upstream_status": response.status_code,
+            "upstream_response": content if isinstance(content, dict) else {"raw": str(content)},
+            "upstream_text": raw_text[:1000]
+        }
+    )
+
+
+@app.post("/api/auth/login")
+async def auth_login(payload: dict):
+    try:
+        upstream_url = f"{USER_API}/users/login"
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            response = await client.post(upstream_url, json=payload)
+        content = _proxy_response_content(response)
+        if response.status_code >= 400:
+            return _upstream_error("登录", upstream_url, response, content)
+        return _standard_success(content)
+    except Exception as e:
+        logger.error("auth login proxy failed: %s", e)
+        return _standard_error(str(e))
+
+
+@app.get("/api/auth/token/check")
+async def auth_token_check(request: Request):
+    try:
+        upstream_url = f"{USER_API}/users/token/check"
+        headers: Dict[str, str] = {}
+        auth_header = request.headers.get("authorization") or ""
+        if auth_header:
+            headers["Authorization"] = auth_header
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            response = await client.get(upstream_url, headers=headers)
+        content = _proxy_response_content(response)
+        if response.status_code >= 400:
+            return _upstream_error("Token校验", upstream_url, response, content)
+        return _standard_success(content)
+    except Exception as e:
+        logger.error("auth token check proxy failed: %s", e)
+        return _standard_error(str(e))
+
+
+@app.get("/api/auth/users")
+async def auth_get_users(page: int = Query(default=1), page_size: int = Query(default=20)):
+    try:
+        upstream_url = f"{USER_API}/users"
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            response = await client.get(
+                upstream_url,
+                params={
+                    "page": page,
+                    "page_size": page_size
+                }
+            )
+        content = _proxy_response_content(response)
+        if response.status_code >= 400:
+            return _upstream_error("获取用户", upstream_url, response, content)
+        return _standard_success(content)
+    except Exception as e:
+        logger.error("auth get users proxy failed: %s", e)
+        return _standard_error(str(e))
+
+
+@app.post("/api/auth/users")
+async def auth_create_user(payload: dict):
+    try:
+        upstream_url = f"{USER_API}/users"
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            response = await client.post(upstream_url, json=payload)
+        content = _proxy_response_content(response)
+        if response.status_code >= 400:
+            return _upstream_error("创建用户", upstream_url, response, content)
+        return _standard_success(content)
+    except Exception as e:
+        logger.error("auth create user proxy failed: %s", e)
+        return _standard_error(str(e))
+
+
+@app.delete("/api/auth/users/{user_id}")
+async def auth_delete_user(user_id: int):
+    try:
+        upstream_url = f"{USER_API}/users/{user_id}"
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            response = await client.delete(upstream_url)
+        content = _proxy_response_content(response)
+        if response.status_code >= 400:
+            return _upstream_error("删除用户", upstream_url, response, content)
+        return _standard_success(content)
+    except Exception as e:
+        logger.error("auth delete user proxy failed: %s", e)
+        return _standard_error(str(e))
 
 
 @app.get("/api/news/latest", response_model=ApiResponse)

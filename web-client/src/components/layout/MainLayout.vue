@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Icon from '@/components/common/Icon.vue'
 import ThemeSwitcher from '@/components/common/ThemeSwitcher.vue'
+import { useAuthStore } from '@/stores/authStore'
+import { useUserStore } from '@/stores/userStore'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
+const userStore = useUserStore()
 
 // 侧边栏菜单项
 const menuItems = computed(() => [
@@ -19,17 +23,22 @@ const menuItems = computed(() => [
   { path: '/risk-control', name: '风控系统', icon: 'shield' }
 ])
 
-// 用户信息
-const userInfo = ref({
-  name: '天才交易员',
-  level: 'LV.5 资深用户',
+const userInfo = computed(() => ({
+  name: authStore.user?.username || '未登录',
+  level: authStore.permissions.includes('user:manage') ? '管理员' : '普通用户',
   avatar: 'user-secret'
-})
+}))
 
 // 判断是否显示侧边栏
 const showSidebar = computed(() => {
   return !route.meta.hideSidebar
 })
+
+const logout = async () => {
+  authStore.clearSession()
+  userStore.setUid('')
+  await router.replace('/login')
+}
 
 </script>
 
@@ -67,6 +76,13 @@ const showSidebar = computed(() => {
             <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
           </svg>
         </div>
+        <button
+          type="button"
+          class="h-8 px-3 rounded border border-border text-xs text-textSub hover:text-primary hover:border-primary/40 transition-colors"
+          @click="logout"
+        >
+          退出
+        </button>
       </div>
     </header>
 
