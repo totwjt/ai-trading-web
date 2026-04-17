@@ -34,6 +34,7 @@ interface TerminalTradeRecord {
   symbol?: string
   name?: string
   side?: string
+  status?: 'success' | 'failed'
   price?: number
   qty?: number
   amount?: number
@@ -297,6 +298,34 @@ const normalizeSide = (value: unknown): string => {
   return 'buy'
 }
 
+const normalizeTradeStatus = (value: unknown): 'success' | 'failed' => {
+  const raw = String(value || '').trim().toLowerCase()
+  if (
+    raw === 'success' ||
+    raw === 'succeeded' ||
+    raw === 'ok' ||
+    raw === 'done' ||
+    raw === 'filled' ||
+    raw === 'completed' ||
+    raw.includes('success') ||
+    raw.includes('成功')
+  ) {
+    return 'success'
+  }
+  if (
+    raw === 'failed' ||
+    raw === 'fail' ||
+    raw === 'error' ||
+    raw === 'rejected' ||
+    raw === 'cancelled' ||
+    raw.includes('failed') ||
+    raw.includes('失败')
+  ) {
+    return 'failed'
+  }
+  return 'success'
+}
+
 const normalizeTradeRecord = (item: Record<string, unknown>): TerminalTradeRecord => {
   const symbol = String(item.symbol || item.stock_code || item.ts_code || item.code || '').trim()
   const name = String(
@@ -319,6 +348,7 @@ const normalizeTradeRecord = (item: Record<string, unknown>): TerminalTradeRecor
     symbol,
     name,
     side: normalizeSide(item.side ?? item.direction ?? item.trade_type),
+    status: normalizeTradeStatus(item.status ?? item.trade_status ?? item.result ?? item.state),
     price,
     qty,
     amount
@@ -1255,7 +1285,7 @@ onUnmounted(() => {
                   <td class="text-textMain">{{ stock.name }}</td>
                   <td class="text-right text-textMain font-numeric">{{ (stock.close ?? 0).toFixed(2) }}</td>
                   <td class="text-right font-numeric" :class="(stock.change ?? 0) >= 0 ? 'text-up' : 'text-down'">
-                    {{ (stock.change ?? 0).toFixed(2) }}
+                    {{ (stock?.change ?? 0) }}
                   </td>
                   <td class="text-center">
                     <div class="inline-flex items-center gap-2">
@@ -1273,7 +1303,7 @@ onUnmounted(() => {
                         :disabled="isPendingSaving"
                         @click="addPendingFromWatchlist(stock)"
                       >
-                        加入挂单
+                        挂单
                       </button>
                       <a-button
                         class="rounded hover:bg-down/10 transition-colors"
@@ -1520,8 +1550,9 @@ onUnmounted(() => {
                     <th class="text-left">代码</th>
                     <th class="text-left">名称</th>
                     <th class="text-center">方向</th>
-                    <th class="text-right">成交价</th>
-                    <th class="text-right">成交量</th>
+                    <th class="text-center">状态</th>
+                    <th class="text-right">价格</th>
+                    <th class="text-right">数量</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1531,6 +1562,9 @@ onUnmounted(() => {
                     <td class="text-textMain text-left truncate">{{ String(record.name || '-') }}</td>
                     <td class="text-center font-medium" :class="String(record.side || '').toLowerCase() === 'sell' ? 'text-down' : 'text-up'">
                       {{ String(record.side || '').toLowerCase() === 'sell' ? '卖出' : '买入' }}
+                    </td>
+                    <td class="text-center font-medium" :class="record.status === 'failed' ? 'text-up' : 'text-down'">
+                      {{ record.status === 'failed' ? '失败' : '成功' }}
                     </td>
                     <td class="text-right font-numeric text-textMain">{{ Number(record.price || 0).toFixed(2) }}</td>
                     <td class="text-right font-numeric text-textMain">{{ Number(record.qty || 0) }}</td>
@@ -1701,7 +1735,7 @@ onUnmounted(() => {
 .status-input {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--color-border);
+  border:1px solid rgba(var(--color-border));
   border-radius: 6px;
   overflow: hidden;
   background: var(--color-card);

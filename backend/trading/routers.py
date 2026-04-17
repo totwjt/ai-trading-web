@@ -322,8 +322,9 @@ async def get_watchlist(db: AsyncSession = Depends(get_db)):
             for item in items:
                 close = item.get("close") or 0
                 pre_close = item.get("pre_close") or 0
-                change = close - pre_close
-                change_pct = (change / pre_close * 100) if pre_close else 0
+                # 外部行情已提供涨跌数据，这里保持透传，避免平台侧二次计算
+                change = item.get("change")
+                change_pct = item.get("change_pct")
 
                 watchlist_data.append({
                     "ts_code": item.get("ts_code"),
@@ -334,7 +335,7 @@ async def get_watchlist(db: AsyncSession = Depends(get_db)):
                     "low": item.get("low"),
                     "close": close,
                     "change": change,
-                    "change_pct": round(change_pct, 2),
+                    "change_pct": change_pct,
                     "vol": item.get("vol"),
                     "amount": item.get("amount"),
                     "num": item.get("num"),
