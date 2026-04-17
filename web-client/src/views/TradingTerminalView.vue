@@ -1285,7 +1285,7 @@ onUnmounted(() => {
                   <td class="text-textMain">{{ stock.name }}</td>
                   <td class="text-right text-textMain font-numeric">{{ (stock.close ?? 0).toFixed(2) }}</td>
                   <td class="text-right font-numeric" :class="(stock.change ?? 0) >= 0 ? 'text-up' : 'text-down'">
-                    {{ (stock?.change ?? 0) }}
+                    {{ (stock?.change ?? 0) }} %
                   </td>
                   <td class="text-center">
                     <div class="inline-flex items-center gap-2">
