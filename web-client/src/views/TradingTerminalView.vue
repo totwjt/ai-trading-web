@@ -797,7 +797,7 @@ const schedulePendingFieldCommit = (key: string, task: () => Promise<void>) => {
     } finally {
       pendingFieldTimers.delete(key)
     }
-  }, 450)
+  }, 600)
   pendingFieldTimers.set(key, timer)
 }
 
@@ -1622,7 +1622,7 @@ onUnmounted(() => {
                   <input
                     v-model.number="pendingQuantityMap[record.id]"
                     type="number"
-                    min="1"
+                    min="100"
                     step="100"
                     class="h-7 w-full rounded border border-border bg-card px-2 text-xxs text-textMain font-numeric"
                     :disabled="isPendingSaving"
