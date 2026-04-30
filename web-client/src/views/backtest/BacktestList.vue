@@ -118,8 +118,8 @@ watch(selectedStrategyId, () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-bgMain p-8">
-    <div class="max-w-7xl mx-auto">
+  <div class="min-h-[calc(100vh-48px)] bg-bgMain p-3">
+    <div>
       <div class="flex justify-between items-center mb-6">
         <div>
           <h2 class="text-lg font-bold text-textMain">{{ pageTitle }}</h2>

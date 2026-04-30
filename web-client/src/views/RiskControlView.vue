@@ -146,7 +146,7 @@ const riskEvents = ref([
 </script>
 
 <template>
-  <div class="min-h-screen bg-bgMain p-4 flex flex-col gap-4">
+  <div class="min-h-[calc(100vh-48px)] bg-bgMain p-3 flex flex-col gap-4">
     <!-- 主内容网格 -->
     <div class="grid grid-cols-12 gap-4 flex-grow">
 

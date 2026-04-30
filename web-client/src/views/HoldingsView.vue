@@ -75,8 +75,8 @@ const selectedHolding = ref<{
 </script>
 
 <template>
-  <div class="min-h-screen bg-bgMain p-6">
-    <div class="max-w-6xl mx-auto">
+  <div class="min-h-[calc(100vh-48px)] bg-bgMain p-3">
+    <div>
       <!-- Header -->
       <div class="flex justify-between items-center mb-6">
         <div>

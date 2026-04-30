@@ -36,7 +36,7 @@ const strategies = ref([
 </script>
 
 <template>
-  <div class="min-h-screen bg-bgMain p-4">
+  <div class="min-h-[calc(100vh-48px)] bg-bgMain p-3">
     <!-- Top Summary Bar -->
     <section class="grid grid-cols-4 gap-4 mb-4">
       <div 

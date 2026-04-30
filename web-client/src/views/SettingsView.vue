@@ -112,8 +112,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-bgMain p-6">
-    <div class="max-w-5xl mx-auto space-y-6">
+  <div class="min-h-[calc(100vh-48px)] bg-bgMain p-3">
+    <div class="space-y-6">
       <section class="bg-card rounded-lg shadow-sm border border-border p-6">
         <h1 class="text-xl font-semibold text-textMain">设置</h1>
         <p class="text-sm text-textMute mt-1">账号与系统配置</p>

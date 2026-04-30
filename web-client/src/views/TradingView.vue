@@ -186,7 +186,7 @@ const loadTradeRecords = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-bgMain p-6">
+  <div class="min-h-[calc(100vh-48px)] bg-bgMain p-3">
     <div class="max-w-7xl mx-auto">
       <div class="mb-6">
         <h1 class="text-xl font-bold text-textMain">股票交易</h1>

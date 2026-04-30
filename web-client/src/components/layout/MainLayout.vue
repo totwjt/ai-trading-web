@@ -15,6 +15,8 @@ const userStore = useUserStore()
 const menuItems = computed(() => [
   { path: '/', name: '首页', icon: 'home' },
   { path: '/recommendation', name: '智能荐股', icon: 'smart_toy' },
+  { path: '/macro-calendar', name: '宏观日历', icon: 'calendar_month' },
+  { path: '/factor-board', name: '因子看板', icon: 'dashboard' },
   { path: '/backtest', name: '策略回测', icon: 'assessment' },
   { path: '/simulation', name: '模拟交易', icon: 'swap_horiz' },
   { path: '/holdings', name: '我的持仓', icon: 'inventory' },
@@ -124,7 +126,13 @@ const logout = async () => {
 
       <!-- Main Content -->
       <main class="flex-1 overflow-y-auto bg-bgMain custom-scrollbar">
-        <RouterView />
+        <div class="route-transition-stage">
+          <RouterView v-slot="{ Component, route: currentRoute }">
+            <Transition name="route-switch" mode="out-in">
+              <component :is="Component" :key="currentRoute.fullPath" />
+            </Transition>
+          </RouterView>
+        </div>
       </main>
     </div>
   </div>

@@ -5,7 +5,13 @@
 
 <template>
   <div class="min-h-screen bg-bgMain">
-    <RouterView />
+    <div class="route-transition-stage">
+      <RouterView v-slot="{ Component, route: currentRoute }">
+        <Transition name="route-switch" mode="out-in">
+          <component :is="Component" :key="currentRoute.fullPath" />
+        </Transition>
+      </RouterView>
+    </div>
   </div>
 </template>
 

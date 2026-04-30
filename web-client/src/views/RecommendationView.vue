@@ -203,9 +203,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-bgMain">
+  <div class="min-h-[calc(100vh-48px)] bg-bgMain p-3 space-y-4">
     <!-- Connection Status -->
-    <div class="px-6 pt-4 flex items-center gap-2">
+    <div class="flex items-center gap-2">
       <span
         :class="[
           'w-2 h-2 rounded-full',
@@ -218,7 +218,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Stats Summary -->
-    <div class="grid grid-cols-4 gap-4 p-6 pb-0">
+    <div class="grid grid-cols-4 gap-4">
       <div
         v-for="(stat, index) in stats"
         :key="index"
@@ -241,7 +241,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Filter Tabs -->
-    <div class="flex gap-2 px-6 pt-4">
+    <div class="flex gap-2">
       <button
         v-for="tab in filterTabs"
         :key="tab.name"
@@ -257,14 +257,14 @@ onUnmounted(() => {
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="p-6">
+    <div v-if="loading">
       <div class="flex items-center justify-center h-64">
         <div class="text-textMute">加载中...</div>
       </div>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="p-6">
+    <div v-else-if="error">
       <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
         <p class="text-red-600 dark:text-red-400 text-sm">{{ error }}</p>
         <button 
@@ -277,14 +277,14 @@ onUnmounted(() => {
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="recommendations.length === 0" class="p-6">
+    <div v-else-if="recommendations.length === 0">
       <div class="flex items-center justify-center h-64">
         <div class="text-textMute">暂无资讯数据</div>
       </div>
     </div>
 
     <!-- Recommendation List -->
-    <div v-else class="p-6 space-y-4">
+    <div v-else class="space-y-4">
       <div
         v-for="rec in recommendations"
         :key="rec.id"

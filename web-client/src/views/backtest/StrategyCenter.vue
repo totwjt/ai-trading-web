@@ -84,7 +84,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-bgMain p-8 space-y-10">
+  <div class="min-h-[calc(100vh-48px)] bg-bgMain p-3 space-y-6">
     <div class="space-y-4">
       <div class="flex justify-between items-center">
         <h3 class="font-bold text-lg tracking-tight text-textMain">策略监控台</h3>

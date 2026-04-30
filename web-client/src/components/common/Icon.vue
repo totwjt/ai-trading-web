@@ -29,6 +29,8 @@ const iconMap: Record<string, string> = {
   'shield': 'mdi:shield-check',
   'security': 'mdi:shield-check',
   'settings': 'mdi:cog',
+  'calendar_month': 'mdi:calendar-month-outline',
+  'dashboard': 'mdi:view-dashboard-outline',
 
   // 用户图标
   'user-secret': 'fa:user-secret',

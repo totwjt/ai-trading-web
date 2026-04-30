@@ -24,6 +24,18 @@ const router = createRouter({
       meta: { title: '智能荐股', icon: 'smart_toy', requiresAuth: true }
     },
     {
+      path: '/macro-calendar',
+      name: '宏观日历',
+      component: () => import('@/views/MacroCalendarView.vue'),
+      meta: { title: '宏观日历', icon: 'calendar_month', requiresAuth: true }
+    },
+    {
+      path: '/factor-board',
+      name: '因子看板',
+      component: () => import('@/views/FactorBoardView.vue'),
+      meta: { title: '因子看板', icon: 'dashboard', requiresAuth: true }
+    },
+    {
       path: '/backtest',
       name: '策略回测',
       component: () => import('@/views/BacktestView.vue'),

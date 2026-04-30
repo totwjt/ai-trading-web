@@ -235,7 +235,7 @@ const getReturnColor = (value: number) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-bgMain p-6">
+  <div class="min-h-[calc(100vh-48px)] bg-bgMain p-3">
     <!-- 页面标题 -->
     <div class="flex justify-between items-start mb-6">
       <div>
