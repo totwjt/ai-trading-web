@@ -1,0 +1,25 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai-trading-backend
+    env_file:
+      - .env.deploy
+    ports:
+      - "8766:8766"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: web-client/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/}
+        VITE_WS_URL: ${VITE_WS_URL:-/}
+    container_name: ai-trading-web
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

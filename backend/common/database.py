@@ -3,12 +3,16 @@
 提供 SQLAlchemy 异步引擎和会话管理
 """
 
+import os
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from typing import AsyncGenerator
 
 # 数据库连接 URL (根据实际环境配置)
-DATABASE_URL = "postgresql+asyncpg://wangjiangtao:123456@localhost:5432/tushare_sync"
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+asyncpg://wangjiangtao:123456@localhost:5432/tushare_sync",
+)
 
 # 创建异步引擎
 engine = create_async_engine(

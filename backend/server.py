@@ -18,6 +18,7 @@ from datetime import datetime
 import asyncio
 import logging
 import uuid
+import os
 
 import httpx
 from sqlalchemy import text
@@ -1220,6 +1221,14 @@ async def push_order(sid, data):
     order_data: Dict[str, Any]
     if isinstance(payload, dict):
         stock_code = str(payload.get("stock_code") or "").strip()
+        stock_name = str(
+            payload.get("stock_name")
+            or payload.get("stockName")
+            or payload.get("name")
+            or payload.get("security_name")
+            or payload.get("securityName")
+            or ""
+        ).strip()
         price_raw = payload.get("price")
         quantity_raw = payload.get("quantity")
         position_level_raw = payload.get("position_level")
@@ -1255,6 +1264,8 @@ async def push_order(sid, data):
             "price": price,
             "quantity": quantity
         }
+        if stock_name:
+            order_data["stock_name"] = stock_name
 
         if position_level_raw is not None:
             try:
@@ -1411,8 +1422,8 @@ app.include_router(backtest_router, prefix="/api")
 app.include_router(preview_router, prefix="/api")
 app.include_router(trading_router)
 
-EXTERNAL_API = "http://192.168.66.143:8000"
-USER_API = "http://192.168.66.198:8001"
+EXTERNAL_API = os.getenv("TRADING_EXTERNAL_API", "http://192.168.66.143:8000")
+USER_API = os.getenv("USER_API", "http://192.168.66.198:8001")
 
 
 @app.get("/strategy_info")

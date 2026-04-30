@@ -85,9 +85,13 @@ export type ErrorHandler = (error: Error) => void
 export type ZixuanHandler = (data: WatchlistItem[]) => void
 
 function getSocketUrl(): string {
+  const wsUrl = import.meta.env.VITE_WS_URL
+  if (typeof wsUrl === 'string' && wsUrl.trim()) {
+    return wsUrl.trim()
+  }
   const wsHost = import.meta.env.VITE_WS_HOST || window.location.hostname
   const wsPort = import.meta.env.VITE_WS_PORT || '8766'
-  return `http://${wsHost}:${wsPort}`
+  return wsPort ? `http://${wsHost}:${wsPort}` : `http://${wsHost}`
 }
 
 class SocketIOClient {

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>精准金融 - 宏观日历</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#0054d6",
+                        "tertiary-fixed": "#88fd54",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "primary-fixed-dim": "#b3c5ff",
+                        "on-error": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "surface-container-low": "#f2f4f7",
+                        "on-surface-variant": "#424656",
+                        "primary": "#0050cb",
+                        "outline-variant": "#c2c6d8",
+                        "surface-dim": "#d8dadd",
+                        "on-tertiary": "#ffffff",
+                        "tertiary": "#236700",
+                        "secondary": "#bb0018",
+                        "on-tertiary-container": "#ebffdb",
+                        "on-primary-fixed-variant": "#003fa4",
+                        "secondary-container": "#e71325",
+                        "on-secondary-fixed": "#410003",
+                        "on-primary-fixed": "#001849",
+                        "inverse-surface": "#2d3133",
+                        "surface-container-high": "#e6e8eb",
+                        "surface-bright": "#f7f9fc",
+                        "surface": "#f7f9fc",
+                        "on-secondary-container": "#fffbff",
+                        "on-surface": "#191c1e",
+                        "on-primary": "#ffffff",
+                        "outline": "#727687",
+                        "on-primary-container": "#f8f7ff",
+                        "surface-container-highest": "#e0e3e6",
+                        "primary-fixed": "#dae1ff",
+                        "on-secondary-fixed-variant": "#930010",
+                        "inverse-primary": "#b3c5ff",
+                        "error": "#ba1a1a",
+                        "error-container": "#ffdad6",
+                        "surface-variant": "#e0e3e6",
+                        "secondary-fixed": "#ffdad6",
+                        "tertiary-fixed-dim": "#6de039",
+                        "on-tertiary-fixed": "#062100",
+                        "on-background": "#191c1e",
+                        "secondary-fixed-dim": "#ffb3ad",
+                        "inverse-on-surface": "#eff1f4",
+                        "tertiary-container": "#2f8300",
+                        "surface-container": "#eceef1",
+                        "background": "#f7f9fc",
+                        "primary-container": "#0066ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "display": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', 'PingFang SC', sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased">
+<!-- Macro Calendar Main Canvas -->
+<main class="max-w-[1600px] mx-auto p-6 flex flex-col lg:flex-row gap-6">
+<!-- Sidebar Filter System -->
+<aside class="w-full lg:w-72 flex-shrink-0 flex flex-col gap-6">
+<div class="bg-surface-container-lowest p-5 rounded-lg border border-outline-variant/15">
+<h2 class="text-title-sm font-bold mb-4 tracking-tight text-on-surface">精准筛选</h2>
+<!-- Region Selector -->
+<div class="mb-6">
+<label class="text-[10px] uppercase tracking-widest font-semibold text-on-surface-variant block mb-3">地理区域</label>
+<div class="space-y-2">
+<label class="flex items-center gap-3 cursor-pointer group">
+<input checked="" class="rounded-sm border-outline text-primary focus:ring-primary/20" type="checkbox"/>
+<span class="text-body-md text-on-surface group-hover:text-primary transition-colors">中国 (CN)</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input checked="" class="rounded-sm border-outline text-primary focus:ring-primary/20" type="checkbox"/>
+<span class="text-body-md text-on-surface group-hover:text-primary transition-colors">美国 (US)</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="rounded-sm border-outline text-primary focus:ring-primary/20" type="checkbox"/>
+<span class="text-body-md text-on-surface group-hover:text-primary transition-colors">欧元区 (EU)</span>
+</label>
+</div>
+</div>
+<!-- Event Type -->
+<div class="mb-6">
+<label class="text-[10px] uppercase tracking-widest font-semibold text-on-surface-variant block mb-3">事件类别</label>
+<div class="space-y-2">
+<div class="flex items-center justify-between p-2 rounded bg-surface-container-low border border-transparent hover:border-primary/20 transition-all cursor-pointer">
+<span class="text-body-md font-medium">宏观指标</span>
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded hover:bg-surface-container-low transition-all cursor-pointer">
+<span class="text-body-md">央行动态</span>
+<span class="material-symbols-outlined text-outline-variant text-sm">circle</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded hover:bg-surface-container-low transition-all cursor-pointer">
+<span class="text-body-md">公司财报</span>
+<span class="material-symbols-outlined text-outline-variant text-sm">circle</span>
+</div>
+</div>
+</div>
+<!-- Impact Level -->
+<div>
+<label class="text-[10px] uppercase tracking-widest font-semibold text-on-surface-variant block mb-3">影响波动率</label>
+<div class="flex flex-col gap-2">
+<button class="w-full text-left px-3 py-2 rounded-lg bg-secondary text-on-secondary text-body-md font-bold flex items-center justify-between">高影响 <span class="material-symbols-outlined text-sm" style='font-variation-settings: "FILL" 1;'>priority_high</span></button>
+<button class="w-full text-left px-3 py-2 rounded-lg border border-outline-variant/30 text-on-surface text-body-md hover:bg-surface-container-high transition-colors">中影响</button>
+<button class="w-full text-left px-3 py-2 rounded-lg border border-outline-variant/30 text-on-surface text-body-md hover:bg-surface-container-high transition-colors">低影响</button>
+</div>
+</div>
+</div>
+<!-- Ad/Insight Card -->
+<div class="relative overflow-hidden rounded-lg aspect-square bg-primary p-6 flex flex-col justify-end">
+<div class="absolute inset-0 z-0">
+<img class="w-full h-full object-cover opacity-40 mix-blend-overlay" data-alt="A clean professional visualization of abstract market data flow with glowing blue data points and architectural lines, suggesting high-end institutional financial analysis. The lighting is sophisticated, using deep navy blue tones and cyan highlights to create an atmosphere of precision and deep data intelligence." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2k2XGSOT51zfSO5Q9wn7Wtgr5HQJP0ZxYOvZw2xELUobf8kMdhO-vdqYcC9u0fRB7rBPzcaR9lQprHkFZE-fINl2DnpBlHONq2-qwZ1qWZch5UBRlz-uoJGxS9JZFVaJxES52zmp3ULM5K8MyGF4nUAN-cbFYFN7DvGlgAsTDrmhGFthPaYAGrRs6V60p1wDJU_WDdj0ipS2oYtYOTgmouuH54lTzzZWv6EbiIWgrHhVOHRB821DeX19ypMsXkVH8ab9BLHzESHkZ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/90 to-transparent"></div>
+</div>
+<div class="relative z-10">
+<span class="text-[10px] font-bold uppercase tracking-tighter text-on-primary/70 mb-1 block">机构洞察</span>
+<h3 class="text-on-primary font-bold text-lg leading-tight mb-3">第四季度波动率展望：结构性转变</h3>
+<button class="bg-white/10 backdrop-blur-md border border-white/20 text-on-primary py-2 px-4 rounded text-xs font-bold hover:bg-white/20 transition-all">阅读报告</button>
+</div>
+</div>
+</aside>
+<!-- Main Content Grid -->
+<section class="flex-grow flex flex-col gap-6">
+<!-- Top Dashboard Bar -->
+<header class="flex flex-wrap items-center justify-between gap-4">
+<div class="flex items-center gap-4">
+<h1 class="text-headline-sm font-extrabold tracking-tighter text-on-surface">宏观日历</h1>
+<div class="flex items-center bg-surface-container-high rounded-full p-1">
+<button class="px-4 py-1 text-xs font-bold bg-surface-container-lowest rounded-full shadow-sm text-primary">月度</button>
+<button class="px-4 py-1 text-xs font-bold text-on-surface-variant hover:text-on-surface transition-colors">周度</button>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest border border-outline-variant/20 rounded hover:bg-surface-container-high transition-all">
+<span class="material-symbols-outlined text-sm">calendar_month</span>
+<span class="text-body-md font-medium">2023年11月</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded font-bold text-body-md shadow-sm"><span class="material-symbols-outlined text-sm">download</span> 导出数据</button>
+</div>
+</header>
+<!-- Bento Layout: Calendar + High Volatility Alert -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-6">周一</div>
+<!-- Economic Indicators Table (High Density) -->
+<section class="bg-surface-container-lowest rounded-lg border border-outline-variant/15 overflow-hidden">
+<div class="p-4 border-b border-outline-variant/10 bg-surface-container-low/50">
+<h3 class="text-title-sm font-bold tracking-tight">详细经济指标</h3>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant/10 text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">
+<th class="px-6 py-4">时间 (CST)</th>
+<th class="px-6 py-4">国家</th>
+<th class="px-6 py-4">事件</th>
+<th class="px-6 py-4 text-center">影响</th>
+<th class="px-6 py-4 text-right">实际</th>
+<th class="px-6 py-4 text-right">预测</th>
+<th class="px-6 py-4 text-right">前值</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/5">
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 text-body-md font-mono whitespace-nowrap">09:45</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="w-5 h-3.5 bg-slate-200 rounded-sm overflow-hidden inline-block relative">
+<span class="absolute inset-0 bg-red-600 flex items-center justify-center text-[6px] text-white font-bold">CN</span>
+</span>
+<span class="text-body-md font-medium">CN</span>
+</div>
+</td>
+<td class="px-6 py-4 text-body-md font-bold group-hover:text-primary transition-colors">财新制造业PMI (十月)</td>
+<td class="px-6 py-4">
+<div class="flex justify-center gap-0.5">
+<span class="material-symbols-outlined text-secondary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-secondary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-secondary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right font-mono font-black text-secondary">49.5</td>
+<td class="px-6 py-4 text-right font-mono text-on-surface-variant">50.8</td>
+<td class="px-6 py-4 text-right font-mono text-on-surface-variant">50.6</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 text-body-md font-mono whitespace-nowrap">17:30</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="w-5 h-3.5 bg-slate-200 rounded-sm overflow-hidden inline-block relative">
+<span class="absolute inset-0 bg-blue-800 flex items-center justify-center text-[6px] text-white font-bold">EU</span>
+</span>
+<span class="text-body-md font-medium">EU</span>
+</div>
+</td>
+<td class="px-6 py-4 text-body-md font-bold group-hover:text-primary transition-colors">欧元区制造业PMI (十月)</td>
+<td class="px-6 py-4">
+<div class="flex justify-center gap-0.5">
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-outline-variant text-sm">star</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right font-mono font-black text-tertiary">43.1</td>
+<td class="px-6 py-4 text-right font-mono text-on-surface-variant">43.0</td>
+<td class="px-6 py-4 text-right font-mono text-on-surface-variant">43.4</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4 text-body-md font-mono whitespace-nowrap">20:30</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="w-5 h-3.5 bg-slate-200 rounded-sm overflow-hidden inline-block relative">
+<span class="absolute inset-0 bg-blue-900 flex flex-col items-center justify-center text-[4px] text-white font-bold">USA</span>
+</span>
+<span class="text-body-md font-medium">US</span>
+</div>
+</td>
+<td class="px-6 py-4 text-body-md font-bold group-hover:text-primary transition-colors">非农就业人数 (十月)</td>
+<td class="px-6 py-4">
+<div class="flex justify-center gap-0.5">
+<span class="material-symbols-outlined text-secondary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-secondary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-secondary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right font-mono font-black text-on-surface">--</td>
+<td class="px-6 py-4 text-right font-mono text-on-surface-variant">180K</td>
+<td class="px-6 py-4 text-right font-mono text-on-surface-variant">336K</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 border-t border-outline-variant/5 text-center">
+<button class="text-label-sm font-bold text-primary uppercase tracking-widest flex items-center justify-center gap-2 mx-auto">查看未来48小时 <span class="material-symbols-outlined text-xs">expand_more</span></button>
+</div>
+</section>
+</section>
+</main>
+<!-- Floating Tooltip / Glass Drawer Placeholder -->
+<div class="fixed bottom-8 right-8 z-50">
+<button class="w-14 h-14 bg-primary text-on-primary rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'wght' 600;">notifications_active</span>
+</button>
+</div>
+</body></html>

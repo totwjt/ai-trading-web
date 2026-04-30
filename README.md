@@ -94,6 +94,7 @@ python server.py
 - [UI 设计规范](./design/UI_RULES.md)
 - [API 文档](./docs/API/)
 - [开发计划](./docs/plan.md)
+- [Docker 发布说明](./deploy/DEPLOY.md)
 
 ## 许可证
 

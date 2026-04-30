@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Factor Gallery | Precision Fintech</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#0054d6",
+                        "tertiary-fixed": "#88fd54",
+                        "on-tertiary-fixed-variant": "#1a5200",
+                        "primary-fixed-dim": "#b3c5ff",
+                        "on-error": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "surface-container-low": "#f2f4f7",
+                        "on-surface-variant": "#424656",
+                        "primary": "#0050cb",
+                        "outline-variant": "#c2c6d8",
+                        "surface-dim": "#d8dadd",
+                        "on-tertiary": "#ffffff",
+                        "tertiary": "#236700",
+                        "secondary": "#bb0018",
+                        "on-tertiary-container": "#ebffdb",
+                        "on-primary-fixed-variant": "#003fa4",
+                        "secondary-container": "#e71325",
+                        "on-secondary-fixed": "#410003",
+                        "on-primary-fixed": "#001849",
+                        "inverse-surface": "#2d3133",
+                        "surface-container-high": "#e6e8eb",
+                        "surface-bright": "#f7f9fc",
+                        "surface": "#f7f9fc",
+                        "on-secondary-container": "#fffbff",
+                        "on-surface": "#191c1e",
+                        "on-primary": "#ffffff",
+                        "outline": "#727687",
+                        "on-primary-container": "#f8f7ff",
+                        "surface-container-highest": "#e0e3e6",
+                        "primary-fixed": "#dae1ff",
+                        "on-secondary-fixed-variant": "#930010",
+                        "inverse-primary": "#b3c5ff",
+                        "error": "#ba1a1a",
+                        "error-container": "#ffdad6",
+                        "surface-variant": "#e0e3e6",
+                        "secondary-fixed": "#ffdad6",
+                        "tertiary-fixed-dim": "#6de039",
+                        "on-tertiary-fixed": "#062100",
+                        "on-background": "#191c1e",
+                        "secondary-fixed-dim": "#ffb3ad",
+                        "inverse-on-surface": "#eff1f4",
+                        "tertiary-container": "#2f8300",
+                        "surface-container": "#eceef1",
+                        "background": "#f7f9fc",
+                        "primary-container": "#0066ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "display": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+        }
+        .data-grid-row:hover { background-color: #f2f4f7; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary-fixed-dim selection:text-on-primary-fixed">
+<main class="min-h-screen p-4 md:p-8 max-w-[1600px] mx-auto space-y-6">
+<!-- Header Section: Institutional Positioning -->
+<header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
+<div class="space-y-1">
+<div class="flex items-center gap-2 text-primary font-bold tracking-tight">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">analytics</span>
+<span class="text-xs uppercase tracking-[0.2em]">Alpha Terminal</span>
+</div>
+<h1 class="text-3xl font-extrabold tracking-tighter text-on-surface">因子看板 <span class="font-normal text-on-surface-variant">Factor Gallery</span></h1>
+<p class="text-on-surface-variant text-sm max-w-2xl">中国权益市场因子收益的量化分解。实时展示因子敞口、风格轮动及横截面表现指标。</p>
+</div>
+<div class="flex gap-2">
+<button class="bg-surface-container-highest px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-surface-container-high transition-colors"><span class="material-symbols-outlined text-sm">download</span> 导出报告</button>
+<button class="bg-primary text-on-primary px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:opacity-90 transition-opacity"><span class="material-symbols-outlined text-sm">settings_input_component</span> 调整样本股</button>
+</div>
+</header>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">“在当前看涨行情下，动量依然是主导信号，但换手成本仍然处于高位。”</div>
+<!-- High-Density Data Table Section -->
+<section class="bg-surface-container-lowest rounded-xl shadow-sm mt-6">
+<div class="px-6 py-4 border-b border-outline-variant/15 flex justify-between items-center">
+<h2 class="text-lg font-bold tracking-tight">详细因子归因 <span class="text-xs font-normal text-on-surface-variant ml-2">(月度调仓)</span></h2>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="bg-surface-container-low border-none rounded-lg pl-8 py-1.5 text-xs w-48 focus:ring-1 focus:ring-primary" placeholder="搜索因子..." type="text"/>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-surface-container-low/50">
+<tr class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">
+<th class="px-6 py-3">因子风格</th>
+<th class="px-3 py-3 text-right">日</th>
+<th class="px-3 py-3 text-right">周</th>
+<th class="px-3 py-3 text-right">月</th>
+<th class="px-3 py-3 text-right">季至今</th>
+<th class="px-3 py-3 text-right">年至今</th>
+<th class="px-3 py-3 text-right">胜率</th>
+<th class="px-6 py-3 text-right">操作</th>
+</tr>
+</thead>
+<tbody class="text-[12px] divide-y divide-outline-variant/5">
+<tr class="data-grid-row">
+<td class="px-6 py-4"><span class="font-bold text-on-surface">动量</span> <span class="text-[10px] text-on-surface-variant">Momentum</span></td>
+<td class="px-3 py-4 text-right font-mono">92.4%</td>
+<td class="px-3 py-4 text-right font-mono text-secondary">+0.045</td>
+<td class="px-3 py-4 text-right font-mono">0.012</td>
+<td class="px-3 py-4 text-right font-mono">0.52</td>
+<td class="px-3 py-4 text-right font-mono">14.2%</td>
+<td class="px-3 py-4 text-right font-mono">54.8%</td>
+<td class="px-6 py-4 text-right"><button class="text-primary hover:underline font-bold">详情</button></td>
+</tr>
+<tr class="data-grid-row">
+<td class="px-6 py-4"><span class="font-bold text-on-surface">价值</span> <span class="text-[10px] text-on-surface-variant">Value</span></td>
+<td class="px-3 py-4 text-right font-mono">88.1%</td>
+<td class="px-3 py-4 text-right font-mono text-secondary">+0.032</td>
+<td class="px-3 py-4 text-right font-mono">0.008</td>
+<td class="px-3 py-4 text-right font-mono">0.88</td>
+<td class="px-3 py-4 text-right font-mono">2.1%</td>
+<td class="px-3 py-4 text-right font-mono">51.2%</td>
+<td class="px-6 py-4 text-right"><button class="text-primary hover:underline font-bold">详情</button></td>
+</tr>
+<tr class="data-grid-row">
+<td class="px-6 py-4"><span class="font-bold text-on-surface">成长</span> <span class="text-[10px] text-on-surface-variant">Growth</span></td>
+<td class="px-3 py-4 text-right font-mono">75.0%</td>
+<td class="px-3 py-4 text-right font-mono text-tertiary">-0.012</td>
+<td class="px-3 py-4 text-right font-mono">0.015</td>
+<td class="px-3 py-4 text-right font-mono">-0.14</td>
+<td class="px-3 py-4 text-right font-mono">5.5%</td>
+<td class="px-3 py-4 text-right font-mono">48.9%</td>
+<td class="px-6 py-4 text-right"><button class="text-primary hover:underline font-bold">详情</button></td>
+</tr>
+<tr class="data-grid-row">
+<td class="px-6 py-4"><div class="flex flex-col"><span class="font-bold text-on-surface">Volatility_30D</span><span class="text-[10px] text-on-surface-variant">风险类</span></div></td>
+<td class="px-3 py-4 text-right font-mono">100.0%</td>
+<td class="px-3 py-4 text-right font-mono text-secondary">+0.061</td>
+<td class="px-3 py-4 text-right font-mono">0.021</td>
+<td class="px-3 py-4 text-right font-mono">1.12</td>
+<td class="px-3 py-4 text-right font-mono">22.4%</td>
+<td class="px-3 py-4 text-right font-mono">58.2%</td>
+<td class="px-6 py-4 text-right"><button class="text-primary hover:underline font-bold">详情</button></td>
+</tr>
+<tr class="data-grid-row">
+<td class="px-6 py-4"><div class="flex flex-col"><span class="font-bold text-on-surface">Institutional_Flow_1D</span><span class="text-[10px] text-on-surface-variant">情绪类</span></div></td>
+<td class="px-3 py-4 text-right font-mono">62.8%</td>
+<td class="px-3 py-4 text-right font-mono text-secondary">+0.088</td>
+<td class="px-3 py-4 text-right font-mono">0.045</td>
+<td class="px-3 py-4 text-right font-mono">0.45</td>
+<td class="px-3 py-4 text-right font-mono">82.1%</td>
+<td class="px-3 py-4 text-right font-mono">52.5%</td>
+<td class="px-6 py-4 text-right"><button class="text-primary hover:underline font-bold">详情</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 bg-surface-container-low/30 flex justify-center border-t border-outline-variant/15">
+<button class="text-xs font-bold text-on-surface-variant flex items-center gap-1 hover:text-primary transition-colors">加载更多因子 <span class="material-symbols-outlined text-sm">keyboard_arrow_down</span></button>
+</div>
+</section>
+<!-- Floating Insight Glass Panel (Optional context) -->
+<div class="fixed bottom-6 right-6 z-40 max-w-xs glass-panel p-4 rounded-xl shadow-2xl border border-white/40 group cursor-default">
+<div class="flex items-center gap-3 mb-2">
+<div class="p-2 bg-primary/10 rounded-lg text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">lightbulb</span>
+</div>
+<h4 class="font-bold text-sm">实时因子洞察</h4>
+</div>
+<p class="text-xs text-on-surface leading-relaxed"><span class="font-bold text-secondary">动量</span> 因子目前正在测试相对基准的上轨阻力。分析师建议，若CPI数据保持平稳，需关注向 <span class="italic">成长</span> 风格的轮动。</p>
+<div class="mt-3 flex justify-end">
+<button class="text-[10px] font-bold uppercase tracking-widest text-primary flex items-center gap-1">完整预测 <span class="material-symbols-outlined text-xs">arrow_forward</span></button>
+</div>
+</div>
+</main>
+<!-- Suppressed Navigation Shells per requirement -->
+<!-- TopAppBar & BottomNavBar excluded from rendering -->
+</body></html>

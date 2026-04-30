@@ -44,6 +44,7 @@ socket.on('connect', () => {
     source: 'signal_platform',
     data: {
       stock_code: '600519',
+      stock_name: '贵州茅台',
       price: 1723.4,
       quantity: 100,
       position_level: 2
@@ -278,6 +279,7 @@ socket.on('order.u_1001', (orderMsg) => {
   "source": "signal_platform",
   "data": {
     "stock_code": "600519",
+    "stock_name": "贵州茅台",
     "price": 1723.4,
     "quantity": 100,
     "position_level": 2
@@ -291,6 +293,7 @@ socket.on('order.u_1001', (orderMsg) => {
 
 `data` 字段定义：
 - `stock_code` (string, 必填)
+- `stock_name` (string, 建议必填): 服务端会原样透传到 `order.{userId}`，同时兼容 `stockName`/`name`/`security_name`
 - `price` (number, 必填)
 - `quantity` (integer, 必填, > 0)
 - `position_level` (integer, 可选): `1=全仓, 2=1/2仓, 3=1/3仓, 4=1/4仓`
@@ -307,6 +310,7 @@ socket.on('order.u_1001', (orderMsg) => {
   "source": "signal_platform",
   "data": {
     "stock_code": "600519",
+    "stock_name": "贵州茅台",
     "price": 1723.4,
     "quantity": 100,
     "position_level": 2

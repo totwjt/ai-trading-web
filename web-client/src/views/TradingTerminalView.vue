@@ -139,6 +139,32 @@ const terminalCount = computed(() => terminalList.value.length)
 
 const terminalTopic = (uid: string, terminalId: string) => 'trading-terminal.' + uid + '.' + terminalId
 
+const pad2 = (value: number) => String(value).padStart(2, '0')
+
+const formatRecordTime = (value: unknown): string => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)) return raw
+  if (/^\d{2}:\d{2}:\d{2}$/.test(raw)) return raw
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return raw
+
+  return [
+    parsed.getFullYear(),
+    '-',
+    pad2(parsed.getMonth() + 1),
+    '-',
+    pad2(parsed.getDate()),
+    ' ',
+    pad2(parsed.getHours()),
+    ':',
+    pad2(parsed.getMinutes()),
+    ':',
+    pad2(parsed.getSeconds())
+  ].join('')
+}
+
 const allowSubmitAction = (actionKey: string, cooldownMs = ACTION_COOLDOWN_MS) => {
   const now = Date.now()
   const last = actionLastTriggerAt.get(actionKey) || 0
@@ -252,13 +278,13 @@ const subscribeTerminalTopic = (terminalId: string) => {
     terminal.updatedAt = envelope.ts || terminal.updatedAt
 
     if (envelope.eventType === 'trade.record.append') {
-      appendRecord(terminalId, normalizeTradeRecord(envelope.data || {}))
+      appendRecord(terminalId, normalizeTradeRecord(envelope.data || {}, envelope.ts))
       return
     }
 
     if (envelope.eventType === 'trade.record.batch') {
       const records = (envelope.data?.records as TerminalTradeRecord[]) || []
-      replaceRecords(terminalId, records.map((item) => normalizeTradeRecord(item)))
+      replaceRecords(terminalId, records.map((item) => normalizeTradeRecord(item, envelope.ts)))
       return
     }
 
@@ -326,7 +352,7 @@ const normalizeTradeStatus = (value: unknown): 'success' | 'failed' => {
   return 'success'
 }
 
-const normalizeTradeRecord = (item: Record<string, unknown>): TerminalTradeRecord => {
+const normalizeTradeRecord = (item: Record<string, unknown>, fallbackTime?: string): TerminalTradeRecord => {
   const symbol = String(item.symbol || item.stock_code || item.ts_code || item.code || '').trim()
   const name = String(
     item.name ||
@@ -344,7 +370,7 @@ const normalizeTradeRecord = (item: Record<string, unknown>): TerminalTradeRecor
 
   return {
     tradeId: String(item.tradeId || item.trade_id || item.id || ''),
-    time: String(item.time || item.trade_time || item.ts || item.timestamp || ''),
+    time: formatRecordTime(item.time || item.trade_time || item.ts || item.timestamp || fallbackTime || ''),
     symbol,
     name,
     side: normalizeSide(item.side ?? item.direction ?? item.trade_type),
@@ -609,8 +635,6 @@ const removeFromWatchlist = async (tsCode: string) => {
 }
 
 const normalizeStockCode = (code: string) => code.trim().toUpperCase()
-
-const pad2 = (value: number) => String(value).padStart(2, '0')
 
 const toDateTimeInputValue = (value: string): string => {
   const date = new Date(value)

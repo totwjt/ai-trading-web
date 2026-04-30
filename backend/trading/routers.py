@@ -9,6 +9,7 @@ from datetime import datetime
 import logging
 import httpx
 import re
+import os
 
 from common.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,10 +25,10 @@ logger = logging.getLogger(__name__)
 
 trading_router = APIRouter(prefix="/api/trading", tags=["trading"])
 
-EXTERNAL_API = "http://192.168.66.143:8000"
-TRADER_API = "http://192.168.66.155:8003"
-ORDER_API = "http://192.168.66.135:8000"
-TRADE_RECORD_API = "http://192.168.66.135:8001"
+EXTERNAL_API = os.getenv("TRADING_EXTERNAL_API", "http://192.168.66.143:8000")
+TRADER_API = os.getenv("TRADING_TRADER_API", "http://192.168.66.155:8003")
+ORDER_API = os.getenv("TRADING_ORDER_API", "http://192.168.66.135:8000")
+TRADE_RECORD_API = os.getenv("TRADING_RECORD_API", "http://192.168.66.135:8001")
 
 
 # ==================== 数据模型 ====================
