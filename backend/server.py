@@ -38,6 +38,7 @@ TOPIC_TRADING = "trading"
 TOPIC_RISK = "risk"
 TOPIC_TRADING_TERMINAL = "trading-terminal"
 TOPIC_ORDER = "order"
+DEFAULT_TERMINAL_NAME = "交易终端_default"
 
 TERMINAL_HEARTBEAT_TIMEOUT = 30
 TERMINAL_HEARTBEAT_CHECK_INTERVAL = 5
@@ -135,6 +136,15 @@ def normalize_mac(mac_address: str) -> str:
     return mac_address.strip().lower()
 
 
+def is_non_empty(value: Any) -> bool:
+    return bool(str(value or "").strip())
+
+
+def default_terminal_name(value: Any = None) -> str:
+    normalized = str(value or "").strip()
+    return normalized or DEFAULT_TERMINAL_NAME
+
+
 def find_terminal_key_by_mac(user_id: str, mac_address: str) -> Optional[str]:
     normalized = normalize_mac(mac_address)
     if not normalized:
@@ -200,6 +210,65 @@ async def find_terminal_from_db_by_mac(user_id: str, mac_address: str) -> Option
         return None
 
 
+async def find_terminal_from_db(user_id: str, terminal_id: str, mac_address: str) -> Optional[Dict[str, str]]:
+    db_terminal = await find_terminal_from_db_by_mac(user_id, mac_address)
+    if db_terminal:
+        return db_terminal
+
+    normalized_terminal_id = str(terminal_id or "").strip()
+    if not user_id or not normalized_terminal_id:
+        return None
+
+    query = text(
+        """
+        SELECT terminal_id, terminal_name, account_name, mac_address
+        FROM terminals
+        WHERE uid = :uid AND terminal_id = :terminal_id
+        ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+        LIMIT 1
+        """
+    )
+    try:
+        async with async_session_maker() as session:
+            result = await session.execute(query, {"uid": user_id, "terminal_id": normalized_terminal_id})
+            row = result.fetchone()
+            if not row:
+                return None
+            return {
+                "terminalId": str(row[0] or "").strip(),
+                "terminalName": str(row[1] or "").strip(),
+                "accountName": str(row[2] or "").strip(),
+                "macAddress": str(row[3] or "").strip(),
+            }
+    except Exception as error:
+        logger.warning(
+            "query terminal from db failed: uid=%s terminal_id=%s error=%s",
+            user_id,
+            normalized_terminal_id,
+            error
+        )
+        return None
+
+
+async def refresh_terminal_registry_from_db(info: Dict[str, Any]) -> Dict[str, Any]:
+    user_id = str(info.get("userId") or "").strip()
+    terminal_id = str(info.get("terminalId") or "").strip()
+    mac_address = str(info.get("macAddress") or "").strip()
+    db_terminal = await find_terminal_from_db(user_id, terminal_id, mac_address)
+    if not db_terminal:
+        return info
+
+    if is_non_empty(db_terminal.get("terminalId")):
+        info["terminalId"] = str(db_terminal["terminalId"]).strip()
+    if is_non_empty(db_terminal.get("terminalName")):
+        info["terminalName"] = str(db_terminal["terminalName"]).strip()
+    if is_non_empty(db_terminal.get("accountName")):
+        info["accountName"] = str(db_terminal["accountName"]).strip()
+    if is_non_empty(db_terminal.get("macAddress")):
+        info["macAddress"] = str(db_terminal["macAddress"]).strip()
+    return info
+
+
 async def find_db_terminals_by_uid(user_id: str) -> Dict[str, Dict[str, str]]:
     if not user_id:
         return {}
@@ -247,7 +316,7 @@ async def ensure_terminal_in_db(
         return None
 
     requested_terminal_id = terminal_id or mac_to_terminal_id(mac_address)
-    requested_terminal_name = terminal_name or requested_terminal_id
+    requested_terminal_name = default_terminal_name(terminal_name)
     requested_account_name = account_name or ""
 
     select_by_mac_query = text(
@@ -338,7 +407,7 @@ async def ensure_terminal_in_db(
                     {
                         "uid": user_id,
                         "terminal_id": candidate_terminal_id,
-                        "terminal_name": requested_terminal_name or candidate_terminal_id,
+                        "terminal_name": requested_terminal_name,
                         "mac_address": mac_address,
                         "account_name": requested_account_name
                     }
@@ -346,7 +415,7 @@ async def ensure_terminal_in_db(
 
                 return {
                     "terminalId": candidate_terminal_id,
-                    "terminalName": requested_terminal_name or candidate_terminal_id,
+                    "terminalName": requested_terminal_name,
                     "accountName": requested_account_name,
                     "macAddress": mac_address
                 }
@@ -415,7 +484,7 @@ def build_terminal_snapshot(user_id: str) -> List[Dict[str, Any]]:
         items.append({
             "userId": info["userId"],
             "terminalId": info["terminalId"],
-            "terminalName": info.get("terminalName") or info["terminalId"],
+            "terminalName": default_terminal_name(info.get("terminalName")),
             "macAddress": info.get("macAddress") or "",
             "accountName": info.get("accountName") or "",
             "connected": bool(info.get("connected", False)),
@@ -466,6 +535,7 @@ async def disconnect(sid):
         return
 
     info = terminal_registry[key]
+    await refresh_terminal_registry_from_db(info)
     info["connected"] = False
     was_online = bool(info.get("online"))
     if was_online:
@@ -484,7 +554,7 @@ async def disconnect(sid):
         info["terminalId"],
         "terminal.disconnected",
         {
-            "terminalName": info.get("terminalName") or info["terminalId"],
+            "terminalName": default_terminal_name(info.get("terminalName")),
             "reason": "service_disconnect",
             "statusSource": "terminal_service"
         }
@@ -495,7 +565,7 @@ async def disconnect(sid):
             info["terminalId"],
             "terminal.offline",
             {
-                "terminalName": info.get("terminalName") or info["terminalId"],
+                "terminalName": default_terminal_name(info.get("terminalName")),
                 "reason": "service_disconnect",
                 "statusSource": "terminal_service"
             }
@@ -542,7 +612,7 @@ async def terminal_register(sid, data):
 
     user_id = get_user_id(data)
     terminal_id = get_terminal_id(data)
-    terminal_name = get_terminal_name(data) or terminal_id
+    terminal_name = default_terminal_name(get_terminal_name(data))
     mac_address = get_mac_address(data)
     account_name = get_account_name(data)
     initial_status = str(data.get("status") or "").strip().lower()
@@ -797,6 +867,7 @@ async def terminal_status_update(sid, data):
         return
 
     info = terminal_registry[key]
+    await refresh_terminal_registry_from_db(info)
     # 业务状态上报必须由终端自身当前会话上报，避免其它 client 通过 terminalId/macAddress 越权更新
     if info.get("userId") != user_id:
         await sio.emit("terminal_error", {"message": "terminal sid/user mismatch"}, room=sid)
@@ -859,7 +930,7 @@ async def terminal_status_update(sid, data):
         info["terminalId"],
         event_type,
         {
-            "terminalName": info.get("terminalName") or info["terminalId"],
+            "terminalName": default_terminal_name(info.get("terminalName")),
             "macAddress": info.get("macAddress") or "",
             "accountName": info.get("accountName") or "",
             "reason": reason,
@@ -887,6 +958,7 @@ async def terminal_heartbeat(sid, data):
 
     if key and key in terminal_registry:
         info = terminal_registry[key]
+        await refresh_terminal_registry_from_db(info)
         # 心跳同样要求来自终端自身当前会话
         if info.get("userId") != user_id:
             await sio.emit("terminal_error", {"message": "terminal sid/user mismatch"}, room=sid)
@@ -975,6 +1047,7 @@ async def terminal_unregister(sid, data):
         return
 
     info = terminal_registry.pop(key)
+    await refresh_terminal_registry_from_db(info)
     log_terminal_event(
         "unregister.applied",
         sid=sid,
@@ -986,7 +1059,7 @@ async def terminal_unregister(sid, data):
         info["userId"],
         info["terminalId"],
         "terminal.removed",
-        {"terminalName": info.get("terminalName") or info["terminalId"]}
+        {"terminalName": default_terminal_name(info.get("terminalName"))}
     )
     await sio.emit(
         "terminal_unregistered",
@@ -1359,6 +1432,7 @@ async def terminal_heartbeat_monitor():
                 continue
 
             if (now - last).total_seconds() > TERMINAL_HEARTBEAT_TIMEOUT:
+                await refresh_terminal_registry_from_db(info)
                 was_online = bool(info.get("online"))
                 info["connected"] = False
                 if was_online:
@@ -1379,7 +1453,7 @@ async def terminal_heartbeat_monitor():
                     info["terminalId"],
                     "terminal.disconnected",
                     {
-                        "terminalName": info.get("terminalName") or info["terminalId"],
+                        "terminalName": default_terminal_name(info.get("terminalName")),
                         "reason": "service_heartbeat_timeout",
                         "statusSource": "terminal_service"
                     }
@@ -1390,7 +1464,7 @@ async def terminal_heartbeat_monitor():
                         info["terminalId"],
                         "terminal.offline",
                         {
-                            "terminalName": info.get("terminalName") or info["terminalId"],
+                            "terminalName": default_terminal_name(info.get("terminalName")),
                             "reason": "service_heartbeat_timeout",
                             "statusSource": "terminal_service"
                         }

@@ -68,6 +68,7 @@ interface TerminalEnvelope {
 
 const MAX_RECORDS_PER_TERMINAL = 200
 const ACTION_COOLDOWN_MS = 1200
+const DEFAULT_TERMINAL_NAME = '交易终端_default'
 const userStore = useUserStore()
 const currentUid = computed(() => userStore.uid.trim())
 
@@ -141,6 +142,16 @@ const terminalTopic = (uid: string, terminalId: string) => 'trading-terminal.' +
 
 const pad2 = (value: number) => String(value).padStart(2, '0')
 
+const normalizeTerminalName = (value: unknown, fallback?: string): string => {
+  const normalized = String(value || '').trim()
+  if (normalized) return normalized
+
+  const fallbackName = String(fallback || '').trim()
+  if (fallbackName) return fallbackName
+
+  return DEFAULT_TERMINAL_NAME
+}
+
 const formatRecordTime = (value: unknown): string => {
   const raw = String(value || '').trim()
   if (!raw) return ''
@@ -179,14 +190,14 @@ const allowSubmitAction = (actionKey: string, cooldownMs = ACTION_COOLDOWN_MS) =
 const ensureTerminalState = (terminalId: string, terminalName?: string): TerminalState => {
   const current = terminals.value[terminalId]
   if (current) {
-    if (terminalName) current.terminalName = terminalName
+    if (String(terminalName || '').trim()) current.terminalName = normalizeTerminalName(terminalName, current.terminalName)
     return current
   }
 
   const created: TerminalState = {
     userId: currentUid.value,
     terminalId,
-    terminalName: terminalName || terminalId,
+    terminalName: normalizeTerminalName(terminalName),
     macAddress: '',
     accountName: '',
     connected: false,
@@ -201,6 +212,26 @@ const ensureTerminalState = (terminalId: string, terminalName?: string): Termina
     [terminalId]: created
   }
   return created
+}
+
+const applyTerminalDisplayFields = (
+  terminal: TerminalState,
+  fields: {
+    terminalName?: unknown
+    macAddress?: unknown
+    accountName?: unknown
+  }
+) => {
+  if (String(fields.terminalName || '').trim()) {
+    terminal.terminalName = normalizeTerminalName(fields.terminalName, terminal.terminalName)
+  } else if (!String(terminal.terminalName || '').trim()) {
+    terminal.terminalName = DEFAULT_TERMINAL_NAME
+  }
+
+  const macAddress = String(fields.macAddress || '').trim()
+  const accountName = String(fields.accountName || '').trim()
+  if (macAddress) terminal.macAddress = macAddress
+  if (accountName) terminal.accountName = accountName
 }
 
 const removeTerminal = (terminalId: string) => {
@@ -413,16 +444,33 @@ const initTerminalRecordsByMachine = async (terminalId: string, macAddress?: str
   }
 }
 
+const syncTerminalDisplayInfo = async (uid: string, targetTerminalId?: string) => {
+  if (!uid) return
+  const items = await getUserTerminals(uid)
+  items.forEach((item: UserTerminal) => {
+    if (targetTerminalId && item.terminal_id !== targetTerminalId) return
+    const terminal = ensureTerminalState(item.terminal_id, item.terminal_name || undefined)
+    terminal.userId = item.uid
+    applyTerminalDisplayFields(terminal, {
+      terminalName: item.terminal_name,
+      macAddress: item.mac_address,
+      accountName: item.account_name
+    })
+    terminal.updatedAt = item.updated_at || terminal.updatedAt
+  })
+}
+
 const applySnapshot = (items: Array<Record<string, unknown>>) => {
   items.forEach((item) => {
     const terminalId = String(item.terminalId || '')
     if (!terminalId) return
 
-    const terminal = ensureTerminalState(terminalId, String(item.terminalName || terminalId))
-    const macAddress = String(item.macAddress || item.mac_address || '').trim()
-    const accountName = String(item.accountName || item.account_name || '').trim()
-    if (macAddress) terminal.macAddress = macAddress
-    if (accountName) terminal.accountName = accountName
+    const terminal = ensureTerminalState(terminalId, String(item.terminalName || ''))
+    applyTerminalDisplayFields(terminal, {
+      terminalName: item.terminalName,
+      macAddress: item.macAddress || item.mac_address,
+      accountName: item.accountName || item.account_name
+    })
     terminal.connected = Boolean(item.connected)
     terminal.online = terminal.connected ? Boolean(item.online) : false
     terminal.lastHeartbeatAt = String(item.lastHeartbeatAt || '')
@@ -438,10 +486,13 @@ const loadUserTerminals = async (uid: string) => {
   if (!uid) return
   const items = await getUserTerminals(uid)
   items.forEach((item: UserTerminal) => {
-    const terminal = ensureTerminalState(item.terminal_id, item.terminal_name || item.terminal_id)
+    const terminal = ensureTerminalState(item.terminal_id, item.terminal_name || undefined)
     terminal.userId = item.uid
-    terminal.macAddress = item.mac_address
-    terminal.accountName = item.account_name
+    applyTerminalDisplayFields(terminal, {
+      terminalName: item.terminal_name,
+      macAddress: item.mac_address,
+      accountName: item.account_name
+    })
     terminal.connected = false
     terminal.online = false
     terminal.updatedAt = item.updated_at || terminal.updatedAt
@@ -455,14 +506,15 @@ const handleControlEvent = (payload: unknown) => {
   if (envelope.userId !== currentUid.value || !envelope.terminalId) return
 
   const terminalId = envelope.terminalId
-  const terminalName = String(envelope.data?.terminalName || terminalId)
-  const terminal = ensureTerminalState(terminalId, terminalName)
-  const macAddress = envelope.data?.macAddress || envelope.data?.mac_address
-  const accountName = envelope.data?.accountName || envelope.data?.account_name
-  if (typeof macAddress === 'string' && macAddress) terminal.macAddress = macAddress
-  if (typeof accountName === 'string' && accountName) terminal.accountName = accountName
+  const terminal = ensureTerminalState(terminalId, String(envelope.data?.terminalName || ''))
+  applyTerminalDisplayFields(terminal, {
+    terminalName: envelope.data?.terminalName,
+    macAddress: envelope.data?.macAddress || envelope.data?.mac_address,
+    accountName: envelope.data?.accountName || envelope.data?.account_name
+  })
 
   controlEventsCount.value += 1
+  void syncTerminalDisplayInfo(currentUid.value, terminalId)
 
   if (envelope.eventType === 'terminal.added') {
     terminal.updatedAt = envelope.ts || terminal.updatedAt
@@ -520,12 +572,6 @@ const cancelEditTerminalName = () => {
   editingTerminalName.value = ''
 }
 
-const applyRenameLocal = (terminalId: string, nextName: string) => {
-  const terminal = terminals.value[terminalId]
-  if (!terminal) return
-  terminal.terminalName = nextName
-}
-
 const commitTerminalNameDebounced = (terminalId: string) => {
   const terminal = terminals.value[terminalId]
   if (!terminal) return
@@ -543,7 +589,7 @@ const commitTerminalNameDebounced = (terminalId: string) => {
         mac_address: terminal.macAddress,
         terminal_name: nextName
       })
-      applyRenameLocal(terminalId, nextName)
+      await syncTerminalDisplayInfo(currentUid.value, terminalId)
     } catch (error: any) {
       message.error(error?.message || '终端名称更新失败')
     } finally {
