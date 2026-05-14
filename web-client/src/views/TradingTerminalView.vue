@@ -9,6 +9,7 @@ import {
   addToWatchlistAPI,
   createPendingOrderAPI,
   createOrderAPI,
+  getFinaMainbz,
   getPendingOrderConfigAPI,
   getPendingOrdersAPI,
   getTradeRecordsByMachine,
@@ -19,6 +20,7 @@ import {
   searchStocks,
   updateTerminalNameAPI,
   updatePendingOrderAPI,
+  type FinaMainbzItem,
   type MachineTradeRecord,
   type PendingOrderConfig,
   type PendingOrderItem,
@@ -102,6 +104,28 @@ const pendingConfig = ref<PendingOrderConfig>({
   default_delay_minutes: 10,
   auto_submit: false
 })
+const mainbzDrawerOpen = ref(false)
+const mainbzData = ref<FinaMainbzItem[]>([])
+const mainbzLoading = ref(false)
+const mainbzStockInfo = ref<{ tsCode: string; name: string }>({ tsCode: '', name: '' })
+
+const fetchFinaMainbz = async (stock: WatchlistItem) => {
+  const tsCode = stock.ts_code || ''
+  if (!tsCode) return
+
+  mainbzStockInfo.value = { tsCode, name: stock.name || tsCode }
+  mainbzDrawerOpen.value = true
+  mainbzLoading.value = true
+  mainbzData.value = []
+  try {
+    mainbzData.value = await getFinaMainbz(tsCode)
+  } catch (error: any) {
+    message.error(error?.message || '获取主营业务数据失败')
+  } finally {
+    mainbzLoading.value = false
+  }
+}
+
 const pendingOrderColumns = [
   { title: '挂单信息', key: 'summary' },
   { title: '操作', key: 'actions', width: 72, align: 'center' as const }
@@ -678,6 +702,13 @@ const removeFromWatchlist = async (tsCode: string) => {
   } catch (error: any) {
     message.error(error?.message || '删除失败')
   }
+}
+
+const formatAmount = (value: number | null | undefined): string => {
+  if (value == null) return '-'
+  if (Math.abs(value) >= 1e8) return (value / 1e8).toFixed(2) + '亿'
+  if (Math.abs(value) >= 1e4) return (value / 1e4).toFixed(2) + '万'
+  return value.toFixed(2)
 }
 
 const normalizeStockCode = (code: string) => code.trim().toUpperCase()
@@ -1346,6 +1377,7 @@ onUnmounted(() => {
                   <th class="text-left text-textSub font-medium">名称</th>
                   <th class="text-right text-textSub font-medium">收盘</th>
                   <th class="text-right text-textSub font-medium">涨跌</th>
+                  <th class="text-right text-textSub font-medium">换手率</th>
                   <th class="text-center text-textSub font-medium">操作</th>
                 </tr>
               </thead>
@@ -1356,6 +1388,9 @@ onUnmounted(() => {
                   <td class="text-right text-textMain font-numeric">{{ (stock.close ?? 0).toFixed(2) }}</td>
                   <td class="text-right font-numeric" :class="(stock.change ?? 0) >= 0 ? 'text-up' : 'text-down'">
                     {{ (stock?.change ?? 0) }} %
+                  </td>
+                  <td class="text-right font-numeric text-textMain">
+                    {{ stock.turnover_rate != null ? stock.turnover_rate + '%' : '-' }}
                   </td>
                   <td class="text-center">
                     <div class="inline-flex items-center gap-2">
@@ -1374,6 +1409,14 @@ onUnmounted(() => {
                         @click="addPendingFromWatchlist(stock)"
                       >
                         挂单
+                      </button>
+                      <button
+                        type="button"
+                        class="h-6 px-2 rounded border border-border text-textSub hover:bg-bgMain transition-colors disabled:opacity-50"
+                        :disabled="mainbzLoading"
+                        @click="fetchFinaMainbz(stock)"
+                      >
+                        主营业务
                       </button>
                       <a-button
                         class="rounded hover:bg-down/10 transition-colors"
@@ -1736,6 +1779,48 @@ onUnmounted(() => {
         </a-table>
       </div>
     </a-drawer>
+
+    <a-drawer
+      v-model:open="mainbzDrawerOpen"
+      :title="'主营业务 - ' + mainbzStockInfo.name + ' (' + mainbzStockInfo.tsCode + ')'"
+      placement="bottom"
+      height="420"
+      :body-style="{ padding: '12px' }"
+    >
+      <div v-if="mainbzLoading" class="py-10 text-center text-xs text-textMute">加载中...</div>
+      <div v-else-if="mainbzData.length === 0" class="py-10 text-center text-xs text-textMute">暂无主营业务数据</div>
+      <template v-else>
+        <div class="text-xxs text-textMute mb-2">共 {{ mainbzData.length }} 条记录</div>
+        <div class="mainbz-table-wrap overflow-y-auto" style="max-height: 320px">
+          <table class="w-full text-xs mainbz-table">
+            <thead>
+              <tr>
+                <th class="text-left">报告期</th>
+                <th class="text-left">业务项目</th>
+                <th class="text-right">营业收入</th>
+                <th class="text-right">收入占比(%)</th>
+                <th class="text-right">营业利润</th>
+                <th class="text-right">利润占比(%)</th>
+                <th class="text-right">营业成本</th>
+                <th class="text-center">币种</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, idx) in mainbzData" :key="idx" class="hover:bg-primary/5">
+                <td class="font-numeric text-textSub">{{ item.end_date }}</td>
+                <td class="text-textMain">{{ item.bz_item }}</td>
+                <td class="text-right font-numeric text-textMain">{{ formatAmount(item.bz_sales) }}</td>
+                <td class="text-right font-numeric text-textMain">{{ item.sales_ratio != null ? item.sales_ratio.toFixed(2) : '-' }}</td>
+                <td class="text-right font-numeric text-textMain">{{ formatAmount(item.bz_profit) }}</td>
+                <td class="text-right font-numeric text-textMain">{{ item.profit_ratio != null ? item.profit_ratio.toFixed(2) : '-' }}</td>
+                <td class="text-right font-numeric text-textMain">{{ formatAmount(item.bz_cost) }}</td>
+                <td class="text-center font-numeric text-textSub">{{ item.curr_type || '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+    </a-drawer>
   </div>
 </template>
 
@@ -1869,6 +1954,35 @@ onUnmounted(() => {
 .pending-orders-wrap {
   max-height: calc(100vh - 170px);
   overflow-y: auto;
+}
+
+.mainbz-table th,
+.mainbz-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.mainbz-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.mainbz-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: rgb(var(--color-card));
+  color: var(--color-text-sub);
+  font-weight: 500;
+  box-shadow: inset 0 -1px 0 0 var(--color-border);
+}
+
+.mainbz-table-wrap {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
 }
 
 </style>

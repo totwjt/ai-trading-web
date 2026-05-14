@@ -66,6 +66,27 @@ export interface WatchlistItem {
   bid_price1?: number
   bid_volume1?: number
   trade_time?: string
+  turnover_rate?: number
+}
+
+// 主营业务数据
+export interface FinaMainbzItem {
+  ts_code: string
+  name: string | null
+  end_date: string
+  bz_item: string
+  bz_sales: number | null
+  bz_profit: number | null
+  bz_cost: number | null
+  curr_type: string | null
+  update_flag: string | null
+  sales_ratio: number | null
+  profit_ratio: number | null
+}
+
+export interface FinaMainbzResponse {
+  count: number
+  data: FinaMainbzItem[]
 }
 
 // 策略配置
@@ -431,4 +452,17 @@ export async function updatePendingOrderConfigAPI(payload: PendingOrderConfigUpd
     throw new Error(response.data.message || '保存挂单配置失败')
   }
   return true
+}
+
+const finaApiClient = axios.create({
+  baseURL: 'http://192.168.66.143:8099',
+  timeout: 10000,
+  headers: { 'Content-Type': 'application/json' }
+})
+
+export async function getFinaMainbz(tsCode: string): Promise<FinaMainbzItem[]> {
+  const response = await finaApiClient.get<FinaMainbzResponse>('/fina/mainbz', {
+    params: { ts_code: tsCode }
+  })
+  return response.data.data || []
 }
