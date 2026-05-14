@@ -481,6 +481,8 @@ def build_terminal_snapshot(user_id: str) -> List[Dict[str, Any]]:
     for info in terminal_registry.values():
         if info["userId"] != user_id:
             continue
+        if info.get("ignored"):
+            continue
         items.append({
             "userId": info["userId"],
             "terminalId": info["terminalId"],
@@ -535,6 +537,11 @@ async def disconnect(sid):
         return
 
     info = terminal_registry[key]
+    is_ignored = info.get("ignored", False)
+    if is_ignored:
+        terminal_registry.pop(key, None)
+        log_terminal_event("disconnect.ignored", sid=sid, key=key)
+        return
     await refresh_terminal_registry_from_db(info)
     info["connected"] = False
     was_online = bool(info.get("online"))
@@ -641,6 +648,83 @@ async def terminal_register(sid, data):
             room=sid
         )
         log_terminal_event("register.reject", sid=sid, reason="missing_mac_address")
+        return
+
+    # 忽略模式：不入库、不加入终端/控制 topic、不广播控制事件，仅加入下单 topic
+    if initial_status == "ignore":
+        requested_key = terminal_key(user_id, terminal_id)
+        key = requested_key
+        existing_key_by_mac = find_terminal_key_by_mac(user_id, mac_address)
+        if existing_key_by_mac:
+            log_terminal_event(
+                "register.dedupe_hit",
+                sid=sid,
+                userId=user_id,
+                requestedTerminalId=terminal_id,
+                existingKey=existing_key_by_mac,
+                macAddress=mac_address
+            )
+            key = existing_key_by_mac
+
+        prev = terminal_registry.get(key)
+        canonical_terminal_id = (
+            prev["terminalId"]
+            if prev else
+            (mac_to_terminal_id(mac_address) if not terminal_id else terminal_id)
+        )
+        canonical_terminal_name = prev.get("terminalName", "") if prev else terminal_name
+        canonical_mac = prev.get("macAddress", "") if prev else mac_address
+        canonical_account = prev.get("accountName", "") if prev else account_name
+
+        if prev and prev.get("sid") and prev["sid"] != sid:
+            old_sid = prev["sid"]
+            sid_terminal_map.pop(old_sid, None)
+            try:
+                await sio.disconnect(old_sid)
+            except Exception:
+                logger.warning("disconnect previous terminal sid failed: %s", old_sid)
+
+        uid_order_topic = order_topic(user_id)
+        await sio.enter_room(sid, uid_order_topic)
+
+        terminal_registry[key] = {
+            "userId": user_id,
+            "terminalId": canonical_terminal_id,
+            "terminalName": canonical_terminal_name,
+            "macAddress": canonical_mac,
+            "accountName": canonical_account,
+            "sid": sid,
+            "connected": False,
+            "online": False,
+            "ignored": True,
+            "connectedAt": prev["connectedAt"] if prev else now_iso(),
+            "lastHeartbeatAt": now_iso(),
+            "updatedAt": now_iso(),
+        }
+        sid_terminal_map[sid] = key
+        log_terminal_event(
+            "register.ignored",
+            sid=sid,
+            key=key,
+            userId=user_id,
+            terminalId=canonical_terminal_id,
+            macAddress=canonical_mac
+        )
+
+        await sio.emit(
+            "terminal_registered",
+            {
+                "userId": user_id,
+                "terminalId": canonical_terminal_id,
+                "terminalName": canonical_terminal_name,
+                "macAddress": canonical_mac,
+                "accountName": canonical_account,
+                "orderTopic": uid_order_topic,
+                "status": "ok",
+                "ignored": True,
+            },
+            room=sid
+        )
         return
 
     db_terminal = await ensure_terminal_in_db(
@@ -867,6 +951,9 @@ async def terminal_status_update(sid, data):
         return
 
     info = terminal_registry[key]
+    if info.get("ignored"):
+        log_terminal_event("status_update.ignored", sid=sid, key=key)
+        return
     await refresh_terminal_registry_from_db(info)
     # 业务状态上报必须由终端自身当前会话上报，避免其它 client 通过 terminalId/macAddress 越权更新
     if info.get("userId") != user_id:
@@ -1047,20 +1134,23 @@ async def terminal_unregister(sid, data):
         return
 
     info = terminal_registry.pop(key)
-    await refresh_terminal_registry_from_db(info)
+    is_ignored = info.get("ignored", False)
+    if not is_ignored:
+        await refresh_terminal_registry_from_db(info)
     log_terminal_event(
-        "unregister.applied",
+        "unregister.applied" if not is_ignored else "unregister.ignored",
         sid=sid,
         userId=info["userId"],
         terminalId=info["terminalId"],
         macAddress=info.get("macAddress") or ""
     )
-    await emit_terminal_control(
-        info["userId"],
-        info["terminalId"],
-        "terminal.removed",
-        {"terminalName": default_terminal_name(info.get("terminalName"))}
-    )
+    if not is_ignored:
+        await emit_terminal_control(
+            info["userId"],
+            info["terminalId"],
+            "terminal.removed",
+            {"terminalName": default_terminal_name(info.get("terminalName"))}
+        )
     await sio.emit(
         "terminal_unregistered",
         {"userId": info["userId"], "terminalId": info["terminalId"], "status": "ok"},
@@ -1204,6 +1294,9 @@ async def push_trading_terminal(sid, data):
         return
 
     info = terminal_registry[key]
+    if info.get("ignored"):
+        log_terminal_event("push_trading_terminal.ignored", sid=sid, key=key)
+        return
     if info.get("userId") != user_id:
         await sio.emit("terminal_error", {"message": "terminal sid/user mismatch"}, room=sid)
         log_terminal_event(

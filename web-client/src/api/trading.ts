@@ -116,6 +116,7 @@ export interface UserTerminal {
   mac_address: string
   account_name: string
   active: boolean
+  ignored?: boolean
   created_at?: string | null
   updated_at?: string | null
 }

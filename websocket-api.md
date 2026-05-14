@@ -1,6 +1,6 @@
 # WebSocket API（统一 Socket.IO 服务）
 
-> 更新时间：2026-04-03
+> 更新时间：2026-05-14
 > 面向对象：Web 前端、外部终端客户端、推送服务
 
 ## 1. 服务基础信息
@@ -132,8 +132,26 @@ socket.on('order.u_1001', (orderMsg) => {
 }
 ```
 
+`status` 字段取值说明：
+| 值 | 行为 |
+|---|---|
+| `online` | 正常注册，标记在线，广播控制事件 |
+| `offline` | 正常注册，标记离线 |
+| `ignore` | **忽略模式**：不入库、不加入终端/控制 topic、不广播控制事件、不入快照，但保留下单功能 |
+| 不传 | 正常注册，沿用已有在线状态或标记离线 |
+
+**忽略模式（`status=ignore`）详情**：
+- 不写入数据库 `terminals` 表
+- 不加入 `trading-terminal.{userId}.{terminalId}` topic（不收听交易记录）
+- 不加入 `trading-terminal.control.{userId}` topic（不接收控制事件）
+- **仅加入** `order.{userId}` topic（正常接收下单事件）
+- 不会出现在 `terminal_snapshot` 快照中
+- 服务端不会广播任何控制事件（`terminal.connected` / `terminal.added` / `terminal.online` 等均跳过）
+- 断开连接时直接从内存注册表移除，不执行 DB 恢复逻辑
+
 服务端响应（发给当前连接）：`terminal_registered`
 
+**正常模式响应**：
 ```json
 {
   "userId": "u_1001",
@@ -146,15 +164,28 @@ socket.on('order.u_1001', (orderMsg) => {
 }
 ```
 
-并在控制通道广播：
+**忽略模式响应**（多了 `"ignored": true`，且无 `topic` / `controlTopic`）：
+```json
+{
+  "userId": "u_1001",
+  "terminalId": "terminal-node-1",
+  "terminalName": "柜台A",
+  "orderTopic": "order.u_1001",
+  "status": "ok",
+  "ignored": true
+}
+```
+
+并在控制通道广播（仅正常模式）：
 - `eventType=terminal.added`
 
 说明：
 - 在线/离线状态由终端 Python 服务通过 `terminal_status_update` 主动上报。
-- `terminal_register` 不再默认代表“终端在线”。
+- `terminal_register` 不再默认代表"终端在线"。
 - 若 `terminal_register` 请求中显式携带 `status=online`，服务端会立即标记在线并广播 `terminal.online`。
 - 若未传 `terminalId`，必须传 `macAddress`，服务端将自动生成 `terminalId`。
 - `terminalName`、`accountName` 均为可选；不传时服务端会使用默认值（或空字符串）。
+- 忽略模式的终端不受 `terminal_status_update`、`push_trading_terminal` 等事件影响。
 
 ---
 
@@ -202,6 +233,7 @@ socket.on('order.u_1001', (orderMsg) => {
 说明：
 - `status` 仅允许 `online` 或 `offline`
 - `terminalId` 可选；不传时可用 `macAddress` 定位终端
+- 如果终端以忽略模式注册（`status=ignore`），此事件将被**静默忽略**，不做任何处理
 - 服务端会在控制通道广播：
   - `eventType=terminal.online` 或 `eventType=terminal.offline`
   - `data.statusSource=terminal_service`
@@ -378,6 +410,10 @@ socket.on('order.u_1001', (orderMsg) => {
   ]
 }
 ```
+
+说明：
+- 快照 **不包含** 以忽略模式注册的终端（`status=ignore`）
+- 如果终端在注册后动态转为忽略状态，也不会出现在快照中
 
 ## 5. 服务端控制事件（Web 监听重点）
 

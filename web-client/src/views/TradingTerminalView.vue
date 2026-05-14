@@ -51,6 +51,7 @@ interface TerminalState {
   accountName: string
   connected: boolean
   online: boolean
+  ignored?: boolean
   lastHeartbeatAt: string
   connectedAt: string
   updatedAt: string
@@ -154,10 +155,12 @@ let offWsConnect: (() => void) | null = null
 const terminalTopicOffFns = new Map<string, () => void>()
 
 const terminalList = computed(() => {
-  return Object.values(terminals.value).sort((a, b) => {
-    if (a.online !== b.online) return a.online ? -1 : 1
-    return a.terminalId.localeCompare(b.terminalId)
-  })
+  return Object.values(terminals.value)
+    .filter((t) => !t.ignored)
+    .sort((a, b) => {
+      if (a.online !== b.online) return a.online ? -1 : 1
+      return a.terminalId.localeCompare(b.terminalId)
+    })
 })
 
 const terminalCount = computed(() => terminalList.value.length)
@@ -316,7 +319,8 @@ const updateSeq = (terminalId: string, seq?: number) => {
   return true
 }
 
-const subscribeTerminalTopic = (terminalId: string) => {
+const subscribeTerminalTopic = (terminalId: string, ignored?: boolean) => {
+  if (ignored) return
   const uid = currentUid.value
   if (!uid) return
   const topic = terminalTopic(uid, terminalId)
@@ -490,6 +494,7 @@ const applySnapshot = (items: Array<Record<string, unknown>>) => {
     if (!terminalId) return
 
     const terminal = ensureTerminalState(terminalId, String(item.terminalName || ''))
+    terminal.ignored = Boolean(item.ignored)
     applyTerminalDisplayFields(terminal, {
       terminalName: item.terminalName,
       macAddress: item.macAddress || item.mac_address,
@@ -501,8 +506,10 @@ const applySnapshot = (items: Array<Record<string, unknown>>) => {
     terminal.connectedAt = String(item.connectedAt || '')
     terminal.updatedAt = String(item.updatedAt || '')
 
-    subscribeTerminalTopic(terminalId)
-    void initTerminalRecordsByMachine(terminalId, terminal.macAddress)
+    subscribeTerminalTopic(terminalId, terminal.ignored)
+    if (!terminal.ignored) {
+      void initTerminalRecordsByMachine(terminalId, terminal.macAddress)
+    }
   })
 }
 
@@ -519,9 +526,12 @@ const loadUserTerminals = async (uid: string) => {
     })
     terminal.connected = false
     terminal.online = false
+    terminal.ignored = item.ignored || false
     terminal.updatedAt = item.updated_at || terminal.updatedAt
-    subscribeTerminalTopic(item.terminal_id)
-    void initTerminalRecordsByMachine(item.terminal_id, terminal.macAddress)
+    subscribeTerminalTopic(item.terminal_id, terminal.ignored)
+    if (!terminal.ignored) {
+      void initTerminalRecordsByMachine(item.terminal_id, terminal.macAddress)
+    }
   })
 }
 
