@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { message, Switch as ASwitch, Slider as ASlider } from 'ant-design-vue'
 import { searchStocks, getTradeRecords, getWatchlist, addToWatchlistAPI, removeFromWatchlistAPI, getStrategyConfig, setStrategySwitch, setBuyThreshold, setSellThreshold, type StockSearchResult, type TradeRecord, type StrategyConfig } from '@/api/trading'
 import { useWebSocket } from '@/composables/useWebSocket'
 import type { WatchlistItem } from '@/utils/websocket'
@@ -14,33 +14,48 @@ const watchlist = ref<WatchlistItem[]>([])
 const tradeRecords = ref<TradeRecord[]>([])
 const strategyConfig = ref<StrategyConfig>({
   enabled: false,
-  buy_5m: 0,
-  sell_5m: 0
+  buy_1m: 0,
+  sell_1m: 0
 })
 
-const strategyEnabled = computed({
-  get: () => strategyConfig.value.enabled,
-  set: async (val: boolean) => {
-    strategyConfig.value.enabled = val
-    await setStrategySwitch(val)
-  }
-})
+// 使用普通 ref 替代 computed writable，避免 Vue 3.4 中 computed getter/setter
+// 读写同一 reactive 属性时依赖追踪失效的问题
+const strategyEnabled = ref(false)
+const buyThreshold = ref(0)
+const sellThreshold = ref(0)
 
-const buyThreshold = computed({
-  get: () => strategyConfig.value.buy_5m,
-  set: (val: number) => {
-    strategyConfig.value.buy_5m = val
-    debouncedSaveBuy()
+// 策略开关变更处理 — 等待 API 响应后再更新 UI，确保 UI 与服务器状态一致
+const handleStrategySwitch = async (checked: boolean | string | number) => {
+  const boolVal = checked === true || checked === 'true' || checked === 1
+  try {
+    const success = await setStrategySwitch(boolVal)
+    if (success) {
+      strategyEnabled.value = boolVal
+      strategyConfig.value.enabled = boolVal
+    } else {
+      message.error('策略开关切换失败')
+    }
+  } catch (error) {
+    console.error('设置策略开关失败:', error)
+    message.error('策略开关切换失败')
   }
-})
+}
 
-const sellThreshold = computed({
-  get: () => strategyConfig.value.sell_5m,
-  set: (val: number) => {
-    strategyConfig.value.sell_5m = val
-    debouncedSaveSell()
-  }
-})
+// 买点涨幅变更处理
+const handleBuyThresholdChange = (value: number | [number, number]) => {
+  const v = Array.isArray(value) ? value[0] : value
+  buyThreshold.value = v
+  strategyConfig.value.buy_1m = v
+  debouncedSaveBuy()
+}
+
+// 卖点跌幅变更处理
+const handleSellThresholdChange = (value: number | [number, number]) => {
+  const v = Array.isArray(value) ? value[0] : value
+  sellThreshold.value = v
+  strategyConfig.value.sell_1m = v
+  debouncedSaveSell()
+}
 
 let buyTimer: ReturnType<typeof setTimeout> | null = null
 let sellTimer: ReturnType<typeof setTimeout> | null = null
@@ -48,7 +63,7 @@ let sellTimer: ReturnType<typeof setTimeout> | null = null
 const debouncedSaveBuy = () => {
   if (buyTimer) clearTimeout(buyTimer)
   buyTimer = setTimeout(async () => {
-    await setBuyThreshold(strategyConfig.value.buy_5m)
+    await setBuyThreshold(strategyConfig.value.buy_1m)
     message.success('买点涨幅已保存')
   }, 800)
 }
@@ -56,7 +71,7 @@ const debouncedSaveBuy = () => {
 const debouncedSaveSell = () => {
   if (sellTimer) clearTimeout(sellTimer)
   sellTimer = setTimeout(async () => {
-    await setSellThreshold(strategyConfig.value.sell_5m)
+    await setSellThreshold(strategyConfig.value.sell_1m)
     message.success('卖点跌幅已保存')
   }, 800)
 }
@@ -74,6 +89,9 @@ const loadStrategyConfig = async () => {
   try {
     const config = await getStrategyConfig()
     strategyConfig.value = config
+    strategyEnabled.value = config.enabled
+    buyThreshold.value = config.buy_1m
+    sellThreshold.value = config.sell_1m
   } catch (error) {
     console.error('加载策略配置失败:', error)
   }
@@ -266,8 +284,8 @@ const loadTradeRecords = async () => {
                     <th class="text-left text-xs font-medium text-textSub">代码</th>
                     <th class="text-left text-xs font-medium text-textSub">名称</th>
                     <th class="text-right text-xs font-medium text-textSub">收盘价</th>
-                    <th class="text-right text-xs font-medium text-textSub">涨跌额</th>
                     <th class="text-right text-xs font-medium text-textSub">涨跌幅</th>
+                    <!-- <th class="text-right text-xs font-medium text-textSub">涨跌幅</th> -->
                     <th class="text-right text-xs font-medium text-textSub">涨速(1m)</th>
                     <th class="text-center text-xs font-medium text-textSub">操作</th>
                   </tr>
@@ -276,15 +294,15 @@ const loadTradeRecords = async () => {
                   <tr v-for="stock in watchlist" :key="stock.ts_code" class="hover:bg-blue-50/30">
                     <td class="text-xs text-textMain font-numeric">{{ stock.ts_code }}</td>
                     <td class="text-xs text-textMain">{{ stock.name }}</td>
-                    <td class="text-xs text-textMain font-numeric text-right">{{ stock.close?.toFixed(2) }}</td>
-                    <td class="text-xs font-numeric text-right" :class="(stock.change ?? 0) >= 0 ? 'text-up' : 'text-down'">
-                      {{ (stock.change ?? 0).toFixed(2) }}
+                    <td class="text-xs text-textMain font-numeric text-right">{{ Number(stock.close)?.toFixed(2) ?? '-' }}</td>
+                    <td class="text-xs font-numeric text-right" :class="(Number(stock.change) || 0) >= 0 ? 'text-up' : 'text-down'">
+                      {{ (Number(stock.change) || 0).toFixed(2) }}%
                     </td>
-                    <td class="text-xs font-numeric text-right" :class="(stock.change_pct ?? 0) >= 0 ? 'text-up' : 'text-down'">
-                      {{ (stock.change_pct ?? 0).toFixed(2) }}%
-                    </td>
-                    <td class="text-xs font-numeric text-right" :class="(stock.speed_1min ?? 0) >= 0 ? 'text-up' : 'text-down'">
-                      {{ (stock.speed_1min ?? 0).toFixed(2) }}%
+                    <!-- <td class="text-xs font-numeric text-right" :class="(Number(stock.change_pct) || 0) >= 0 ? 'text-up' : 'text-down'">
+                      {{ (Number(stock.change_pct) || 0).toFixed(2) }}%
+                    </td> -->
+                    <td class="text-xs font-numeric text-right" :class="(Number(stock.speed_1min) || 0) >= 0 ? 'text-up' : 'text-down'">
+                      {{ (Number(stock.speed_1min) || 0).toFixed(2) }}%
                     </td>
                     <td class="text-center">
                       <button
@@ -307,28 +325,17 @@ const loadTradeRecords = async () => {
               <h2 class="text-base font-semibold text-textMain">策略配置</h2>
               <label class="flex items-center cursor-pointer">
                 <span class="mr-2 text-sm text-textSub">启用策略</span>
-                <div class="relative">
-                  <input type="checkbox" v-model="strategyEnabled" class="sr-only" />
-                  <div class="toggle-bg" :class="strategyEnabled ? 'bg-primary' : 'bg-gray-200'"></div>
-                  <div class="toggle-dot absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition" :class="strategyEnabled ? 'translate-x-4' : ''"></div>
-                </div>
+                <a-switch :checked="strategyEnabled" @change="handleStrategySwitch" />
               </label>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-6">
               <div>
                 <div class="flex justify-between mb-2">
                   <span class="text-sm text-textSub">买点涨幅</span>
                   <span class="text-sm text-textMain font-numeric">{{ buyThreshold }}%</span>
                 </div>
-                <input
-                  type="range"
-                  v-model.number="buyThreshold"
-                  min="0"
-                  max="10"
-                  step="0.1"
-                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                />
+                <a-slider :value="buyThreshold" :min="0" :max="10" :step="0.1" @change="handleBuyThresholdChange" />
               </div>
 
               <div>
@@ -336,14 +343,7 @@ const loadTradeRecords = async () => {
                   <span class="text-sm text-textSub">卖点跌幅</span>
                   <span class="text-sm text-textMain font-numeric">{{ sellThreshold }}%</span>
                 </div>
-                <input
-                  type="range"
-                  v-model.number="sellThreshold"
-                  min="0"
-                  max="20"
-                  step="0.1"
-                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                />
+                <a-slider :value="sellThreshold" :min="0" :max="20" :step="0.1" @change="handleSellThresholdChange" />
               </div>
             </div>
           </div>
@@ -397,19 +397,6 @@ const loadTradeRecords = async () => {
 </template>
 
 <style scoped>
-.toggle-bg {
-  width: 40px;
-  height: 22px;
-  border-radius: 11px;
-  transition: background-color 0.2s;
-}
-.toggle-dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  transition: transform 0.2s;
-}
-
 .table-wrapper thead th {
   position: sticky;
   top: 0;

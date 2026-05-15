@@ -1223,13 +1223,13 @@ async def get_strategy_info():
                 data = response.json()
                 return {
                     "switchSta": data.get("switchSta", False),
-                    "buy_5m": data.get("buy_5m", 0),
-                    "sell_5m": data.get("sell_5m", 0)
+                    "buy_1m": data.get("buy_1m", 0),
+                    "sell_1m": data.get("sell_1m", 0)
                 }
-            return {"switchSta": False, "buy_5m": 0, "sell_5m": 0}
+            return {"switchSta": False, "buy_1m": 0, "sell_1m": 0}
     except Exception as e:
         logger.error(f"获取策略配置失败: {e}")
-        return {"switchSta": False, "buy_5m": 0, "sell_5m": 0}
+        return {"switchSta": False, "buy_1m": 0, "sell_1m": 0}
 
 
 class StrategyActionRequest(BaseModel):

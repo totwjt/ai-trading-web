@@ -92,8 +92,8 @@ export interface FinaMainbzResponse {
 // 策略配置
 export interface StrategyConfig {
   enabled: boolean
-  buy_5m: number   // 买点涨幅
-  sell_5m: number  // 卖点跌幅
+  buy_1m: number   // 买点涨幅
+  sell_1m: number  // 卖点跌幅
 }
 
 // 交易记录
@@ -247,18 +247,18 @@ export async function removeFromWatchlistAPI(tsCode: string): Promise<boolean> {
  */
 export async function getStrategyConfig(): Promise<StrategyConfig> {
   try {
-    const response = await apiClient.get<{ switchSta: boolean; buy_5m: number; sell_5m: number }>('/strategy_info')
+    const response = await apiClient.get<{ switchSta: boolean; buy_1m: number; sell_1m: number }>('/strategy_info')
     return {
       enabled: response.data.switchSta ?? false,
-      buy_5m: response.data.buy_5m ?? 0,
-      sell_5m: response.data.sell_5m ?? 0
+      buy_1m: response.data.buy_1m ?? 0,
+      sell_1m: response.data.sell_1m ?? 0
     }
   } catch (error) {
     console.error('获取策略配置失败:', error)
     return {
       enabled: false,
-      buy_5m: 0,
-      sell_5m: 0
+      buy_1m: 0,
+      sell_1m: 0
     }
   }
 }
@@ -281,7 +281,7 @@ export async function setStrategySwitch(enabled: boolean): Promise<boolean> {
  */
 export async function setBuyThreshold(value: number): Promise<boolean> {
   try {
-    await apiClient.post('/strategy_action', { action: 'buy', type: '5m', value })
+    await apiClient.post('/strategy_action', { action: 'buy', type: '1m', value })
     return true
   } catch (error) {
     console.error('设置买点涨幅失败:', error)
@@ -294,7 +294,7 @@ export async function setBuyThreshold(value: number): Promise<boolean> {
  */
 export async function setSellThreshold(value: number): Promise<boolean> {
   try {
-    await apiClient.post('/strategy_action', { action: 'sell', type: '5m', value })
+    await apiClient.post('/strategy_action', { action: 'sell', type: '1m', value })
     return true
   } catch (error) {
     console.error('设置卖点跌幅失败:', error)
@@ -308,8 +308,8 @@ export async function setSellThreshold(value: number): Promise<boolean> {
 export async function saveStrategyConfig(config: StrategyConfig): Promise<boolean> {
   try {
     await setStrategySwitch(config.enabled)
-    await setBuyThreshold(config.buy_5m)
-    await setSellThreshold(config.sell_5m)
+    await setBuyThreshold(config.buy_1m)
+    await setSellThreshold(config.sell_1m)
     return true
   } catch (error) {
     console.error('保存策略配置失败:', error)
