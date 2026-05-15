@@ -1358,7 +1358,12 @@ async def push_trading_terminal(sid, data):
 async def push_order(sid, data):
     """
     按 uid 广播下单事件（交易信号平台 -> 多终端）
-    data:
+
+    支持两种 eventType：
+    - order.create: 单笔下单，data 为对象
+    - batch.order.create: 批量下单，data 为数组（无格式限制，原样透传）
+
+    order.create 示例:
     {
       "userId": "u_1001",
       "eventType": "order.create",
@@ -1373,6 +1378,21 @@ async def push_order(sid, data):
         "position_level": 2
       }
     }
+
+    batch.order.create 示例:
+    {
+      "userId": "u_1001",
+      "eventType": "batch.order.create",
+      "source": "signal_platform",
+      "data": [
+        {
+          "stock_code": "000001",
+          "side": "buy",
+          "price": 12.5,
+          "quantity": 1000
+        }
+      ]
+    }
     """
     if not isinstance(data, dict):
         await sio.emit("terminal_error", {"message": "invalid payload"}, room=sid)
@@ -1386,8 +1406,13 @@ async def push_order(sid, data):
         await sio.emit("terminal_error", {"message": "userId is required"}, room=sid)
         return
 
-    order_data: Dict[str, Any]
-    if isinstance(payload, dict):
+    order_data: Any
+    if event_type == "batch.order.create":
+        if not isinstance(payload, list):
+            await sio.emit("terminal_error", {"message": "batch.order.create data must be an array"}, room=sid)
+            return
+        order_data = payload
+    elif isinstance(payload, dict):
         stock_code = str(payload.get("stock_code") or "").strip()
         stock_name = str(
             payload.get("stock_name")
@@ -1448,7 +1473,7 @@ async def push_order(sid, data):
                 return
             order_data["position_level"] = position_level
     else:
-        await sio.emit("terminal_error", {"message": "data must be an object"}, room=sid)
+        await sio.emit("terminal_error", {"message": "data must be an object or array"}, room=sid)
         return
 
     event_payload = build_order_event(
@@ -1605,10 +1630,10 @@ async def get_strategy_info():
             response = await client.get(f"{EXTERNAL_API}/strategy_info")
             if response.status_code == 200:
                 return response.json()
-            return {"switchSta": False, "buy_5m": 0, "sell_5m": 0}
+            return {"switchSta": False, "buy_1m": 0, "sell_1m": 0}
     except Exception as e:
         logger.error(f"获取策略配置失败: {e}")
-        return {"switchSta": False, "buy_5m": 0, "sell_5m": 0}
+        return {"switchSta": False, "buy_1m": 0, "sell_1m": 0}
 
 
 @app.post("/strategy_action")

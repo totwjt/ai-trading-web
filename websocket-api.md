@@ -1,6 +1,6 @@
 # WebSocket API（统一 Socket.IO 服务）
 
-> 更新时间：2026-05-14
+> 更新时间：2026-05-15
 > 面向对象：Web 前端、外部终端客户端、推送服务
 
 ## 1. 服务基础信息
@@ -77,7 +77,7 @@ socket.on('order.u_1001', (orderMsg) => {
 
 - `trading-terminal.control.{userId}`：终端控制通道（新增/上线/离线/移除）
 - `trading-terminal.{userId}.{terminalId}`：终端业务通道（实时交易记录/订单状态）
-- `order.{userId}`：下单通道（交易信号平台按 uid 广播，用户下所有终端接收）
+- `order.{userId}`：下单通道（交易信号平台按 uid 广播，用户下所有终端接收，支持单笔/批量）
 
 说明：
 - `terminalId` 是动态值（例如 `terminal-node-1`、`desktop-a001`）。
@@ -352,6 +352,51 @@ socket.on('order.u_1001', (orderMsg) => {
   }
 }
 ```
+
+---
+
+---
+
+### 4.1.7 `push_order` — 批量下单
+
+当 `eventType` 为 `batch.order.create` 时，`data` 为数组，服务端**不做格式校验**，原样透传到 `order.{userId}`。
+
+请求：
+
+```json
+{
+  "userId": "u_1001",
+  "eventType": "batch.order.create",
+  "source": "signal_platform",
+  "data": [
+    {
+      "stock_code": "000001",
+      "stock_name": "平安银行",
+      "price": 12.5,
+      "quantity": 1000,
+      "position_ratio": 0.5,
+      "position_level": 2,
+      "side": "buy",
+      "timestamp": "2026-05-14T12:34:56.789012"
+    },
+    {
+      "stock_code": "600036",
+      "stock_name": "招商银行",
+      "price": 35.8,
+      "quantity": 500,
+      "position_ratio": 0.333,
+      "position_level": 3,
+      "side": "sell",
+      "timestamp": "2026-05-14T12:34:56.789013"
+    }
+  ]
+}
+```
+
+服务端行为：
+- `order.create`：校验 `stock_code`、`price`、`quantity` 等必填字段后转发
+- `batch.order.create`：**不做任何字段校验**，数组原样透传到 `order.{userId}`
+- 统一回 `push_ack`
 
 ---
 

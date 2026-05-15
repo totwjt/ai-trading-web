@@ -1187,6 +1187,43 @@ const submitOrder = async (positionLevel?: number) => {
   }
 }
 
+const testBatchOrderCreate = () => {
+  const uid = currentUid.value
+  if (!uid) {
+    message.warning('请先连接终端')
+    return
+  }
+
+  ws.emit('push_order', {
+    userId: uid,
+    eventType: 'batch.order.create',
+    source: 'signal_platform',
+    data: [
+      {
+        stock_code: '000001',
+        stock_name: '平安银行',
+        price: 12.5,
+        quantity: 1000,
+        position_ratio: 0.5,
+        position_level: 2,
+        side: 'buy',
+        timestamp: new Date().toISOString()
+      },
+      {
+        stock_code: '600036',
+        stock_name: '招商银行',
+        price: 35.8,
+        quantity: 500,
+        position_ratio: 0.333,
+        position_level: 3,
+        side: 'sell',
+        timestamp: new Date().toISOString()
+      }
+    ]
+  })
+  message.success('已发送 batch.order.create 测试消息')
+}
+
 const validateOrderInputs = () => {
   const stockCode = normalizeStockCode(orderStockCode.value)
   if (!stockCode) {
@@ -1475,6 +1512,13 @@ onUnmounted(() => {
                 @click="pendingDrawerOpen = !pendingDrawerOpen"
               >
                 挂单
+              </button>
+              <button
+                type="button"
+                class="px-4 py-1 rounded font-medium border border-dashed border-orange-400 text-orange-500 hover:bg-orange-50"
+                @click="testBatchOrderCreate"
+              >
+                批量测试
               </button>
             </div>
           </div>
