@@ -67,6 +67,7 @@ class OrderRequest(BaseModel):
     stock_name: str
     price: float
     quantity: int
+    trade_mode: str = "buy"
     position_level: Optional[int] = None
 
 
@@ -598,7 +599,9 @@ async def create_order(order: OrderRequest):
             "stock_code": order.stock_code,
             "stock_name": order.stock_name,
             "price": order.price,
-            "quantity": order.quantity
+            "quantity": order.quantity,
+            "trade_mode": order.trade_mode,
+            "side": order.trade_mode
         }
         if order.position_level is not None:
             payload["position_level"] = order.position_level

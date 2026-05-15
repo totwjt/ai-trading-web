@@ -1365,10 +1365,12 @@ async def push_order(sid, data):
       "source": "signal_platform",
       "data": {
         "orderId": "o_10001",
-        "symbol": "600519",
-        "side": "buy",
+        "stock_code": "600519",
+        "stock_name": "贵州茅台",
+        "trade_mode": "buy",
         "price": 1723.4,
-        "qty": 100
+        "quantity": 100,
+        "position_level": 2
       }
     }
     """
@@ -1395,6 +1397,7 @@ async def push_order(sid, data):
             or payload.get("securityName")
             or ""
         ).strip()
+        trade_mode = str(payload.get("trade_mode") or payload.get("side") or "").strip().lower() or "buy"
         price_raw = payload.get("price")
         quantity_raw = payload.get("quantity")
         position_level_raw = payload.get("position_level")
@@ -1428,7 +1431,8 @@ async def push_order(sid, data):
         order_data = {
             "stock_code": stock_code,
             "price": price,
-            "quantity": quantity
+            "quantity": quantity,
+            "trade_mode": trade_mode
         }
         if stock_name:
             order_data["stock_name"] = stock_name

@@ -1176,6 +1176,7 @@ const submitOrder = async (positionLevel?: number) => {
       stock_name: stockName,
       price,
       quantity,
+      trade_mode: tradeMode.value,
       ...(validPositionLevel ? { position_level: validPositionLevel } : (selectedLevel ? { position_level: selectedLevel } : {}))
     })
     message.success(`${tradeMode.value === 'buy' ? '买入' : '卖出'}下单成功`)

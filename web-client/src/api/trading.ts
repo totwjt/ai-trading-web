@@ -126,6 +126,7 @@ export interface OrderRequest {
   stock_name: string
   price: number
   quantity: number
+  trade_mode?: string
   position_level?: number
 }
 
