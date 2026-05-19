@@ -1,0 +1,72 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6] [cursor=pointer]:
+        - img [ref=e8]
+        - generic [ref=e10]: 华璟智璇 量化交易系统
+      - generic [ref=e11]:
+        - textbox "搜索股票代码 / 名称 / 简拼" [ref=e12]
+        - img [ref=e13]
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - combobox [ref=e18] [cursor=pointer]:
+            - option "默认" [selected]
+            - option "海洋"
+            - option "森林"
+          - img
+        - button "切换到深色模式" [ref=e19] [cursor=pointer]:
+          - img [ref=e20]
+      - img [ref=e23] [cursor=pointer]
+      - button "退出" [ref=e25] [cursor=pointer]
+  - generic [ref=e26]:
+    - complementary [ref=e27]:
+      - navigation [ref=e28]:
+        - link "首页" [ref=e29] [cursor=pointer]:
+          - /url: /
+          - img [ref=e30]
+          - generic [ref=e32]: 首页
+        - link "智能荐股" [ref=e33] [cursor=pointer]:
+          - /url: /recommendation
+          - img [ref=e34]
+          - generic [ref=e36]: 智能荐股
+        - link "宏观日历" [ref=e37] [cursor=pointer]:
+          - /url: /macro-calendar
+          - img [ref=e38]
+          - generic [ref=e40]: 宏观日历
+        - link "因子看板" [ref=e41] [cursor=pointer]:
+          - /url: /factor-board
+          - img [ref=e42]
+          - generic [ref=e44]: 因子看板
+        - link "策略回测" [ref=e45] [cursor=pointer]:
+          - /url: /backtest
+          - img [ref=e46]
+          - generic [ref=e48]: 策略回测
+        - link "模拟交易" [ref=e49] [cursor=pointer]:
+          - /url: /simulation
+          - img [ref=e50]
+          - generic [ref=e52]: 模拟交易
+        - link "我的持仓" [ref=e53] [cursor=pointer]:
+          - /url: /holdings
+          - img [ref=e54]
+          - generic [ref=e56]: 我的持仓
+        - link "股票交易" [ref=e57] [cursor=pointer]:
+          - /url: /trading
+          - img [ref=e58]
+          - generic [ref=e60]: 股票交易
+        - link "交易终端" [ref=e61] [cursor=pointer]:
+          - /url: /trading-terminal
+          - img [ref=e62]
+          - generic [ref=e64]: 交易终端
+        - link "风控系统" [ref=e65] [cursor=pointer]:
+          - /url: /risk-control
+          - img [ref=e66]
+          - generic [ref=e68]: 风控系统
+      - link "未登录 普通用户" [ref=e70] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e71]
+        - generic [ref=e73]:
+          - paragraph [ref=e74]: 未登录
+          - paragraph [ref=e75]: 普通用户
+        - img [ref=e76]
+    - main [ref=e78]

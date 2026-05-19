@@ -29,24 +29,25 @@ async def list_strategies(
     """获取策略列表"""
     query = select(Strategy)
     count_query = select(func.count(Strategy.id))
-    
+
     if status:
         query = query.where(Strategy.status == status)
         count_query = count_query.where(Strategy.status == status)
-    
+
     query = query.order_by(Strategy.updated_at.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)
-    
+
     result = await db.execute(query)
     strategies = result.scalars().all()
-    
+
     count_result = await db.execute(count_query)
     total = count_result.scalar()
-    
+
     items = [
         {
             "id": s.id,
             "name": s.name,
+            "sta": s.sta,
             "strategy_type": s.strategy_type,
             "status": s.status.value if s.status else None,
             "created_at": s.created_at.isoformat() if s.created_at else None,
@@ -54,7 +55,7 @@ async def list_strategies(
         }
         for s in strategies
     ]
-    
+
     return StrategyListResponse(
         code=0,
         message="success",
@@ -75,10 +76,10 @@ async def get_strategy(
     """获取策略详情"""
     result = await db.execute(select(Strategy).where(Strategy.id == strategy_id))
     strategy = result.scalar_one_or_none()
-    
+
     if not strategy:
         raise HTTPException(status_code=404, detail="策略不存在")
-    
+
     return StrategyDetailResponse(
         code=0,
         message="success",
@@ -111,12 +112,12 @@ async def create_strategy(
         status=StrategyStatus.PAUSED,
         user_id=1
     )
-    
+
     db.add(strategy)
     await db.flush()
     await db.commit()
     await db.refresh(strategy)
-    
+
     return ApiResponse(
         code=0,
         message="策略创建成功",
@@ -136,21 +137,21 @@ async def update_strategy(
     """更新策略"""
     result = await db.execute(select(Strategy).where(Strategy.id == strategy_id))
     strategy = result.scalar_one_or_none()
-    
+
     if not strategy:
         raise HTTPException(status_code=404, detail="策略不存在")
-    
+
     update_data = data.model_dump(exclude_unset=True)
     if "config" in update_data and update_data["config"]:
         update_data["config"] = update_data["config"].model_dump() if hasattr(update_data["config"], "model_dump") else update_data["config"]
-    
+
     for key, value in update_data.items():
         setattr(strategy, key, value)
-    
+
     strategy.updated_at = datetime.now()
-    
+
     await db.commit()
-    
+
     return ApiResponse(
         code=0,
         message="策略更新成功",
@@ -169,13 +170,13 @@ async def delete_strategy(
     """删除策略"""
     result = await db.execute(select(Strategy).where(Strategy.id == strategy_id))
     strategy = result.scalar_one_or_none()
-    
+
     if not strategy:
         raise HTTPException(status_code=404, detail="策略不存在")
-    
+
     await db.delete(strategy)
     await db.commit()
-    
+
     return ApiResponse(
         code=0,
         message="策略删除成功",
@@ -192,25 +193,25 @@ async def strategy_action(
     """策略启停控制"""
     result = await db.execute(select(Strategy).where(Strategy.id == strategy_id))
     strategy = result.scalar_one_or_none()
-    
+
     if not strategy:
         raise HTTPException(status_code=404, detail="策略不存在")
-    
+
     action_map = {
         "start": StrategyStatus.RUNNING,
         "stop": StrategyStatus.STOPPED,
         "pause": StrategyStatus.PAUSED
     }
-    
+
     if data.action not in action_map:
         raise HTTPException(status_code=400, detail=f"不支持的操作: {data.action}")
-    
+
     new_status = action_map[data.action]
     strategy.status = new_status
     strategy.updated_at = datetime.now()
-    
+
     await db.commit()
-    
+
     return ApiResponse(
         code=0,
         message=f"策略已{data.action}",

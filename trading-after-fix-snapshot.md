@@ -1,0 +1,183 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6] [cursor=pointer]:
+        - img [ref=e8]
+        - generic [ref=e10]: 华璟智璇 量化交易系统
+      - generic [ref=e11]:
+        - textbox "搜索股票代码 / 名称 / 简拼" [ref=e12]
+        - img [ref=e13]
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - combobox [ref=e18] [cursor=pointer]:
+            - option "默认" [selected]
+            - option "海洋"
+            - option "森林"
+          - img
+        - button "切换到深色模式" [ref=e19] [cursor=pointer]:
+          - img [ref=e20]
+      - img [ref=e23] [cursor=pointer]
+      - button "退出" [ref=e25] [cursor=pointer]
+  - generic [ref=e26]:
+    - complementary [ref=e27]:
+      - navigation [ref=e28]:
+        - link "首页" [ref=e29] [cursor=pointer]:
+          - /url: /
+          - img [ref=e30]
+          - generic [ref=e32]: 首页
+        - link "智能荐股" [ref=e33] [cursor=pointer]:
+          - /url: /recommendation
+          - img [ref=e34]
+          - generic [ref=e36]: 智能荐股
+        - link "宏观日历" [ref=e37] [cursor=pointer]:
+          - /url: /macro-calendar
+          - img [ref=e38]
+          - generic [ref=e40]: 宏观日历
+        - link "因子看板" [ref=e41] [cursor=pointer]:
+          - /url: /factor-board
+          - img [ref=e42]
+          - generic [ref=e44]: 因子看板
+        - link "策略回测" [ref=e45] [cursor=pointer]:
+          - /url: /backtest
+          - img [ref=e46]
+          - generic [ref=e48]: 策略回测
+        - link "模拟交易" [ref=e49] [cursor=pointer]:
+          - /url: /simulation
+          - img [ref=e50]
+          - generic [ref=e52]: 模拟交易
+        - link "我的持仓" [ref=e53] [cursor=pointer]:
+          - /url: /holdings
+          - img [ref=e54]
+          - generic [ref=e56]: 我的持仓
+        - link "股票交易" [ref=e57] [cursor=pointer]:
+          - /url: /trading
+          - img [ref=e58]
+          - generic [ref=e60]: 股票交易
+        - link "交易终端" [ref=e61] [cursor=pointer]:
+          - /url: /trading-terminal
+          - img [ref=e62]
+          - generic [ref=e64]: 交易终端
+        - link "风控系统" [ref=e65] [cursor=pointer]:
+          - /url: /risk-control
+          - img [ref=e66]
+          - generic [ref=e68]: 风控系统
+      - link "未登录 普通用户" [ref=e70] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e71]
+        - generic [ref=e73]:
+          - paragraph [ref=e74]: 未登录
+          - paragraph [ref=e75]: 普通用户
+        - img [ref=e76]
+    - main [ref=e78]:
+      - generic [ref=e81]:
+        - generic [ref=e82]:
+          - heading "股票交易" [level=1] [ref=e83]
+          - paragraph [ref=e84]: 实时买卖股票，执行交易策略
+        - generic [ref=e85]:
+          - generic [ref=e86]:
+            - generic [ref=e87]:
+              - heading "条件检索" [level=2] [ref=e88]
+              - textbox "输入股票代码、名称或首字母简写搜索..." [ref=e90]
+              - generic [ref=e92]: 输入关键词搜索股票
+            - generic [ref=e93]:
+              - generic [ref=e94]:
+                - heading "我的自选" [level=2] [ref=e95]
+                - generic [ref=e96]: "推送次数: 3最后: 14:55:43"
+              - table [ref=e98]:
+                - rowgroup [ref=e99]:
+                  - row "代码 名称 收盘价 涨跌额 涨跌幅 涨速(1m) 操作" [ref=e100]:
+                    - columnheader "代码" [ref=e101]
+                    - columnheader "名称" [ref=e102]
+                    - columnheader "收盘价" [ref=e103]
+                    - columnheader "涨跌额" [ref=e104]
+                    - columnheader "涨跌幅" [ref=e105]
+                    - columnheader "涨速(1m)" [ref=e106]
+                    - columnheader "操作" [ref=e107]
+                - rowgroup [ref=e108]:
+                  - row "002217.SZ 合力泰 3.09 -8.04 0.00% -0.32% 删除" [ref=e109]:
+                    - cell "002217.SZ" [ref=e110]
+                    - cell "合力泰" [ref=e111]
+                    - cell "3.09" [ref=e112]
+                    - cell "-8.04" [ref=e113]
+                    - cell "0.00%" [ref=e114]
+                    - cell "-0.32%" [ref=e115]
+                    - cell "删除" [ref=e116]:
+                      - button "删除" [ref=e117] [cursor=pointer]
+                  - row "600666.SH 奥瑞德 5.74 -1.54 0.00% -0.17% 删除" [ref=e205]:
+                    - cell "600666.SH" [ref=e119]
+                    - cell "奥瑞德" [ref=e120]
+                    - cell "5.74" [ref=e206]
+                    - cell "-1.54" [ref=e207]
+                    - cell "0.00%" [ref=e123]
+                    - cell "-0.17%" [ref=e124]
+                    - cell "删除" [ref=e125]:
+                      - button "删除" [ref=e126] [cursor=pointer]
+                  - row "600527.SH 江南高纤 2.89 -0.69 0.00% 0.35% 删除" [ref=e208]:
+                    - cell "600527.SH" [ref=e128]
+                    - cell "江南高纤" [ref=e129]
+                    - cell "2.89" [ref=e209]
+                    - cell "-0.69" [ref=e210]
+                    - cell "0.00%" [ref=e132]
+                    - cell "0.35%" [ref=e211]
+                    - cell "删除" [ref=e134]:
+                      - button "删除" [ref=e135] [cursor=pointer]
+                  - row "002501.SZ *ST利源 1.46 -5.19 0.00% 0.00% 删除" [ref=e136]:
+                    - cell "002501.SZ" [ref=e137]
+                    - cell "*ST利源" [ref=e138]
+                    - cell "1.46" [ref=e139]
+                    - cell "-5.19" [ref=e140]
+                    - cell "0.00%" [ref=e141]
+                    - cell "0.00%" [ref=e142]
+                    - cell "删除" [ref=e143]:
+                      - button "删除" [ref=e144] [cursor=pointer]
+                  - row "000720.SZ 新能泰山 5.50 -5.66 0.00% -0.18% 删除" [ref=e212]:
+                    - cell "000720.SZ" [ref=e146]
+                    - cell "新能泰山" [ref=e147]
+                    - cell "5.50" [ref=e148]
+                    - cell "-5.66" [ref=e149]
+                    - cell "0.00%" [ref=e150]
+                    - cell "-0.18%" [ref=e213]
+                    - cell "删除" [ref=e152]:
+                      - button "删除" [ref=e153] [cursor=pointer]
+                  - row "002081.SZ 金 螳 螂 7.84 -1.13 0.00% -0.88% 删除" [ref=e214]:
+                    - cell "002081.SZ" [ref=e155]
+                    - cell "金 螳 螂" [ref=e156]
+                    - cell "7.84" [ref=e215]
+                    - cell "-1.13" [ref=e216]
+                    - cell "0.00%" [ref=e159]
+                    - cell "-0.88%" [ref=e217]
+                    - cell "删除" [ref=e161]:
+                      - button "删除" [ref=e162] [cursor=pointer]
+                  - row "603002.SH 宏昌电子 15.15 -7.34 0.00% 0.13% 删除" [ref=e163]:
+                    - cell "603002.SH" [ref=e164]
+                    - cell "宏昌电子" [ref=e165]
+                    - cell "15.15" [ref=e166]
+                    - cell "-7.34" [ref=e167]
+                    - cell "0.00%" [ref=e168]
+                    - cell "0.13%" [ref=e169]
+                    - cell "删除" [ref=e170]:
+                      - button "删除" [ref=e171] [cursor=pointer]
+          - generic [ref=e172]:
+            - generic [ref=e173]:
+              - generic [ref=e174]:
+                - heading "策略配置" [level=2] [ref=e175]
+                - generic [ref=e176] [cursor=pointer]:
+                  - generic [ref=e177]: 启用策略
+                  - switch "启用策略" [checked] [ref=e178]
+              - generic [ref=e181]:
+                - generic [ref=e182]:
+                  - generic [ref=e183]:
+                    - generic [ref=e184]: 买点涨幅
+                    - generic [ref=e185]: 4.8%
+                  - slider [ref=e189] [cursor=pointer]
+                - generic [ref=e190]:
+                  - generic [ref=e191]:
+                    - generic [ref=e192]: 卖点跌幅
+                    - generic [ref=e193]: 19.2%
+                  - slider [ref=e197] [cursor=pointer]
+            - generic [ref=e198]:
+              - generic [ref=e199]:
+                - heading "交易记录" [level=2] [ref=e200]
+                - generic [ref=e203]: 系统已断开
+              - generic [ref=e204]: 暂无交易记录
