@@ -106,6 +106,12 @@ const router = createRouter({
       meta: { title: '交易终端', icon: 'analytics', requiresAuth: true }
     },
     {
+      path: '/strategy-trading',
+      name: '策略交易',
+      component: () => import('@/views/StrategyTradingView.vue'),
+      meta: { title: '策略交易', icon: 'play_arrow', requiresAuth: true }
+    },
+    {
       path: '/risk-control',
       name: '风控系统',
       component: () => import('@/views/RiskControlView.vue'),

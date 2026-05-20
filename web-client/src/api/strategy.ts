@@ -58,8 +58,10 @@ export interface Strategy {
 export interface StrategyListItem {
   id: number
   name: string
+  sta: boolean
   strategy_type: string | null
   status: 'running' | 'paused' | 'stopped' | 'error'
+  description?: string | null
   created_at: string
   updated_at: string
 }

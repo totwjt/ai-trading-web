@@ -203,32 +203,42 @@ function startProgressPolling() {
   }, 2000)
 }
 
-function formatNumber(value: number | undefined, decimals: number = 2): string {
+function formatNumber(value: number | string | undefined | null, decimals: number = 2): string {
   if (value === undefined || value === null) return '-'
-  return value.toLocaleString('zh-CN', {
+  const num = typeof value === 'string' ? Number(value) : value
+  if (!Number.isFinite(num)) return '-'
+  return num.toLocaleString('zh-CN', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals
   })
 }
 
-function formatDecimal(value: number | undefined): string {
+function formatDecimal(value: number | string | undefined | null): string {
   if (value === undefined || value === null) return '-'
-  return value.toFixed(2)
+  const num = typeof value === 'string' ? Number(value) : value
+  if (!Number.isFinite(num)) return '-'
+  return num.toFixed(2)
 }
 
-function formatInteger(value: number | undefined): string {
+function formatInteger(value: number | string | undefined | null): string {
   if (value === undefined || value === null) return '-'
-  return value.toString()
+  const num = typeof value === 'string' ? Number(value) : value
+  if (!Number.isFinite(num)) return '-'
+  return num.toString()
 }
 
-function formatPercent(value: number | undefined): string {
+function formatPercent(value: number | string | undefined | null): string {
   if (value === undefined || value === null) return '-'
-  return `${value.toFixed(2)}%`
+  const num = typeof value === 'string' ? Number(value) : value
+  if (!Number.isFinite(num)) return '-'
+  return `${num.toFixed(2)}%`
 }
 
-function formatReturn(value: number | undefined): string {
+function formatReturn(value: number | string | undefined | null): string {
   if (value === undefined || value === null) return '-'
-  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
+  const num = typeof value === 'string' ? Number(value) : value
+  if (!Number.isFinite(num)) return '-'
+  return `${num >= 0 ? '+' : ''}${num.toFixed(2)}%`
 }
 
 function getReturnClass(value: number | undefined): string {
@@ -344,7 +354,7 @@ async function pollProgress() {
 
 function goBack() {
   router.push({
-    path: '/backtest/records',
+    path: '/backtest',
     query: returnStrategyId.value
       ? {
           strategyId: String(returnStrategyId.value),

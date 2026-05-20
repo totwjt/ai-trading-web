@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { h } from 'vue'
 import { DeleteOutlined } from '@ant-design/icons-vue'
-import { message, Modal } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
 import Icon from '@/components/common/Icon.vue'
 import { useUserStore } from '@/stores/userStore'
 import {
@@ -87,7 +87,7 @@ const orderStockCode = ref('')
 const orderStockName = ref('')
 const orderPriceValue = ref<number | null>(null)
 const orderQuantity = ref<number>(100)
-const selectedPositionLevel = ref<number | null>(null)
+const selectedPositionLevel = ref<number | undefined>(undefined)
 const isSubmittingOrder = ref(false)
 const orderSearchResults = ref<StockSearchResult[] | null>(null)
 const isOrderSearching = ref(false)
@@ -1102,7 +1102,7 @@ const debouncedOrderSearch = (keyword: string) => {
 }
 
 const choosePositionLevel = (positionLevel: number) => {
-  selectedPositionLevel.value = positionLevel
+  selectedPositionLevel.value = selectedPositionLevel.value === positionLevel ? undefined : positionLevel
 }
 
 const selectOrderStock = (stock: StockSearchResult) => {
@@ -1144,7 +1144,7 @@ const quickSubmitFromWatchlist = async (stock: WatchlistItem) => {
   await submitOrder()
 }
 
-const submitOrder = async (positionLevel?: number) => {
+const submitOrder = async () => {
   if (!allowSubmitAction('order-submit')) return
 
   const stockCode = normalizeStockCode(orderStockCode.value)
@@ -1169,7 +1169,6 @@ const submitOrder = async (positionLevel?: number) => {
 
   isSubmittingOrder.value = true
   try {
-    const validPositionLevel = typeof positionLevel === 'number' ? positionLevel : undefined
     const selectedLevel = typeof selectedPositionLevel.value === 'number' ? selectedPositionLevel.value : undefined
     await createOrderAPI({
       stock_code: stockCode,
@@ -1177,7 +1176,7 @@ const submitOrder = async (positionLevel?: number) => {
       price,
       quantity,
       trade_mode: tradeMode.value,
-      ...(validPositionLevel ? { position_level: validPositionLevel } : (selectedLevel ? { position_level: selectedLevel } : {}))
+      ...(selectedLevel ? { position_level: selectedLevel } : {})
     })
     message.success(`${tradeMode.value === 'buy' ? '买入' : '卖出'}下单成功`)
   } catch (error: any) {
@@ -1222,45 +1221,6 @@ const testBatchOrderCreate = () => {
     ]
   })
   message.success('已发送 batch.order.create 测试消息')
-}
-
-const validateOrderInputs = () => {
-  const stockCode = normalizeStockCode(orderStockCode.value)
-  if (!stockCode) {
-    message.warning('请先输入并选择证券代码')
-    return null
-  }
-
-  const price = Number(orderPriceValue.value || 0)
-  if (!Number.isFinite(price) || price <= 0) {
-    message.warning('请输入有效委托价格')
-    return null
-  }
-
-  const quantity = Number(orderQuantity.value || 0)
-  if (!Number.isInteger(quantity) || quantity < 100) {
-    message.warning('委托数量最小为 100')
-    return null
-  }
-  return { stockCode, price, quantity }
-}
-
-const confirmPositionOrder = (positionLevel: number, label: string) => {
-  if (!allowSubmitAction('order-confirm-' + positionLevel, 500)) return
-
-  const validation = validateOrderInputs()
-  if (!validation) return
-
-  choosePositionLevel(positionLevel)
-  Modal.confirm({
-    title: `确认${tradeMode.value === 'buy' ? '买入' : '卖出'}${label}下单`,
-    content: `证券 ${validation.stockCode}，价格 ${validation.price.toFixed(2)}，数量 ${validation.quantity}`,
-    okText: '确认下单',
-    cancelText: '取消',
-    onOk: async () => {
-      await submitOrder(positionLevel)
-    }
-  })
 }
 
 onMounted(() => {
@@ -1594,7 +1554,7 @@ onUnmounted(() => {
                 type="button"
                 class="flex-1 h-7 rounded border border-border bg-card text-textSub"
                 :class="selectedPositionLevel === 4 ? 'border-primary text-primary' : ''"
-                @click="confirmPositionOrder(4, '1/4仓')"
+                @click="choosePositionLevel(4)"
               >
                 1/4
               </button>
@@ -1602,7 +1562,7 @@ onUnmounted(() => {
                 type="button"
                 class="flex-1 h-7 rounded border border-border bg-card text-textSub"
                 :class="selectedPositionLevel === 3 ? 'border-primary text-primary' : ''"
-                @click="confirmPositionOrder(3, '1/3仓')"
+                @click="choosePositionLevel(3)"
               >
                 1/3
               </button>
@@ -1610,7 +1570,7 @@ onUnmounted(() => {
                 type="button"
                 class="flex-1 h-7 rounded border border-border bg-card text-textSub"
                 :class="selectedPositionLevel === 2 ? 'border-primary text-primary' : ''"
-                @click="confirmPositionOrder(2, '1/2仓')"
+                @click="choosePositionLevel(2)"
               >
                 1/2
               </button>
@@ -1618,7 +1578,7 @@ onUnmounted(() => {
                 type="button"
                 class="flex-1 h-7 rounded border border-border bg-card text-textSub"
                 :class="selectedPositionLevel === 1 ? 'border-primary text-primary' : ''"
-                @click="confirmPositionOrder(1, '全仓')"
+                @click="choosePositionLevel(1)"
               >
                 全仓
               </button>

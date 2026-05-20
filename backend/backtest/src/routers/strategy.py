@@ -50,6 +50,7 @@ async def list_strategies(
             "sta": s.sta,
             "strategy_type": s.strategy_type,
             "status": s.status.value if s.status else None,
+            "description": s.description,
             "created_at": s.created_at.isoformat() if s.created_at else None,
             "updated_at": s.updated_at.isoformat() if s.updated_at else None
         }

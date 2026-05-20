@@ -80,6 +80,13 @@ class Strategy(Base):
         comment="策略状态"
     )
     
+    # 策略交易状态 (是否在交易中运行)
+    sta: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        comment="策略是否在交易中运行"
+    )
+    
     # 策略代码 (Python)
     code: Mapped[str] = mapped_column(Text, nullable=False, comment="策略代码")
     

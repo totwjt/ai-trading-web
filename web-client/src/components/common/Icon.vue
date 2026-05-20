@@ -31,6 +31,7 @@ const iconMap: Record<string, string> = {
   'settings': 'mdi:cog',
   'calendar_month': 'mdi:calendar-month-outline',
   'dashboard': 'mdi:view-dashboard-outline',
+  'play_arrow': 'mdi:play-circle-outline',
 
   // 用户图标
   'user-secret': 'fa:user-secret',

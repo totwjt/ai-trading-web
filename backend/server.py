@@ -1650,6 +1650,40 @@ async def strategy_action(request: dict):
         return {"code": 1, "message": str(e)}
 
 
+@app.post("/strategy/toggle")
+async def proxy_strategy_toggle(request: dict):
+    """策略开关控制 - 转发到外部策略服务"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{EXTERNAL_API}/strategy/toggle", json=request)
+            if response.status_code == 200:
+                return response.json()
+            return {"code": 1, "message": "操作失败"}
+    except Exception as e:
+        logger.error(f"策略开关控制失败: {e}")
+        return {"code": 1, "message": str(e)}
+
+
+@app.post("/strategy/signals")
+async def proxy_strategy_signals(request: dict):
+    """获取策略信号 - 转发到外部策略服务"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{EXTERNAL_API}/strategy/signals", json=request)
+            if response.status_code == 200:
+                return response.json()
+            return {
+                "code": 1, "message": "获取失败",
+                "data": {"items": [], "total": 0, "page": 1, "page_size": 20}
+            }
+    except Exception as e:
+        logger.error(f"获取策略信号失败: {e}")
+        return {
+            "code": 1, "message": str(e),
+            "data": {"items": [], "total": 0, "page": 1, "page_size": 20}
+        }
+
+
 def _proxy_response_content(response: httpx.Response) -> Any:
     if not response.content:
         return {}
