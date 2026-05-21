@@ -1626,7 +1626,7 @@ USER_API = os.getenv("USER_API", "http://192.168.66.198:8001")
 async def get_strategy_info():
     """获取策略配置"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(trust_env=False) as client:
             response = await client.get(f"{EXTERNAL_API}/strategy_info")
             if response.status_code == 200:
                 return response.json()
@@ -1640,7 +1640,7 @@ async def get_strategy_info():
 async def strategy_action(request: dict):
     """策略操作"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(trust_env=False) as client:
             response = await client.post(f"{EXTERNAL_API}/strategy_action", json=request)
             if response.status_code == 200:
                 return {"code": 0, "message": "success"}
@@ -1654,7 +1654,7 @@ async def strategy_action(request: dict):
 async def proxy_strategy_toggle(request: dict):
     """策略开关控制 - 转发到外部策略服务"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(trust_env=False) as client:
             response = await client.post(f"{EXTERNAL_API}/strategy/toggle", json=request)
             if response.status_code == 200:
                 return response.json()
@@ -1668,7 +1668,7 @@ async def proxy_strategy_toggle(request: dict):
 async def proxy_strategy_signals(request: dict):
     """获取策略信号 - 转发到外部策略服务"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(trust_env=False) as client:
             response = await client.post(f"{EXTERNAL_API}/strategy/signals", json=request)
             if response.status_code == 200:
                 return response.json()
@@ -1682,6 +1682,78 @@ async def proxy_strategy_signals(request: dict):
             "code": 1, "message": str(e),
             "data": {"items": [], "total": 0, "page": 1, "page_size": 20}
         }
+
+
+@app.get("/strategy/config/take_profit")
+async def proxy_get_take_profit_config():
+    """获取止盈配置 - 转发到外部策略服务"""
+    try:
+        async with httpx.AsyncClient(trust_env=False) as client:
+            response = await client.get(f"{EXTERNAL_API}/strategy/config/take_profit")
+            if response.status_code == 200:
+                return response.json()
+            return {"code": 1, "message": "获取止盈配置失败"}
+    except Exception as e:
+        logger.error(f"获取止盈配置失败: {e}")
+        return {"code": 1, "message": str(e)}
+
+
+@app.post("/strategy/config/take_profit")
+async def proxy_set_take_profit_config(
+    enabled: Optional[bool] = Query(default=None),
+    percent: Optional[float] = Query(default=None),
+):
+    """设置止盈配置 - 转发到外部策略服务"""
+    try:
+        params: Dict[str, Any] = {}
+        if enabled is not None:
+            params["enabled"] = enabled
+        if percent is not None:
+            params["percent"] = percent
+        async with httpx.AsyncClient(trust_env=False) as client:
+            response = await client.post(f"{EXTERNAL_API}/strategy/config/take_profit", params=params)
+            if response.status_code == 200:
+                return response.json()
+            return {"code": 1, "message": "设置止盈配置失败"}
+    except Exception as e:
+        logger.error(f"设置止盈配置失败: {e}")
+        return {"code": 1, "message": str(e)}
+
+
+@app.get("/strategy/config/stop_loss")
+async def proxy_get_stop_loss_config():
+    """获取止损配置 - 转发到外部策略服务"""
+    try:
+        async with httpx.AsyncClient(trust_env=False) as client:
+            response = await client.get(f"{EXTERNAL_API}/strategy/config/stop_loss")
+            if response.status_code == 200:
+                return response.json()
+            return {"code": 1, "message": "获取止损配置失败"}
+    except Exception as e:
+        logger.error(f"获取止损配置失败: {e}")
+        return {"code": 1, "message": str(e)}
+
+
+@app.post("/strategy/config/stop_loss")
+async def proxy_set_stop_loss_config(
+    enabled: Optional[bool] = Query(default=None),
+    percent: Optional[float] = Query(default=None),
+):
+    """设置止损配置 - 转发到外部策略服务"""
+    try:
+        params: Dict[str, Any] = {}
+        if enabled is not None:
+            params["enabled"] = enabled
+        if percent is not None:
+            params["percent"] = percent
+        async with httpx.AsyncClient(trust_env=False) as client:
+            response = await client.post(f"{EXTERNAL_API}/strategy/config/stop_loss", params=params)
+            if response.status_code == 200:
+                return response.json()
+            return {"code": 1, "message": "设置止损配置失败"}
+    except Exception as e:
+        logger.error(f"设置止损配置失败: {e}")
+        return {"code": 1, "message": str(e)}
 
 
 def _proxy_response_content(response: httpx.Response) -> Any:

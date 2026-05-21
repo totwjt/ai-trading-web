@@ -45,6 +45,18 @@ export interface StrategySignalResponse {
   [key: string]: any
 }
 
+export interface RiskConfig {
+  enabled: boolean
+  percent: number
+  description?: string
+  [key: string]: any
+}
+
+export interface RiskConfigPayload {
+  enabled: boolean
+  percent: number
+}
+
 export async function toggleStrategy(strategyId: number, action: boolean): Promise<any> {
   const response = await apiClient.post('/strategy/toggle', {
     strategy_id: strategyId,
@@ -58,6 +70,30 @@ export async function getStrategySignals(query: StrategySignalQuery): Promise<St
     strategy_id: query.strategy_id,
     page: query.page ?? 1,
     page_size: query.page_size ?? 20
+  })
+  return response.data
+}
+
+export async function getTakeProfitConfig(): Promise<RiskConfig> {
+  const response = await apiClient.get<RiskConfig>('/strategy/config/take_profit')
+  return response.data
+}
+
+export async function setTakeProfitConfig(payload: RiskConfigPayload): Promise<any> {
+  const response = await apiClient.post('/strategy/config/take_profit', null, {
+    params: payload
+  })
+  return response.data
+}
+
+export async function getStopLossConfig(): Promise<RiskConfig> {
+  const response = await apiClient.get<RiskConfig>('/strategy/config/stop_loss')
+  return response.data
+}
+
+export async function setStopLossConfig(payload: RiskConfigPayload): Promise<any> {
+  const response = await apiClient.post('/strategy/config/stop_loss', null, {
+    params: payload
   })
   return response.data
 }

@@ -1,8 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch, onUnmounted } from 'vue'
+import { message } from 'ant-design-vue'
 import { getStrategyList } from '@/api/strategy'
 import type { StrategyListItem } from '@/api/strategy'
-import { toggleStrategy, getStrategySignals } from '@/api/externalStrategy'
+import {
+  toggleStrategy,
+  getStrategySignals,
+  getTakeProfitConfig,
+  setTakeProfitConfig,
+  getStopLossConfig,
+  setStopLossConfig
+} from '@/api/externalStrategy'
 import type { StrategySignal } from '@/api/externalStrategy'
 
 const strategies = ref<StrategyListItem[]>([])
@@ -12,6 +20,15 @@ const loadingList = ref(true)
 const loadingSignals = ref(false)
 const togglingId = ref<number | null>(null)
 const error = ref('')
+const riskConfigModalOpen = ref(false)
+const riskConfigLoading = ref(false)
+const riskConfigSaving = ref(false)
+const riskConfigForm = reactive({
+  takeProfitEnabled: true,
+  takeProfitPercent: 3,
+  stopLossEnabled: true,
+  stopLossPercent: 3
+})
 
 const selectedStrategy = computed(() =>
   strategies.value.find(s => s.id === selectedStrategyId.value) ?? null
@@ -129,6 +146,65 @@ async function handleToggle(strategy: StrategyListItem) {
   }
 }
 
+function normalizeRiskPercent(value: unknown, fallback: number) {
+  const numericValue = Number(value)
+  return Number.isFinite(numericValue) ? numericValue : fallback
+}
+
+function assertRiskConfigValid() {
+  if (riskConfigForm.takeProfitEnabled && riskConfigForm.takeProfitPercent <= 0) {
+    message.warning('止盈比例必须大于 0')
+    return false
+  }
+  if (riskConfigForm.stopLossEnabled && riskConfigForm.stopLossPercent <= 0) {
+    message.warning('止损比例必须大于 0')
+    return false
+  }
+  return true
+}
+
+async function openRiskConfigModal() {
+  riskConfigModalOpen.value = true
+  riskConfigLoading.value = true
+  try {
+    const [takeProfitConfig, stopLossConfig] = await Promise.all([
+      getTakeProfitConfig(),
+      getStopLossConfig()
+    ])
+    riskConfigForm.takeProfitEnabled = Boolean(takeProfitConfig.enabled)
+    riskConfigForm.takeProfitPercent = normalizeRiskPercent(takeProfitConfig.percent, 3)
+    riskConfigForm.stopLossEnabled = Boolean(stopLossConfig.enabled)
+    riskConfigForm.stopLossPercent = normalizeRiskPercent(stopLossConfig.percent, 3)
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || e?.message || '加载止盈止损配置失败')
+  } finally {
+    riskConfigLoading.value = false
+  }
+}
+
+async function saveRiskConfig() {
+  if (!assertRiskConfigValid()) return
+  riskConfigSaving.value = true
+  try {
+    await Promise.all([
+      setTakeProfitConfig({
+        enabled: riskConfigForm.takeProfitEnabled,
+        percent: riskConfigForm.takeProfitPercent
+      }),
+      setStopLossConfig({
+        enabled: riskConfigForm.stopLossEnabled,
+        percent: riskConfigForm.stopLossPercent
+      })
+    ])
+    message.success('止盈止损配置已保存')
+    riskConfigModalOpen.value = false
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || e?.message || '保存止盈止损配置失败')
+  } finally {
+    riskConfigSaving.value = false
+  }
+}
+
 function selectStrategy(id: number) {
   selectedStrategyId.value = id
 }
@@ -159,8 +235,20 @@ onUnmounted(() => {
   <div class="flex h-[calc(100vh-48px)] bg-bgMain">
     <!-- Left Panel - Strategy List -->
     <aside class="w-72 bg-card border-r border-border flex flex-col shrink-0">
-      <div class="px-3 py-2 border-b border-border">
+      <div class="px-3 py-2 border-b border-border flex items-center justify-between gap-2">
         <h2 class="text-sm font-bold text-textMain">策略列表</h2>
+        <button
+          class="flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded border border-border bg-card text-textMain hover:bg-gray-50 transition-colors disabled:opacity-50"
+          :disabled="riskConfigLoading || riskConfigSaving"
+          title="全局止盈止损设置"
+          @click="openRiskConfigModal"
+        >
+          <svg class="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path d="M12 6v6l4 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+            <path d="M4 12a8 8 0 1116 0 8 8 0 01-16 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+          </svg>
+          止盈止损
+        </button>
       </div>
 
       <div v-if="loadingList" class="flex-1 flex items-center justify-center text-xs text-textMute">
@@ -230,7 +318,7 @@ onUnmounted(() => {
             </div>
           </div>
           <button
-            class="flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded transition-opacity disabled:opacity-50"
+            class="flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded transition-opacity disabled:opacity-50 shrink-0"
             :class="selectedStrategy.sta
               ? 'bg-orange-500 text-white hover:opacity-90'
               : 'bg-primary text-white hover:opacity-90'"
@@ -406,5 +494,92 @@ onUnmounted(() => {
         </div>
       </div>
     </main>
+
+    <a-modal
+      v-model:open="riskConfigModalOpen"
+      title="全局止盈止损设置"
+      :confirm-loading="riskConfigSaving"
+      :mask-closable="!riskConfigSaving"
+      width="520px"
+      :footer="null"
+      @ok="saveRiskConfig"
+    >
+      <div v-if="riskConfigLoading" class="py-10 text-center text-xs text-textMute">
+        加载配置中...
+      </div>
+      <div v-else class="space-y-4">
+        <div class="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+          <p class="text-xs font-bold text-textMain">全局统一配置</p>
+          <p class="mt-0.5 text-[11px] text-textSub">配置保存后对策略交易的止盈止损逻辑统一生效。</p>
+        </div>
+
+        <section class="rounded-lg border border-up/20 bg-up/5 p-4">
+          <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full bg-up"></span>
+                <h3 class="text-sm font-bold text-textMain">止盈</h3>
+              </div>
+              <p class="mt-1 text-xs text-textSub">价格上涨达到设定比例时自动生成卖出信号</p>
+            </div>
+            <a-switch v-model:checked="riskConfigForm.takeProfitEnabled" />
+          </div>
+          <div class="mt-4">
+            <label class="mb-1.5 block text-xs font-bold text-textMute">止盈比例 (%)</label>
+            <a-input-number
+              v-model:value="riskConfigForm.takeProfitPercent"
+              class="w-full"
+              :min="0"
+              :max="100"
+              :precision="2"
+              :step="0.1"
+              :disabled="!riskConfigForm.takeProfitEnabled"
+            />
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-down/20 bg-down/5 p-4">
+          <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full bg-down"></span>
+                <h3 class="text-sm font-bold text-textMain">止损</h3>
+              </div>
+              <p class="mt-1 text-xs text-textSub">价格下跌达到设定比例时自动生成卖出信号</p>
+            </div>
+            <a-switch v-model:checked="riskConfigForm.stopLossEnabled" />
+          </div>
+          <div class="mt-4">
+            <label class="mb-1.5 block text-xs font-bold text-textMute">止损比例 (%)</label>
+            <a-input-number
+              v-model:value="riskConfigForm.stopLossPercent"
+              class="w-full"
+              :min="0"
+              :max="100"
+              :precision="2"
+              :step="0.1"
+              :disabled="!riskConfigForm.stopLossEnabled"
+            />
+          </div>
+        </section>
+
+        <div class="flex items-center justify-end gap-2 border-t border-border pt-3">
+          <button
+            class="rounded border border-border bg-card px-3 py-1.5 text-xs font-bold text-textSub hover:bg-gray-50 disabled:opacity-50"
+            :disabled="riskConfigSaving"
+            @click="riskConfigModalOpen = false"
+          >
+            取消
+          </button>
+          <button
+            class="rounded bg-primary px-4 py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50"
+            :disabled="riskConfigSaving"
+            @click="saveRiskConfig"
+          >
+            {{ riskConfigSaving ? '保存中...' : '保存配置' }}
+          </button>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
