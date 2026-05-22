@@ -151,6 +151,14 @@ function normalizeRiskPercent(value: unknown, fallback: number) {
   return Number.isFinite(numericValue) ? numericValue : fallback
 }
 
+function formatSignalQuantity(signal: StrategySignal) {
+  const quantity = signal.quantity ?? signal.order_quantity ?? signal.orderQuantity ?? signal.buy_quantity ?? signal.buyQuantity
+  if (quantity === undefined || quantity === null || quantity === '') return '-'
+  const numericQuantity = Number(quantity)
+  if (!Number.isFinite(numericQuantity)) return String(quantity)
+  return numericQuantity.toLocaleString('zh-CN')
+}
+
 function assertRiskConfigValid() {
   if (riskConfigForm.takeProfitEnabled && riskConfigForm.takeProfitPercent <= 0) {
     message.warning('止盈比例必须大于 0')
@@ -426,6 +434,7 @@ onUnmounted(() => {
                   <th class="text-left font-bold text-textMute text-xs py-2 px-3">代码</th>
                   <th class="text-left font-bold text-textMute text-xs py-2 px-3">信号类型</th>
                   <th class="text-right font-bold text-textMute text-xs py-2 px-3">触发价格</th>
+                  <th class="text-right font-bold text-textMute text-xs py-2 px-3">买入数量</th>
                   <th class="text-right font-bold text-textMute text-xs py-2 px-3">触发时间</th>
                 </tr>
               </thead>
@@ -457,6 +466,9 @@ onUnmounted(() => {
                     <span class="font-bold font-numeric text-textMain text-xs">
                       {{ (signal.trigger_price ?? signal.triggerPrice ?? signal.price)?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) ?? '-' }}
                     </span>
+                  </td>
+                  <td class="py-2 px-3 text-right">
+                    <span class="font-bold font-numeric text-textMain text-xs">{{ formatSignalQuantity(signal) }}</span>
                   </td>
                   <td class="py-2 px-3 text-right">
                     <span class="text-textSub text-xs font-numeric">{{ signal.trigger_time || signal.triggerTime || signal.created_at || '-' }}</span>

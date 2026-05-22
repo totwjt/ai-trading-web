@@ -32,6 +32,7 @@ export interface StrategySignal {
   signal_type?: string
   price?: number
   trigger_price?: number
+  quantity?: number
   trigger_time?: string
   created_at?: string
   [key: string]: any
