@@ -177,6 +177,15 @@ const cityOptions = [
   { label: '成都', value: '成都' }
 ]
 
+const getTerminalCity = (terminalId: string) => terminalCityMap.value[terminalId] || '北京'
+
+const setTerminalCity = (terminalId: string, value: string) => {
+  terminalCityMap.value = {
+    ...terminalCityMap.value,
+    [terminalId]: value
+  }
+}
+
 const pad2 = (value: number) => String(value).padStart(2, '0')
 
 const normalizeTerminalName = (value: unknown, fallback?: string): string => {
@@ -1677,13 +1686,14 @@ onUnmounted(() => {
                 <div class="terminal-city-field">
                   <span class="terminal-city-label">城市</span>
                   <a-select
-                    v-model:value="terminalCityMap[terminal.terminalId]"
+                    :value="getTerminalCity(terminal.terminalId)"
                     :options="cityOptions"
                     :bordered="false"
                     :dropdown-match-select-width="false"
                     size="small"
                     class="terminal-city-select"
                     popup-class-name="terminal-city-dropdown"
+                    @change="setTerminalCity(terminal.terminalId, String($event))"
                   />
                 </div>
               </div>
