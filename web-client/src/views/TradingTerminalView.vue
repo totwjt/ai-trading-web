@@ -136,6 +136,7 @@ const terminals = ref<Record<string, TerminalState>>({})
 const terminalSeqMap = ref<Record<string, number>>({})
 const terminalHistoryLoaded = ref<Record<string, boolean>>({})
 const terminalHistoryLoading = ref<Record<string, boolean>>({})
+const terminalCityMap = ref<Record<string, string>>({})
 const controlEventsCount = ref(0)
 const editingTerminalId = ref<string>('')
 const editingTerminalName = ref<string>('')
@@ -166,6 +167,15 @@ const terminalList = computed(() => {
 const terminalCount = computed(() => terminalList.value.length)
 
 const terminalTopic = (uid: string, terminalId: string) => 'trading-terminal.' + uid + '.' + terminalId
+
+const cityOptions = [
+  { label: '上海', value: '上海' },
+  { label: '北京', value: '北京' },
+  { label: '深圳', value: '深圳' },
+  { label: '广州', value: '广州' },
+  { label: '杭州', value: '杭州' },
+  { label: '成都', value: '成都' }
+]
 
 const pad2 = (value: number) => String(value).padStart(2, '0')
 
@@ -1664,6 +1674,18 @@ onUnmounted(() => {
                     {{ terminal.connected && terminal.online ? 'Online' : 'Offline' }}
                   </span>
                 </div>
+                <div class="terminal-city-field">
+                  <span class="terminal-city-label">城市</span>
+                  <a-select
+                    v-model:value="terminalCityMap[terminal.terminalId]"
+                    :options="cityOptions"
+                    :bordered="false"
+                    :dropdown-match-select-width="false"
+                    size="small"
+                    class="terminal-city-select"
+                    popup-class-name="terminal-city-dropdown"
+                  />
+                </div>
               </div>
             </div>
 
@@ -1900,6 +1922,7 @@ onUnmounted(() => {
 
 .status-panel {
   padding: 2px 0;
+  flex-shrink: 0;
 }
 
 .status-input {
@@ -1927,6 +1950,57 @@ onUnmounted(() => {
   align-items: center;
   padding: 0 8px;
   font-size: 11px;
+}
+
+.terminal-city-field {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  overflow: hidden;
+  border:1px solid rgba(var(--color-border));
+  border-radius: 6px;
+  background: var(--color-card);
+}
+
+.terminal-city-label {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 6px;
+  border-right: 1px solid var(--color-border);
+  background: rgba(15, 23, 42, 0.04);
+  color: var(--color-text-sub);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+:deep(.terminal-city-select) {
+  width: 76px;
+}
+
+:deep(.terminal-city-select .ant-select-selector) {
+  height: 22px !important;
+  min-height: 22px;
+  padding: 0 20px 0 7px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 11px;
+}
+
+:deep(.terminal-city-select .ant-select-selection-item),
+:deep(.terminal-city-select .ant-select-selection-placeholder) {
+  line-height: 22px !important;
+  font-size: 11px;
+  color: var(--color-text-sub);
+}
+
+:deep(.terminal-city-select .ant-select-arrow) {
+  right: 7px;
+  color: var(--color-text-mute);
+  font-size: 10px;
 }
 
 .quick-terminal-panel,
