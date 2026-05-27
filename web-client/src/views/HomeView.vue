@@ -173,6 +173,27 @@ function formatTime(value: string | null | undefined): string {
   return value
 }
 
+function normalizeStockPageCode(value: unknown): string | null {
+  const raw = String(value || '').trim().toUpperCase()
+  const matched = raw.match(/^(\d{6})(?:\.(?:SH|SZ|BJ))?$/) ?? raw.match(/^(?:SH|SZ|BJ)(\d{6})$/)
+  return matched ? matched[1] : null
+}
+
+function getHotSearchCode(item: HotSearchItem): string | null {
+  return normalizeStockPageCode(item.code ?? item.ts_code)
+}
+
+function canOpenStockPage(value: unknown): boolean {
+  return normalizeStockPageCode(value) !== null
+}
+
+function openStockPage(value: unknown): void {
+  const code = normalizeStockPageCode(value)
+  if (!code) return
+
+  window.open(`https://stockpage.10jqka.com.cn/${code}/company/`, '_blank', 'noopener,noreferrer')
+}
+
 async function loadHomeData(): Promise<void> {
   loading.value = true
   errorMessage.value = ''
@@ -342,7 +363,11 @@ onMounted(() => {
                   <tr
                     v-for="item in table.rows"
                     :key="`${item.market_type}-${item.rank}-${item.ts_code}`"
-                    class="border-b border-border/70 hover:bg-primary/5"
+                    :class="[
+                      'border-b border-border/70 hover:bg-primary/5',
+                      canOpenStockPage(item.ts_code) ? 'cursor-pointer' : ''
+                    ]"
+                    @click="openStockPage(item.ts_code)"
                   >
                     <td class="font-numeric text-textMute">
                       <span class="inline-flex h-5 min-w-5 items-center justify-center rounded bg-bgMain px-1">{{ item.rank }}</span>
@@ -391,7 +416,11 @@ onMounted(() => {
                   <tr
                     v-for="item in ztDisplayList"
                     :key="item.ts_code"
-                    class="border-b border-border/70 hover:bg-up/5"
+                    :class="[
+                      'border-b border-border/70 hover:bg-up/5',
+                      canOpenStockPage(item.ts_code) ? 'cursor-pointer' : ''
+                    ]"
+                    @click="openStockPage(item.ts_code)"
                   >
                     <td>
                       <p class="font-medium text-textMain">{{ item.name }}</p>
@@ -428,7 +457,11 @@ onMounted(() => {
                   <tr
                     v-for="item in dtDisplayList"
                     :key="item.ts_code"
-                    class="border-b border-border/70 hover:bg-down/5"
+                    :class="[
+                      'border-b border-border/70 hover:bg-down/5',
+                      canOpenStockPage(item.ts_code) ? 'cursor-pointer' : ''
+                    ]"
+                    @click="openStockPage(item.ts_code)"
                   >
                     <td>
                       <p class="font-medium text-textMain">{{ item.name }}</p>
@@ -458,7 +491,11 @@ onMounted(() => {
             <div
               v-for="(item, index) in hotSearchDisplayList"
               :key="`${item.symbol}-${item.name_code}`"
-              class="flex items-center justify-between rounded-md border border-transparent px-2 py-1.5 hover:border-border hover:bg-bgMain"
+              :class="[
+                'flex items-center justify-between rounded-md border border-transparent px-2 py-1.5 hover:border-border hover:bg-bgMain',
+                getHotSearchCode(item) ? 'cursor-pointer' : ''
+              ]"
+              @click="openStockPage(getHotSearchCode(item))"
             >
               <div class="min-w-0">
                 <p class="truncate text-xs font-medium text-textMain">

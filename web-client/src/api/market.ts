@@ -59,6 +59,8 @@ export interface IndexSpotResponse {
 export interface HotSearchItem {
   trade_date: string
   symbol: string
+  code?: string | null
+  ts_code?: string | null
   name_code: string
   change_pct: string
   hot_score: number

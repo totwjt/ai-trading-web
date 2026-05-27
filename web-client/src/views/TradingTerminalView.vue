@@ -18,6 +18,7 @@ import {
   removeFromWatchlistAPI,
   removePendingOrderAPI,
   searchStocks,
+  updateTerminalCityAPI,
   updateTerminalNameAPI,
   updatePendingOrderAPI,
   type FinaMainbzItem,
@@ -47,6 +48,7 @@ interface TerminalState {
   userId: string
   terminalId: string
   terminalName: string
+  terminalCity: string
   macAddress: string
   accountName: string
   connected: boolean
@@ -136,7 +138,6 @@ const terminals = ref<Record<string, TerminalState>>({})
 const terminalSeqMap = ref<Record<string, number>>({})
 const terminalHistoryLoaded = ref<Record<string, boolean>>({})
 const terminalHistoryLoading = ref<Record<string, boolean>>({})
-const terminalCityMap = ref<Record<string, string>>({})
 const controlEventsCount = ref(0)
 const editingTerminalId = ref<string>('')
 const editingTerminalName = ref<string>('')
@@ -177,13 +178,11 @@ const cityOptions = [
   { label: '成都', value: '成都' }
 ]
 
-const getTerminalCity = (terminalId: string) => terminalCityMap.value[terminalId] || '北京'
+const DEFAULT_TERMINAL_CITY = '北京'
 
-const setTerminalCity = (terminalId: string, value: string) => {
-  terminalCityMap.value = {
-    ...terminalCityMap.value,
-    [terminalId]: value
-  }
+const normalizeTerminalCity = (value: unknown): string => {
+  const normalized = String(value || '').trim()
+  return cityOptions.some((item) => item.value === normalized) ? normalized : DEFAULT_TERMINAL_CITY
 }
 
 const pad2 = (value: number) => String(value).padStart(2, '0')
@@ -244,6 +243,7 @@ const ensureTerminalState = (terminalId: string, terminalName?: string): Termina
     userId: currentUid.value,
     terminalId,
     terminalName: normalizeTerminalName(terminalName),
+    terminalCity: DEFAULT_TERMINAL_CITY,
     macAddress: '',
     accountName: '',
     connected: false,
@@ -264,6 +264,7 @@ const applyTerminalDisplayFields = (
   terminal: TerminalState,
   fields: {
     terminalName?: unknown
+    terminalCity?: unknown
     macAddress?: unknown
     accountName?: unknown
   }
@@ -273,6 +274,8 @@ const applyTerminalDisplayFields = (
   } else if (!String(terminal.terminalName || '').trim()) {
     terminal.terminalName = DEFAULT_TERMINAL_NAME
   }
+
+  terminal.terminalCity = normalizeTerminalCity(fields.terminalCity ?? terminal.terminalCity)
 
   const macAddress = String(fields.macAddress || '').trim()
   const accountName = String(fields.accountName || '').trim()
@@ -500,6 +503,7 @@ const syncTerminalDisplayInfo = async (uid: string, targetTerminalId?: string) =
     terminal.userId = item.uid
     applyTerminalDisplayFields(terminal, {
       terminalName: item.terminal_name,
+      terminalCity: item.terminal_city,
       macAddress: item.mac_address,
       accountName: item.account_name
     })
@@ -516,6 +520,7 @@ const applySnapshot = (items: Array<Record<string, unknown>>) => {
     terminal.ignored = Boolean(item.ignored)
     applyTerminalDisplayFields(terminal, {
       terminalName: item.terminalName,
+      terminalCity: item.terminalCity || item.terminal_city,
       macAddress: item.macAddress || item.mac_address,
       accountName: item.accountName || item.account_name
     })
@@ -540,6 +545,7 @@ const loadUserTerminals = async (uid: string) => {
     terminal.userId = item.uid
     applyTerminalDisplayFields(terminal, {
       terminalName: item.terminal_name,
+      terminalCity: item.terminal_city,
       macAddress: item.mac_address,
       accountName: item.account_name
     })
@@ -562,6 +568,7 @@ const handleControlEvent = (payload: unknown) => {
   const terminal = ensureTerminalState(terminalId, String(envelope.data?.terminalName || ''))
   applyTerminalDisplayFields(terminal, {
     terminalName: envelope.data?.terminalName,
+    terminalCity: envelope.data?.terminalCity || envelope.data?.terminal_city,
     macAddress: envelope.data?.macAddress || envelope.data?.mac_address,
     accountName: envelope.data?.accountName || envelope.data?.account_name
   })
@@ -656,6 +663,29 @@ const commitTerminalNameDebounced = (terminalId: string) => {
 const finishEditTerminalName = (terminalId: string) => {
   commitTerminalNameDebounced(terminalId)
   cancelEditTerminalName()
+}
+
+const changeTerminalCity = async (terminalId: string, value: unknown) => {
+  const terminal = terminals.value[terminalId]
+  if (!terminal) return
+
+  const nextCity = normalizeTerminalCity(value)
+  const previousCity = terminal.terminalCity
+  if (nextCity === previousCity) return
+
+  terminal.terminalCity = nextCity
+  try {
+    await updateTerminalCityAPI({
+      uid: currentUid.value,
+      terminal_id: terminal.terminalId,
+      mac_address: terminal.macAddress,
+      terminal_city: nextCity
+    })
+    await syncTerminalDisplayInfo(currentUid.value, terminalId)
+  } catch (error: any) {
+    terminal.terminalCity = previousCity
+    message.error(error?.message || '终端城市更新失败')
+  }
 }
 
 const loadWatchlist = async () => {
@@ -1686,14 +1716,14 @@ onUnmounted(() => {
                 <div class="terminal-city-field">
                   <span class="terminal-city-label">城市</span>
                   <a-select
-                    :value="getTerminalCity(terminal.terminalId)"
+                    :value="terminal.terminalCity"
                     :options="cityOptions"
                     :bordered="false"
                     :dropdown-match-select-width="false"
                     size="small"
                     class="terminal-city-select"
                     popup-class-name="terminal-city-dropdown"
-                    @change="setTerminalCity(terminal.terminalId, String($event))"
+                    @change="changeTerminalCity(terminal.terminalId, $event)"
                   />
                 </div>
               </div>

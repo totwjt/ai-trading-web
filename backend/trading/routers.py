@@ -29,6 +29,8 @@ EXTERNAL_API = os.getenv("TRADING_EXTERNAL_API", "http://192.168.66.143:8000")
 TRADER_API = os.getenv("TRADING_TRADER_API", "http://192.168.66.155:8003")
 ORDER_API = os.getenv("TRADING_ORDER_API", "http://192.168.66.135:8000")
 TRADE_RECORD_API = os.getenv("TRADING_RECORD_API", "http://192.168.66.135:8001")
+TERMINAL_CITY_OPTIONS = {"上海", "北京", "深圳", "广州", "杭州", "成都"}
+DEFAULT_TERMINAL_CITY = "北京"
 
 
 # ==================== 数据模型 ====================
@@ -55,6 +57,7 @@ class TerminalItem(BaseModel):
     uid: str
     terminal_id: str
     terminal_name: Optional[str] = None
+    terminal_city: str = DEFAULT_TERMINAL_CITY
     mac_address: str
     account_name: str
     active: bool = True
@@ -74,6 +77,13 @@ class OrderRequest(BaseModel):
 class TerminalRenameRequest(BaseModel):
     uid: str
     terminal_name: str
+    terminal_id: Optional[str] = None
+    mac_address: Optional[str] = None
+
+
+class TerminalCityRequest(BaseModel):
+    uid: str
+    terminal_city: str
     terminal_id: Optional[str] = None
     mac_address: Optional[str] = None
 
@@ -456,12 +466,13 @@ async def get_user_terminals(
     try:
         query = text(
             """
-            SELECT uid, terminal_id, terminal_name, mac_address, account_name, active, created_at, updated_at
+            SELECT uid, terminal_id, terminal_name, terminal_city, mac_address, account_name, active, created_at, updated_at
             FROM (
               SELECT
                 uid,
                 terminal_id,
                 terminal_name,
+                COALESCE(NULLIF(terminal_city, ''), :default_city) AS terminal_city,
                 mac_address,
                 account_name,
                 active,
@@ -478,7 +489,7 @@ async def get_user_terminals(
             ORDER BY COALESCE(updated_at, created_at) DESC, terminal_id ASC
             """
         )
-        result = await db.execute(query, {"uid": uid})
+        result = await db.execute(query, {"uid": uid, "default_city": DEFAULT_TERMINAL_CITY})
         rows = result.fetchall()
 
         terminals = [
@@ -486,11 +497,12 @@ async def get_user_terminals(
                 uid=row[0],
                 terminal_id=row[1],
                 terminal_name=row[2],
-                mac_address=row[3],
-                account_name=row[4],
-                active=bool(row[5]),
-                created_at=row[6].isoformat() if row[6] else None,
-                updated_at=row[7].isoformat() if row[7] else None,
+                terminal_city=row[3] or DEFAULT_TERMINAL_CITY,
+                mac_address=row[4],
+                account_name=row[5],
+                active=bool(row[6]),
+                created_at=row[7].isoformat() if row[7] else None,
+                updated_at=row[8].isoformat() if row[8] else None,
             )
             for row in rows
         ]
@@ -584,6 +596,90 @@ async def update_terminal_name(
     except Exception as e:
         await db.rollback()
         logger.error(f"更新终端名称失败: {e}")
+        return {
+            "code": 1,
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@trading_router.patch("/terminals/city")
+async def update_terminal_city(
+    payload: TerminalCityRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """更新终端展示城市（优先按 uid+mac_address，fallback uid+terminal_id）"""
+    try:
+        uid = payload.uid.strip()
+        terminal_city = payload.terminal_city.strip()
+        terminal_id = (payload.terminal_id or "").strip()
+        mac_address = (payload.mac_address or "").strip()
+
+        if not uid or not terminal_city:
+            return {
+                "code": 1,
+                "message": "uid and terminal_city are required",
+                "timestamp": datetime.now().isoformat()
+            }
+        if terminal_city not in TERMINAL_CITY_OPTIONS:
+            return {
+                "code": 1,
+                "message": "invalid terminal_city",
+                "timestamp": datetime.now().isoformat()
+            }
+
+        updated = 0
+        if mac_address:
+            update_by_mac = text(
+                """
+                UPDATE terminals
+                SET terminal_city = :terminal_city, updated_at = NOW()
+                WHERE uid = :uid AND LOWER(mac_address) = LOWER(:mac_address)
+                """
+            )
+            result = await db.execute(
+                update_by_mac,
+                {"uid": uid, "mac_address": mac_address, "terminal_city": terminal_city}
+            )
+            updated = result.rowcount or 0
+
+        if updated == 0 and terminal_id:
+            update_by_terminal_id = text(
+                """
+                UPDATE terminals
+                SET terminal_city = :terminal_city, updated_at = NOW()
+                WHERE uid = :uid AND terminal_id = :terminal_id
+                """
+            )
+            result = await db.execute(
+                update_by_terminal_id,
+                {"uid": uid, "terminal_id": terminal_id, "terminal_city": terminal_city}
+            )
+            updated = result.rowcount or 0
+
+        if updated == 0:
+            return {
+                "code": 1,
+                "message": "terminal not found",
+                "timestamp": datetime.now().isoformat()
+            }
+
+        await db.commit()
+        return {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "uid": uid,
+                "terminal_id": terminal_id,
+                "mac_address": mac_address,
+                "terminal_city": terminal_city,
+                "updated_rows": updated
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"更新终端城市失败: {e}")
         return {
             "code": 1,
             "message": str(e),

@@ -39,6 +39,7 @@ TOPIC_RISK = "risk"
 TOPIC_TRADING_TERMINAL = "trading-terminal"
 TOPIC_ORDER = "order"
 DEFAULT_TERMINAL_NAME = "交易终端_default"
+DEFAULT_TERMINAL_CITY = "北京"
 
 TERMINAL_HEARTBEAT_TIMEOUT = 30
 TERMINAL_HEARTBEAT_CHECK_INTERVAL = 5
@@ -145,6 +146,11 @@ def default_terminal_name(value: Any = None) -> str:
     return normalized or DEFAULT_TERMINAL_NAME
 
 
+def default_terminal_city(value: Any = None) -> str:
+    normalized = str(value or "").strip()
+    return normalized or DEFAULT_TERMINAL_CITY
+
+
 def find_terminal_key_by_mac(user_id: str, mac_address: str) -> Optional[str]:
     normalized = normalize_mac(mac_address)
     if not normalized:
@@ -186,7 +192,7 @@ async def find_terminal_from_db_by_mac(user_id: str, mac_address: str) -> Option
 
     query = text(
         """
-        SELECT terminal_id, terminal_name, account_name, mac_address
+        SELECT terminal_id, terminal_name, account_name, mac_address, terminal_city
         FROM terminals
         WHERE uid = :uid AND LOWER(mac_address) = :mac
         ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
@@ -204,6 +210,7 @@ async def find_terminal_from_db_by_mac(user_id: str, mac_address: str) -> Option
                 "terminalName": str(row[1] or "").strip(),
                 "accountName": str(row[2] or "").strip(),
                 "macAddress": str(row[3] or "").strip(),
+                "terminalCity": default_terminal_city(row[4]),
             }
     except Exception as error:
         logger.warning("query terminal from db failed: uid=%s mac=%s error=%s", user_id, normalized, error)
@@ -221,7 +228,7 @@ async def find_terminal_from_db(user_id: str, terminal_id: str, mac_address: str
 
     query = text(
         """
-        SELECT terminal_id, terminal_name, account_name, mac_address
+        SELECT terminal_id, terminal_name, account_name, mac_address, terminal_city
         FROM terminals
         WHERE uid = :uid AND terminal_id = :terminal_id
         ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
@@ -239,6 +246,7 @@ async def find_terminal_from_db(user_id: str, terminal_id: str, mac_address: str
                 "terminalName": str(row[1] or "").strip(),
                 "accountName": str(row[2] or "").strip(),
                 "macAddress": str(row[3] or "").strip(),
+                "terminalCity": default_terminal_city(row[4]),
             }
     except Exception as error:
         logger.warning(
@@ -266,6 +274,8 @@ async def refresh_terminal_registry_from_db(info: Dict[str, Any]) -> Dict[str, A
         info["accountName"] = str(db_terminal["accountName"]).strip()
     if is_non_empty(db_terminal.get("macAddress")):
         info["macAddress"] = str(db_terminal["macAddress"]).strip()
+    if is_non_empty(db_terminal.get("terminalCity")):
+        info["terminalCity"] = default_terminal_city(db_terminal.get("terminalCity"))
     return info
 
 
@@ -275,7 +285,7 @@ async def find_db_terminals_by_uid(user_id: str) -> Dict[str, Dict[str, str]]:
 
     query = text(
         """
-        SELECT terminal_id, terminal_name, account_name, mac_address
+        SELECT terminal_id, terminal_name, account_name, mac_address, terminal_city
         FROM terminals
         WHERE uid = :uid
         """
@@ -293,6 +303,7 @@ async def find_db_terminals_by_uid(user_id: str) -> Dict[str, Dict[str, str]]:
                     "terminalName": str(row[1] or "").strip(),
                     "accountName": str(row[2] or "").strip(),
                     "macAddress": str(row[3] or "").strip(),
+                    "terminalCity": default_terminal_city(row[4]),
                 }
     except Exception as error:
         logger.warning("query terminals by uid failed: uid=%s error=%s", user_id, error)
@@ -321,7 +332,7 @@ async def ensure_terminal_in_db(
 
     select_by_mac_query = text(
         """
-        SELECT id, terminal_id, terminal_name, account_name, mac_address
+        SELECT id, terminal_id, terminal_name, account_name, mac_address, terminal_city
         FROM terminals
         WHERE uid = :uid AND LOWER(mac_address) = :mac
         ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
@@ -348,10 +359,10 @@ async def ensure_terminal_in_db(
     insert_query = text(
         """
         INSERT INTO terminals (
-          uid, terminal_id, terminal_name, mac_address, account_name, active, created_at, updated_at
+          uid, terminal_id, terminal_name, terminal_city, mac_address, account_name, active, created_at, updated_at
         )
         VALUES (
-          :uid, :terminal_id, :terminal_name, :mac_address, :account_name, TRUE, NOW(), NOW()
+          :uid, :terminal_id, :terminal_name, :terminal_city, :mac_address, :account_name, TRUE, NOW(), NOW()
         )
         """
     )
@@ -378,6 +389,7 @@ async def ensure_terminal_in_db(
                     canonical_terminal_name = str(row[2] or "").strip() or requested_terminal_name
                     canonical_account_name = str(row[3] or "").strip() or requested_account_name
                     canonical_mac = str(row[4] or "").strip() or mac_address
+                    canonical_city = default_terminal_city(row[5])
                     await session.execute(
                         update_by_id_query,
                         {
@@ -390,7 +402,8 @@ async def ensure_terminal_in_db(
                         "terminalId": canonical_terminal_id,
                         "terminalName": canonical_terminal_name,
                         "accountName": canonical_account_name,
-                        "macAddress": canonical_mac
+                        "macAddress": canonical_mac,
+                        "terminalCity": canonical_city
                     }
 
                 candidate_terminal_id = requested_terminal_id
@@ -408,6 +421,7 @@ async def ensure_terminal_in_db(
                         "uid": user_id,
                         "terminal_id": candidate_terminal_id,
                         "terminal_name": requested_terminal_name,
+                        "terminal_city": DEFAULT_TERMINAL_CITY,
                         "mac_address": mac_address,
                         "account_name": requested_account_name
                     }
@@ -417,7 +431,8 @@ async def ensure_terminal_in_db(
                     "terminalId": candidate_terminal_id,
                     "terminalName": requested_terminal_name,
                     "accountName": requested_account_name,
-                    "macAddress": mac_address
+                    "macAddress": mac_address,
+                    "terminalCity": DEFAULT_TERMINAL_CITY
                 }
     except IntegrityError as error:
         logger.warning("ensure terminal in db integrity error: uid=%s mac=%s error=%s", user_id, mac_address, error)
@@ -487,6 +502,7 @@ def build_terminal_snapshot(user_id: str) -> List[Dict[str, Any]]:
             "userId": info["userId"],
             "terminalId": info["terminalId"],
             "terminalName": default_terminal_name(info.get("terminalName")),
+            "terminalCity": default_terminal_city(info.get("terminalCity")),
             "macAddress": info.get("macAddress") or "",
             "accountName": info.get("accountName") or "",
             "connected": bool(info.get("connected", False)),
@@ -562,6 +578,7 @@ async def disconnect(sid):
         "terminal.disconnected",
         {
             "terminalName": default_terminal_name(info.get("terminalName")),
+            "terminalCity": default_terminal_city(info.get("terminalCity")),
             "reason": "service_disconnect",
             "statusSource": "terminal_service"
         }
@@ -573,6 +590,7 @@ async def disconnect(sid):
             "terminal.offline",
             {
                 "terminalName": default_terminal_name(info.get("terminalName")),
+                "terminalCity": default_terminal_city(info.get("terminalCity")),
                 "reason": "service_disconnect",
                 "statusSource": "terminal_service"
             }
@@ -675,6 +693,7 @@ async def terminal_register(sid, data):
         canonical_terminal_name = prev.get("terminalName", "") if prev else terminal_name
         canonical_mac = prev.get("macAddress", "") if prev else mac_address
         canonical_account = prev.get("accountName", "") if prev else account_name
+        canonical_city = default_terminal_city(prev.get("terminalCity") if prev else None)
 
         if prev and prev.get("sid") and prev["sid"] != sid:
             old_sid = prev["sid"]
@@ -691,6 +710,7 @@ async def terminal_register(sid, data):
             "userId": user_id,
             "terminalId": canonical_terminal_id,
             "terminalName": canonical_terminal_name,
+            "terminalCity": canonical_city,
             "macAddress": canonical_mac,
             "accountName": canonical_account,
             "sid": sid,
@@ -717,6 +737,7 @@ async def terminal_register(sid, data):
                 "userId": user_id,
                 "terminalId": canonical_terminal_id,
                 "terminalName": canonical_terminal_name,
+                "terminalCity": canonical_city,
                 "macAddress": canonical_mac,
                 "accountName": canonical_account,
                 "orderTopic": uid_order_topic,
@@ -791,6 +812,10 @@ async def terminal_register(sid, data):
         or (db_terminal.get("accountName") if db_terminal else "")
         or account_name
     )
+    terminal_city = default_terminal_city(
+        (prev.get("terminalCity") if prev else "")
+        or (db_terminal.get("terminalCity") if db_terminal else "")
+    )
 
     if prev and prev.get("sid") and prev["sid"] != sid:
         old_sid = prev["sid"]
@@ -812,6 +837,7 @@ async def terminal_register(sid, data):
         "userId": user_id,
         "terminalId": canonical_terminal_id,
         "terminalName": terminal_name,
+        "terminalCity": terminal_city,
         "macAddress": mac_address,
         "accountName": account_name,
         "sid": sid,
@@ -843,6 +869,7 @@ async def terminal_register(sid, data):
             "userId": user_id,
             "terminalId": canonical_terminal_id,
             "terminalName": terminal_name,
+            "terminalCity": terminal_city,
             "macAddress": mac_address,
             "accountName": account_name,
             "topic": topic,
@@ -858,6 +885,7 @@ async def terminal_register(sid, data):
         "terminal.connected",
         {
             "terminalName": terminal_name,
+            "terminalCity": terminal_city,
             "macAddress": mac_address,
             "accountName": account_name,
             "statusSource": "terminal_service"
@@ -878,6 +906,7 @@ async def terminal_register(sid, data):
             "terminal.added",
             {
                 "terminalName": terminal_name,
+                "terminalCity": terminal_city,
                 "macAddress": mac_address,
                 "accountName": account_name
             }
@@ -897,6 +926,7 @@ async def terminal_register(sid, data):
             "terminal.online",
             {
                 "terminalName": terminal_name,
+                "terminalCity": terminal_city,
                 "macAddress": mac_address,
                 "accountName": account_name,
                 "statusSource": "terminal_service"
@@ -1018,6 +1048,7 @@ async def terminal_status_update(sid, data):
         event_type,
         {
             "terminalName": default_terminal_name(info.get("terminalName")),
+            "terminalCity": default_terminal_city(info.get("terminalCity")),
             "macAddress": info.get("macAddress") or "",
             "accountName": info.get("accountName") or "",
             "reason": reason,
@@ -1149,7 +1180,10 @@ async def terminal_unregister(sid, data):
             info["userId"],
             info["terminalId"],
             "terminal.removed",
-            {"terminalName": default_terminal_name(info.get("terminalName"))}
+            {
+                "terminalName": default_terminal_name(info.get("terminalName")),
+                "terminalCity": default_terminal_city(info.get("terminalCity"))
+            }
         )
     await sio.emit(
         "terminal_unregistered",
@@ -1188,6 +1222,8 @@ async def terminal_snapshot_request(sid, data):
                 item["terminalId"] = db_item["terminalId"]
             if db_item.get("terminalName"):
                 item["terminalName"] = db_item["terminalName"]
+            if db_item.get("terminalCity"):
+                item["terminalCity"] = db_item["terminalCity"]
             if db_item.get("accountName"):
                 item["accountName"] = db_item["accountName"]
             if db_item.get("macAddress"):
@@ -1576,6 +1612,7 @@ async def terminal_heartbeat_monitor():
                     "terminal.disconnected",
                     {
                         "terminalName": default_terminal_name(info.get("terminalName")),
+                        "terminalCity": default_terminal_city(info.get("terminalCity")),
                         "reason": "service_heartbeat_timeout",
                         "statusSource": "terminal_service"
                     }
@@ -1587,15 +1624,32 @@ async def terminal_heartbeat_monitor():
                         "terminal.offline",
                         {
                             "terminalName": default_terminal_name(info.get("terminalName")),
+                            "terminalCity": default_terminal_city(info.get("terminalCity")),
                             "reason": "service_heartbeat_timeout",
                             "statusSource": "terminal_service"
                         }
                     )
 
 
+async def ensure_terminal_city_schema():
+    query = text(
+        """
+        ALTER TABLE terminals
+        ADD COLUMN IF NOT EXISTS terminal_city VARCHAR(32) NOT NULL DEFAULT '北京'
+        """
+    )
+    try:
+        async with async_session_maker() as session:
+            await session.execute(query)
+            await session.commit()
+    except Exception as error:
+        logger.warning("ensure terminal city schema failed: %s", error)
+
+
 @app.on_event("startup")
 async def on_startup():
     global terminal_monitor_task
+    await ensure_terminal_city_schema()
     if terminal_monitor_task is None or terminal_monitor_task.done():
         terminal_monitor_task = asyncio.create_task(terminal_heartbeat_monitor())
         logger.info("terminal heartbeat monitor started")

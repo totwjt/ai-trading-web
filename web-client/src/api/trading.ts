@@ -113,6 +113,7 @@ export interface UserTerminal {
   uid: string
   terminal_id: string
   terminal_name?: string | null
+  terminal_city?: string | null
   mac_address: string
   account_name: string
   active: boolean
@@ -146,6 +147,13 @@ export interface MachineTradeRecord {
 export interface TerminalRenameRequest {
   uid: string
   terminal_name: string
+  terminal_id?: string
+  mac_address?: string
+}
+
+export interface TerminalCityRequest {
+  uid: string
+  terminal_city: string
   terminal_id?: string
   mac_address?: string
 }
@@ -392,6 +400,14 @@ export async function updateTerminalNameAPI(payload: TerminalRenameRequest): Pro
   const response = await apiClient.patch<{ code: number; message?: string }>('/api/trading/terminals/name', payload)
   if (response.data.code !== 0) {
     throw new Error(response.data.message || '更新终端名称失败')
+  }
+  return true
+}
+
+export async function updateTerminalCityAPI(payload: TerminalCityRequest): Promise<boolean> {
+  const response = await apiClient.patch<{ code: number; message?: string }>('/api/trading/terminals/city', payload)
+  if (response.data.code !== 0) {
+    throw new Error(response.data.message || '更新终端城市失败')
   }
   return true
 }

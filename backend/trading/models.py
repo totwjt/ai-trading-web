@@ -28,6 +28,7 @@ class Terminal(Base):
     mac_address = Column(String(32), nullable=False, comment="终端设备MAC地址")
     account_name = Column(String(128), nullable=False, comment="终端账号名称(whoami)")
     terminal_name = Column(String(128), nullable=True, comment="终端显示名称")
+    terminal_city = Column(String(32), nullable=False, default="北京", comment="终端展示城市")
     active = Column(Boolean, nullable=False, default=True, comment="是否启用")
     created_at = Column(DateTime, default=datetime.now, comment="创建时间")
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间")
