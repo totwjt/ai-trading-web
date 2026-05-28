@@ -19,6 +19,11 @@ import asyncio
 import logging
 import uuid
 import os
+from dotenv import load_dotenv
+
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.isfile(dotenv_path):
+    load_dotenv(dotenv_path)
 
 import httpx
 from sqlalchemy import text
@@ -1678,11 +1683,12 @@ app.include_router(preview_router, prefix="/api")
 app.include_router(trading_router)
 
 EXTERNAL_API = os.getenv("TRADING_EXTERNAL_API", "http://127.0.0.1:8882")
+MARKET_API = os.getenv("MARKET_API", "http://127.0.0.1:8882")
 USER_API = os.getenv("USER_API", "http://127.0.0.1:8001")
 
 
 async def _proxy_market(full_path: str, request: Request) -> Any:
-    url = f"{EXTERNAL_API}/{full_path}"
+    url = f"{MARKET_API}/{full_path}"
     params = dict(request.query_params)
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:

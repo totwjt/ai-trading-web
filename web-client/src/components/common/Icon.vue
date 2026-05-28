@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Icon, addCollection } from '@iconify/vue/dist/offline'
-import mdiIcons from '@iconify-json/mdi/icons.json'
-import faIcons from '@iconify-json/fa/icons.json'
-
-addCollection(mdiIcons)
-addCollection(faIcons)
+import { Icon } from '@iconify/vue'
 
 interface Props {
   icon: string

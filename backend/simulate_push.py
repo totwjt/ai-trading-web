@@ -16,6 +16,10 @@ import httpx
 
 import sys
 import os
+from dotenv import load_dotenv
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.isfile(dotenv_path):
+    load_dotenv(dotenv_path)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.socketio_client import UnifiedSocketIOClient

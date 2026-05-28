@@ -108,23 +108,4 @@
   }
 }
 
-@layer components {
-  .bg-bgMain { background-color: var(--color-bg-main); }
-  .bg-card { background-color: var(--color-card); }
-  .bg-float { background-color: var(--color-bg-float); }
-  .bg-primary { background-color: var(--color-primary); }
-  .bg-up { background-color: var(--color-up); }
-  .bg-down { background-color: var(--color-down); }
-  .bg-warning { background-color: var(--color-warning); }
 
-  .text-textMain { color: var(--color-text-main); }
-  .text-textSub { color: var(--color-text-sub); }
-  .text-textMute { color: var(--color-text-mute); }
-  .text-primary { color: var(--color-primary); }
-  .text-up { color: var(--color-up); }
-  .text-down { color: var(--color-down); }
-  .text-warning { color: var(--color-warning); }
-
-  .border-border { border-color: var(--color-border); }
-  .border-primary { border-color: var(--color-primary); }
-}
