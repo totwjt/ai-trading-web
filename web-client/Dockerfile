@@ -2,10 +2,10 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY web-client/package*.json ./
 RUN npm ci
 
-COPY . .
+COPY web-client/ .
 
 ARG VITE_API_URL=/
 ARG VITE_WS_URL=/

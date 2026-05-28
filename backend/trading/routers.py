@@ -25,10 +25,10 @@ logger = logging.getLogger(__name__)
 
 trading_router = APIRouter(prefix="/api/trading", tags=["trading"])
 
-EXTERNAL_API = os.getenv("TRADING_EXTERNAL_API", "http://192.168.66.143:8000")
-TRADER_API = os.getenv("TRADING_TRADER_API", "http://192.168.66.155:8003")
-ORDER_API = os.getenv("TRADING_ORDER_API", "http://192.168.66.135:8000")
-TRADE_RECORD_API = os.getenv("TRADING_RECORD_API", "http://192.168.66.135:8001")
+EXTERNAL_API = os.getenv("TRADING_EXTERNAL_API", "http://127.0.0.1:8882")
+TRADER_API = os.getenv("TRADING_TRADER_API", "http://127.0.0.1:8003")
+ORDER_API = os.getenv("TRADING_ORDER_API", "http://127.0.0.1:8881")
+TRADE_RECORD_API = os.getenv("TRADING_RECORD_API", "http://127.0.0.1:8881")
 TERMINAL_CITY_OPTIONS = {"上海", "北京", "深圳", "广州", "杭州", "成都"}
 DEFAULT_TERMINAL_CITY = "北京"
 

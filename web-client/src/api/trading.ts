@@ -473,13 +473,13 @@ export async function updatePendingOrderConfigAPI(payload: PendingOrderConfigUpd
 }
 
 const finaApiClient = axios.create({
-  baseURL: 'http://192.168.66.143:8099',
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' }
 })
 
 export async function getFinaMainbz(tsCode: string): Promise<FinaMainbzItem[]> {
-  const response = await finaApiClient.get<FinaMainbzResponse>('/fina/mainbz', {
+  const response = await finaApiClient.get<FinaMainbzResponse>('/api/market/fina/mainbz', {
     params: { ts_code: tsCode }
   })
   return response.data.data || []

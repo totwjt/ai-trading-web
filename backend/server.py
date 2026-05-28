@@ -23,10 +23,14 @@ import os
 import httpx
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
-from common.database import async_session_maker
+from common.database import async_session_maker, init_db
 from recommendation.db import get_latest_news, get_news_by_id
 from backtest.src.routers import strategy_router, backtest_router, preview_router
 from trading.routers import trading_router
+
+# 注册所有 SQLAlchemy 模型到 Base.metadata，确保 init_db() 能创建全部表
+import trading.models  # noqa: F401
+import backtest.src.models  # noqa: F401
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -1649,6 +1653,7 @@ async def ensure_terminal_city_schema():
 @app.on_event("startup")
 async def on_startup():
     global terminal_monitor_task
+    await init_db()
     await ensure_terminal_city_schema()
     if terminal_monitor_task is None or terminal_monitor_task.done():
         terminal_monitor_task = asyncio.create_task(terminal_heartbeat_monitor())
@@ -1672,8 +1677,34 @@ app.include_router(backtest_router, prefix="/api")
 app.include_router(preview_router, prefix="/api")
 app.include_router(trading_router)
 
-EXTERNAL_API = os.getenv("TRADING_EXTERNAL_API", "http://192.168.66.143:8000")
-USER_API = os.getenv("USER_API", "http://192.168.66.198:8001")
+EXTERNAL_API = os.getenv("TRADING_EXTERNAL_API", "http://127.0.0.1:8882")
+USER_API = os.getenv("USER_API", "http://127.0.0.1:8001")
+
+
+async def _proxy_market(full_path: str, request: Request) -> Any:
+    url = f"{EXTERNAL_API}/{full_path}"
+    params = dict(request.query_params)
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            if request.method == "GET":
+                resp = await client.get(url, params=params)
+            else:
+                body = await request.json()
+                resp = await client.post(url, json=body, params=params)
+        return resp.json()
+    except Exception as e:
+        logger.error("代理市场数据失败: %s %s", url, e)
+        return {"code": 1, "message": str(e)}
+
+
+@app.get("/api/market/{full_path:path}")
+async def proxy_market_get(full_path: str, request: Request):
+    return await _proxy_market(full_path, request)
+
+
+@app.post("/api/market/{full_path:path}")
+async def proxy_market_post(full_path: str, request: Request):
+    return await _proxy_market(full_path, request)
 
 
 @app.get("/strategy_info")

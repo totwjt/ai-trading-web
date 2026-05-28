@@ -1,14 +1,16 @@
 import axios from 'axios'
 
-function getMarketApiBaseUrl(): string {
-  if ((import.meta as any).env?.VITE_MARKET_API_URL) {
-    return (import.meta as any).env.VITE_MARKET_API_URL
+function getApiBaseUrl(): string {
+  if ((import.meta as any).env?.VITE_API_URL) {
+    return (import.meta as any).env.VITE_API_URL
   }
-  return 'http://192.168.66.143:8099'
+  return `http://${window.location.hostname}:8766`
 }
 
+const API_BASE_URL = getApiBaseUrl()
+
 const marketApiClient = axios.create({
-  baseURL: getMarketApiBaseUrl(),
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
@@ -119,7 +121,7 @@ export interface PoolResponse<T> {
 
 export function getHsgtTop10(marketType?: string): Promise<HsgtTop10Response> {
   return marketApiClient
-    .get<HsgtTop10Response>('/hsgt/top10', {
+    .get<HsgtTop10Response>('/api/market/hsgt/top10', {
       params: marketType ? { market_type: marketType } : undefined
     })
     .then(response => response.data)
@@ -127,20 +129,20 @@ export function getHsgtTop10(marketType?: string): Promise<HsgtTop10Response> {
 
 export function getHotSearchList(symbol?: string): Promise<HotSearchResponse> {
   return marketApiClient
-    .get<HotSearchResponse>('/hot_search/list', {
+    .get<HotSearchResponse>('/api/market/hot_search/list', {
       params: symbol ? { symbol } : undefined
     })
     .then(response => response.data)
 }
 
 export function getIndexSpot(): Promise<IndexSpotResponse> {
-  return marketApiClient.get<IndexSpotResponse>('/index/spot').then(response => response.data)
+  return marketApiClient.get<IndexSpotResponse>('/api/market/index/spot').then(response => response.data)
 }
 
 export function getZtPool(): Promise<PoolResponse<ZtPoolItem>> {
-  return marketApiClient.get<PoolResponse<ZtPoolItem>>('/zt/pool').then(response => response.data)
+  return marketApiClient.get<PoolResponse<ZtPoolItem>>('/api/market/zt/pool').then(response => response.data)
 }
 
 export function getDtPool(): Promise<PoolResponse<DtPoolItem>> {
-  return marketApiClient.get<PoolResponse<DtPoolItem>>('/dt/pool').then(response => response.data)
+  return marketApiClient.get<PoolResponse<DtPoolItem>>('/api/market/dt/pool').then(response => response.data)
 }
