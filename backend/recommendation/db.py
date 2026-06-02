@@ -2,18 +2,19 @@
 数据库连接模块
 用于连接 stock_strategy 数据库
 """
+import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from contextlib import contextmanager
 from typing import Optional
 
-# 数据库配置
+# 数据库配置（通过环境变量注入，详见 backend/.env）
 DB_CONFIG = {
-    "host": "192.168.66.26",
-    "port": 5432,
-    "user": "vonstars",
-    "password": "vonstars123.com",
-    "database": "stock_strategy"
+    "host": os.getenv("RECOMMEND_DB_HOST", "localhost"),
+    "port": int(os.getenv("RECOMMEND_DB_PORT", "5432")),
+    "user": os.getenv("RECOMMEND_DB_USER", "postgres"),
+    "password": os.getenv("RECOMMEND_DB_PASSWORD", ""),
+    "database": os.getenv("RECOMMEND_DB_NAME", "stock_strategy")
 }
 
 

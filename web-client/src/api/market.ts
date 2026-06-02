@@ -129,20 +129,20 @@ export function getHsgtTop10(marketType?: string): Promise<HsgtTop10Response> {
 
 export function getHotSearchList(symbol?: string): Promise<HotSearchResponse> {
   return marketApiClient
-    .get<HotSearchResponse>('/api/market/hot_search/list', {
+    .get<HotSearchResponse>('/api/market/hsgt/hot_search/list', {
       params: symbol ? { symbol } : undefined
     })
     .then(response => response.data)
 }
 
 export function getIndexSpot(): Promise<IndexSpotResponse> {
-  return marketApiClient.get<IndexSpotResponse>('/api/market/index/spot').then(response => response.data)
+  return marketApiClient.get<IndexSpotResponse>('/api/market/hsgt/index/spot').then(response => response.data)
 }
 
 export function getZtPool(): Promise<PoolResponse<ZtPoolItem>> {
-  return marketApiClient.get<PoolResponse<ZtPoolItem>>('/api/market/zt/pool').then(response => response.data)
+  return marketApiClient.get<PoolResponse<ZtPoolItem>>('/api/market/hsgt/zt/pool').then(response => response.data)
 }
 
 export function getDtPool(): Promise<PoolResponse<DtPoolItem>> {
-  return marketApiClient.get<PoolResponse<DtPoolItem>>('/api/market/dt/pool').then(response => response.data)
+  return marketApiClient.get<PoolResponse<DtPoolItem>>('/api/market/hsgt/dt/pool').then(response => response.data)
 }

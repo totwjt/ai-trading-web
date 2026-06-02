@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM 192.168.66.26:8000/wangjiangtao/python:3.10-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

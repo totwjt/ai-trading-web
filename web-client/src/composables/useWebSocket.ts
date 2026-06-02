@@ -63,7 +63,7 @@ function initSocket(): Socket {
   const clientId = generateClientId()
   
   socketInstance = io(getSocketUrl(), {
-    transports: ['websocket'],
+    transports: ['websocket', 'polling'],
     autoConnect: true,
     reconnection: true,
     reconnectionDelay: 3000,

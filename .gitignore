@@ -114,3 +114,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# mcp-deploy (AI MCP 生产部署工具)
+mcp-deploy/.env
+mcp-deploy/.env.deploy
+mcp-deploy/.venv/

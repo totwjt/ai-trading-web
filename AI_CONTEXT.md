@@ -236,6 +236,164 @@ App.vue
 - 回测说明：`docs/backtest.md`
 - API 文档目录：`docs/API/`
 
+## 发布与部署
+
+### 部署架构
+
+```
+┌─ 开发机 (192.168.66.186) ──────────────────┐
+│  ./deploy/build.sh                          │
+│  ├─ docker build → 本地镜像                  │
+│  └─ docker push → Harbor (192.168.66.26:8000)│
+└─────────────────────────────────────────────┘
+                      │
+                      ▼
+┌─ Harbor 仓库 ───────────────────────────────┐
+│  library/ai-trading-web:latest              │
+│  library/ai-trading-backend:latest          │
+│  library/postgres:15-alpine                 │
+└─────────────────────────────────────────────┘
+                      │
+                      ▼ (生产环境 pull)
+┌─ 生产服务器 (ssh wangjiangtao@192.168.66.226) ┐
+│  docker compose -f docker-compose.prod.yml    │
+│  --env-file .env.deploy up -d                 │
+│                                               │
+│  ┌─ Docker 内部 ──────────────────────┐       │
+│  │  postgres:5432 (仅内部)            │       │
+│  │  backend:8766                      │       │
+│  │  web (Nginx):80                    │       │
+│  └────────────────────────────────────┘       │
+└───────────────────────────────────────────────┘
+```
+
+- **开发环境** (`192.168.66.186`)：运行 `./deploy/build.sh` 构建镜像并推送到 Harbor
+- **生产环境** (`192.168.66.226`)：SSH 登录后拉取镜像并启动
+
+### 环境配置文件
+
+| 文件 | 用途 | 是否提交 |
+|------|------|---------|
+| `backend/.env` | 开发环境后端配置（数据库凭据、上游 API 地址） | ❌ `.gitignore` |
+| `.env.deploy` | Docker Compose 部署配置（生产环境凭据） | ❌ `.gitignore` |
+| `.env.deploy.example` | 部署配置模板（仅占位符，无真实凭据） | ✅ 提交 |
+| `web-client/.env` | 前端开发环境配置 | ❌ `.gitignore` |
+| `web-client/.env.development` | 前端开发环境覆盖（远程后端 IP） | ✅ 示例值可提交 |
+
+> **安全规则**：
+> - 所有 `.env` 文件均被 `.gitignore` 忽略，禁止提交到 Git
+> - 代码中不得出现硬编码的生产环境 IP、密码、Token、SSH 密钥路径等凭据
+> - SSH 私钥使用 `~/.ssh/id_rsa` 或 `ssh-agent` 管理，通过 `~/.ssh/config` 配置主机别名
+
+### 前置条件
+
+1. **Docker 24+**（开发机和生产机）
+2. **Docker Compose v2+**（开发机和生产机）
+3. **Harbor 登录权限**：开发机能 `docker push` 到 Harbor
+4. **SSH 免密登录生产机**：开发机能 `ssh wangjiangtao@192.168.66.226`
+5. **生产机 Harbor 访问权限**：已在生产机 `docker login 192.168.66.26:8000`
+
+### 构建 & 推送（开发机执行）
+
+```bash
+# 构建并推送全部服务（latest 标签）
+./deploy/build.sh
+
+# 构建并推送指定版本
+./deploy/build.sh v1.2.3
+
+# 只构建不推送
+./deploy/build.sh --skip-push
+
+# 只构建某个服务
+./deploy/build.sh --service web
+./deploy/build.sh --service backend
+```
+
+### 部署到生产（SSH 登录后执行）
+
+```bash
+# 1. SSH 登录生产服务器
+ssh wangjiangtao@192.168.66.226
+
+# 2. 进入项目目录
+cd /path/to/ai-trading-web
+
+# 3. 复制环境配置（首次部署）
+cp .env.deploy.example .env.deploy
+# 编辑 .env.deploy 修改数据库连接等配置
+
+# 4. 拉取最新镜像并启动
+docker compose -f docker-compose.prod.yml --env-file .env.deploy pull
+docker compose -f docker-compose.prod.yml --env-file .env.deploy up -d
+
+# 5. 指定版本启动
+IMAGE_TAG=v1.2.3 docker compose -f docker-compose.prod.yml --env-file .env.deploy up -d
+```
+
+### 服务端口
+
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| 前端 (Nginx) | 80 | Web UI |
+| 后端 (API) | 8766 | API 网关 + WebSocket |
+| PostgreSQL | 5432 | 仅 Docker 内部可达 |
+
+### 环境变量
+
+#### Harbor 配置
+- `HARBOR_URL` — Harbor 仓库地址
+- `HARBOR_PROJECT` — Harbor 项目名
+
+#### 生产服务器 SSH 配置
+- 地址：`192.168.66.226`
+- 用户：`wangjiangtao`
+- 鉴权：SSH 密钥（通过 `~/.ssh/id_rsa` 或 `ssh-agent`）
+- 建议在 `~/.ssh/config` 中配置主机别名：
+  ```
+  Host ai-trading-prod
+      HostName 192.168.66.226
+      User wangjiangtao
+      IdentityFile ~/.ssh/id_rsa
+  ```
+
+#### PostgreSQL 配置
+- `POSTGRES_USER` — 数据库用户
+- `POSTGRES_PASSWORD` — 数据库密码
+- `POSTGRES_DB` — 数据库名
+
+#### 后端上游 API 配置
+- `DATABASE_URL` — SQLAlchemy 数据库连接字符串
+- `MARKET_API` — 行情数据服务地址
+- `TRADING_EXTERNAL_API` — 策略/交易外部服务地址
+- `TRADING_TRADER_API` — Trader 服务地址
+- `TRADING_ORDER_API` — 订单服务地址
+- `TRADING_RECORD_API` — 交易记录服务地址
+- `USER_API` — 用户服务地址
+- `RECOMMEND_DB_*` — 荐股数据库连接配置
+
+### 验证
+
+```bash
+# 在生产服务器上执行
+
+# 前端
+curl -sS http://localhost:80/
+curl -sS http://localhost:80/recommendation  # SPA 路由验证
+
+# 后端
+curl -sS http://localhost:8766/health
+```
+
+### 回滚
+
+```bash
+# SSH 登录生产服务器后执行
+IMAGE_TAG=v1.2.2 docker compose -f docker-compose.prod.yml --env-file .env.deploy up -d
+```
+
+---
+
 ### 当前仓库中不存在的文档
 - `docs/DATABASE.md`
 - `docs/API.md`

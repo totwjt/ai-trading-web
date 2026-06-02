@@ -479,7 +479,7 @@ const finaApiClient = axios.create({
 })
 
 export async function getFinaMainbz(tsCode: string): Promise<FinaMainbzItem[]> {
-  const response = await finaApiClient.get<FinaMainbzResponse>('/api/market/fina/mainbz', {
+  const response = await finaApiClient.get<FinaMainbzResponse>('/api/market/hsgt/fina/mainbz', {
     params: { ts_code: tsCode }
   })
   return response.data.data || []

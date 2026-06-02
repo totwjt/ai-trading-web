@@ -1,8 +1,6 @@
+FROM 192.168.66.26:8000/wangjiangtao/node:22-alpine AS builder
+
 ARG TARGETPLATFORM=linux/arm64
-
-FROM --platform=$TARGETPLATFORM node:22-alpine AS builder
-
-ARG TARGETPLATFORM
 WORKDIR /app
 
 COPY web-client/package*.json ./
@@ -27,7 +25,7 @@ ENV VITE_WS_URL=${VITE_WS_URL}
 
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM 192.168.66.26:8000/wangjiangtao/nginx:1.27-alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf

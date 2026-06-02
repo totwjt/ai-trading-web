@@ -5,7 +5,7 @@
 #   docker compose -f docker-compose.prod.yml --env-file .env.deploy up -d
 # ============================================================
 
-x-harbor: &harbor 192.168.66.26:8000/library
+x-harbor: &harbor ${HARBOR_URL:-192.168.66.26:8000}/${HARBOR_PROJECT:-library}
 
 services:
   postgres:
@@ -27,7 +27,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: *harbor/ai-trading-backend:${IMAGE_TAG:-latest}
+    image: *harbor/backend:${IMAGE_TAG:-latest}
     container_name: ai-trading-backend
     env_file:
       - .env.deploy
@@ -41,7 +41,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: *harbor/ai-trading-web:${IMAGE_TAG:-latest}
+    image: *harbor/web:${IMAGE_TAG:-latest}
     container_name: ai-trading-web
     ports:
       - "80:80"

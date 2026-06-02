@@ -4,17 +4,21 @@
 
 实现：
 
-text 开发机/CI
+```
+开发机/CI
      ↓
-构建 Docker 镜像
+构建 Docker 镜像（前端 web + 后端 backend）
      ↓
 推送 Harbor
      ↓
 生产服务器只从 Harbor 拉取
+```
 
 最终：
 
-text 生产环境不依赖 Docker Hub
+```
+生产环境不依赖 Docker Hub
+```
 
 ---
 
@@ -22,17 +26,15 @@ text 生产环境不依赖 Docker Hub
 
 构建时报错：
 
-text ERROR: failed to solve: DeadlineExceeded: node:22-alpine: failed to resolve source metadata
+```
+ERROR: failed to solve: DeadlineExceeded: node:22-alpine: failed to resolve source metadata
+```
 
-原因：
+涉及的基础镜像：
+- 前端：`node:22-alpine`、`nginx:1.27-alpine`
+- 后端：`python:3.10-slim`
 
-dockerfile FROM node:22-alpine FROM nginx:1.27-alpine
-
-Docker 默认访问：
-
-text docker.io/library/node docker.io/library/nginx
-
-国内网络容易超时。
+Docker 默认访问 `docker.io`，国内网络容易超时。
 
 ---
 
@@ -42,21 +44,35 @@ text docker.io/library/node docker.io/library/nginx
 
 ## Dockerfile 修改
 
+### 前端 `web-client/Dockerfile`
+
 原始：
 
-dockerfile FROM node:22-alpine AS builder
+```dockerfile
+FROM node:22-alpine AS builder
+FROM nginx:1.27-alpine
+```
 
 改成：
 
-dockerfile FROM m.daocloud.io/docker.io/library/node:22-alpine AS builder
+```dockerfile
+FROM m.daocloud.io/docker.io/library/node:22-alpine AS builder
+FROM m.daocloud.io/docker.io/library/nginx:1.27-alpine
+```
 
-第二阶段：
+### 后端 `backend/Dockerfile`
 
-dockerfile FROM m.daocloud.io/docker.io/library/nginx:1.27-alpine
+原始：
 
-完整示例：
+```dockerfile
+FROM python:3.10-slim
+```
 
-dockerfile FROM m.daocloud.io/docker.io/library/node:22-alpine AS builder  WORKDIR /app  COPY package*.json ./  RUN npm install  COPY . .  RUN npm run build   FROM m.daocloud.io/docker.io/library/nginx:1.27-alpine  COPY --from=builder /app/dist /usr/share/nginx/html  EXPOSE 80  CMD ["nginx", "-g", "daemon off;"]
+改成：
+
+```dockerfile
+FROM m.daocloud.io/docker.io/library/python:3.10-slim
+```
 
 ---
 
@@ -64,23 +80,28 @@ dockerfile FROM m.daocloud.io/docker.io/library/node:22-alpine AS builder  WORKD
 
 Docker Desktop：
 
-text Settings   -> Docker Engine
+```
+Settings -> Docker Engine
+```
 
 加入：
 
-json {   "registry-mirrors": [     "https://docker.m.daocloud.io"   ] }
+```json
+{
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io"
+  ]
+}
+```
 
-然后：
-
-text Apply & Restart
+然后 `Apply & Restart`。
 
 验证：
 
-bash docker info
-
-查看：
-
-text Registry Mirrors
+```bash
+docker info
+# 查看 Registry Mirrors
+```
 
 ---
 
@@ -88,11 +109,19 @@ text Registry Mirrors
 
 ## 构建
 
-bash docker build -t web:latest .
+```bash
+# 构建前端
+docker build -f web-client/Dockerfile -t web:latest .
+
+# 构建后端
+docker build -f backend/Dockerfile -t backend:latest ./backend
+```
 
 ## 查看镜像
 
-bash docker images
+```bash
+docker images
+```
 
 ---
 
@@ -100,89 +129,160 @@ bash docker images
 
 Harbor 地址：
 
-text http://192.168.66.26:8000
+```
+http://192.168.66.26:8000
+```
 
 登录：
 
-bash docker login 192.168.66.26:8000
+```bash
+docker login 192.168.66.26:8000
+```
 
 ---
 
 # 六、推送业务镜像到 Harbor
 
-项目：
+项目：`wangjiangtao`
 
-text wangjiangtao
+## 前端
 
-## 打标签
+```bash
+docker tag web:latest 192.168.66.26:8000/wangjiangtao/web:latest
+docker push 192.168.66.26:8000/wangjiangtao/web:latest
+```
 
-bash docker tag web:latest 192.168.66.26:8000/wangjiangtao/web:latest
+## 后端
 
-## 推送
-
-bash docker push 192.168.66.26:8000/wangjiangtao/web:latest
+```bash
+docker tag backend:latest 192.168.66.26:8000/wangjiangtao/backend:latest
+docker push 192.168.66.26:8000/wangjiangtao/backend:latest
+```
 
 ---
 
 # 七、推送基础镜像到 Harbor（推荐）
 
-目标：
-
-text 以后完全不依赖 Docker Hub
+目标：以后完全不依赖 Docker Hub。
 
 ## 拉取基础镜像
 
-bash docker pull m.daocloud.io/docker.io/library/node:22-alpine  docker pull m.daocloud.io/docker.io/library/nginx:1.27-alpine
+```bash
+# 前端
+docker pull m.daocloud.io/docker.io/library/node:22-alpine
+docker pull m.daocloud.io/docker.io/library/nginx:1.27-alpine
 
----
+# 后端
+docker pull m.daocloud.io/docker.io/library/python:3.10-slim
+```
 
 ## 打 Harbor 标签
 
-bash docker tag \ m.daocloud.io/docker.io/library/node:22-alpine \ 192.168.66.26:8000/wangjiangtao/node:22-alpine
+```bash
+# 前端
+docker tag m.daocloud.io/docker.io/library/node:22-alpine 192.168.66.26:8000/wangjiangtao/node:22-alpine
+docker tag m.daocloud.io/docker.io/library/nginx:1.27-alpine 192.168.66.26:8000/wangjiangtao/nginx:1.27-alpine
 
-bash docker tag \ m.daocloud.io/docker.io/library/nginx:1.27-alpine \ 192.168.66.26:8000/wangjiangtao/nginx:1.27-alpine
-
----
+# 后端
+docker tag m.daocloud.io/docker.io/library/python:3.10-slim 192.168.66.26:8000/wangjiangtao/python:3.10-slim
+```
 
 ## 推送基础镜像
 
-bash docker push 192.168.66.26:8000/wangjiangtao/node:22-alpine
+```bash
+# 前端
+docker push 192.168.66.26:8000/wangjiangtao/node:22-alpine
+docker push 192.168.66.26:8000/wangjiangtao/nginx:1.27-alpine
 
-bash docker push 192.168.66.26:8000/wangjiangtao/nginx:1.27-alpine
+# 后端
+docker push 192.168.66.26:8000/wangjiangtao/python:3.10-slim
+```
 
 ---
 
 # 八、最终 Dockerfile（推荐）
 
-dockerfile FROM 192.168.66.26:8000/wangjiangtao/node:22-alpine AS builder  WORKDIR /app  COPY package*.json ./  RUN npm install  COPY . .  RUN npm run build   FROM 192.168.66.26:8000/wangjiangtao/nginx:1.27-alpine  COPY --from=builder /app/dist /usr/share/nginx/html  EXPOSE 80  CMD ["nginx", "-g", "daemon off;"]
+基础镜像全部从 Harbor 拉取，完全不依赖 Docker Hub。
+
+## 前端 `web-client/Dockerfile`
+
+```dockerfile
+FROM 192.168.66.26:8000/wangjiangtao/node:22-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM 192.168.66.26:8000/wangjiangtao/nginx:1.27-alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+## 后端 `backend/Dockerfile`
+
+```dockerfile
+FROM 192.168.66.26:8000/wangjiangtao/python:3.10-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 8766
+CMD ["python", "server.py"]
+```
 
 ---
 
 # 九、重新构建
 
-bash docker build -t web:latest .
+```bash
+# 构建前端
+docker build -f web-client/Dockerfile -t web:latest .
 
-此时：
+# 构建后端
+docker build -f backend/Dockerfile -t backend:latest ./backend
+```
 
-text 不会访问 Docker Hub 只访问 Harbor
+此时不会访问 Docker Hub，只访问 Harbor。
 
 ---
 
 # 十、生产服务器部署
 
-生产服务器：
-
 ## 登录 Harbor
 
-bash docker login 192.168.66.26:8000
+```bash
+docker login 192.168.66.26:8000
+```
 
 ## 拉取镜像
 
-bash docker pull 192.168.66.26:8000/wangjiangtao/web:latest
+```bash
+docker pull 192.168.66.26:8000/wangjiangtao/web:latest
+docker pull 192.168.66.26:8000/wangjiangtao/backend:latest
+```
 
 ## 启动
 
-bash docker run -d \   --name web \   -p 80:80 \   192.168.66.26:8000/wangjiangtao/web:latest
+### 手动启动
+
+```bash
+# 前端
+docker run -d --name web -p 80:80 192.168.66.26:8000/wangjiangtao/web:latest
+
+# 后端
+docker run -d --name backend -p 8766:8766 \
+  --env-file .env.deploy \
+  192.168.66.26:8000/wangjiangtao/backend:latest
+```
+
+### 或使用 Docker Compose（推荐）
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.deploy up -d
+```
 
 ---
 
@@ -190,50 +290,88 @@ bash docker run -d \   --name web \   -p 80:80 \   192.168.66.26:8000/wangjiangt
 
 如果 Harbor 是 HTTP：
 
-text http://192.168.66.26:8000
+```
+http://192.168.66.26:8000
+```
 
 Docker 默认会报：
 
-text server gave HTTP response to HTTPS client
-
-需要配置：
+```
+server gave HTTP response to HTTPS client
+```
 
 ## Linux
 
-编辑：
+编辑 `/etc/docker/daemon.json`：
 
-bash /etc/docker/daemon.json
-
-加入：
-
-json {   "insecure-registries": [     "192.168.66.26:8000"   ] }
+```json
+{
+  "insecure-registries": [
+    "192.168.66.26:8000"
+  ]
+}
+```
 
 重启：
 
-bash sudo systemctl restart docker
-
----
+```bash
+sudo systemctl restart docker
+```
 
 ## Docker Desktop
 
-text Settings   -> Docker Engine
+```
+Settings -> Docker Engine
+```
 
 加入：
 
-json {   "insecure-registries": [     "192.168.66.26:8000"   ] }
+```json
+{
+  "insecure-registries": [
+    "192.168.66.26:8000"
+  ]
+}
+```
 
-然后：
-
-text Apply & Restart
+然后 `Apply & Restart`。
 
 ---
 
-# 十二、推荐最终结构
+# 十二、推荐最终 Harbor 结构
 
-text Harbor └── wangjiangtao     ├── web:latest     ├── node:22-alpine     └── nginx:1.27-alpine
+```
+Harbor (192.168.66.26:8000)
+└── wangjiangtao
+    ├── web:latest              # 前端业务镜像
+    ├── backend:latest           # 后端业务镜像
+    ├── node:22-alpine           # 前端 Node 基础镜像
+    ├── nginx:1.27-alpine        # 前端 Nginx 基础镜像
+    └── python:3.10-slim         # 后端 Python 基础镜像
+```
 
 后续：
-
-text 所有镜像： - 全部来源 Harbor - CI 不访问 Docker Hub - 生产不访问 Docker Hub
+- 所有镜像全部来源 Harbor
+- CI 不访问 Docker Hub
+- 生产不访问 Docker Hub
+- 新增服务按同样模式：基础镜像推到 Harbor → Dockerfile 指向 Harbor
 
 ---
+
+# 附录：一键构建脚本
+
+```bash
+# 构建并推送全部（latest）
+./deploy/build.sh
+
+# 构建并推送指定版本
+./deploy/build.sh v1.2.3
+
+# 只构建某个服务
+./deploy/build.sh --service web
+./deploy/build.sh --service backend
+./deploy/build.sh --service postgres
+
+# 仅构建不推送
+./deploy/build.sh --skip-push
+```

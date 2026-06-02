@@ -10,8 +10,8 @@ set -euo pipefail
 #   ./deploy/build.sh --service web     # 只构建 web 服务
 # ============================================================
 
-HARBOR_URL="192.168.66.26:8000"
-HARBOR_PROJECT="library"  # 改为实际 Harbor 项目名
+HARBOR_URL="${HARBOR_URL:-192.168.66.26:8000}"
+HARBOR_PROJECT="${HARBOR_PROJECT:-library}"
 IMAGE_TAG="${1:-latest}"
 SKIP_PUSH=false
 SERVICE_FILTER=""
@@ -32,6 +32,14 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$SCRIPT_DIR"
 
+# 加载 .env.deploy（gitignored，含 Harbor 密码等敏感信息）
+if [ -f .env.deploy ]; then
+  set -a
+  # shellcheck source=/dev/null
+  source .env.deploy
+  set +a
+fi
+
 echo "========================================"
 echo " Harbor: $HARBOR_URL/$HARBOR_PROJECT"
 echo " Tag:    $IMAGE_TAG"
@@ -39,8 +47,16 @@ echo " Skip push: $SKIP_PUSH"
 echo " Filter: ${SERVICE_FILTER:-全部}"
 echo "========================================"
 
-# 登录 Harbor（如果未登录）
-docker inspect "$HARBOR_URL" &>/dev/null || docker login "$HARBOR_URL"
+# 登录 Harbor（优先使用 .env.deploy 中的 HARBOR_USERNAME / HARBOR_PASSWORD）
+if [ "$SKIP_PUSH" = false ]; then
+  if docker inspect "$HARBOR_URL" &>/dev/null; then
+    echo "Harbor 已登录"
+  elif [ -n "${HARBOR_USERNAME:-}" ] && [ -n "${HARBOR_PASSWORD:-}" ]; then
+    echo "$HARBOR_PASSWORD" | docker login "$HARBOR_URL" --username "$HARBOR_USERNAME" --password-stdin
+  else
+    docker login "$HARBOR_URL"
+  fi
+fi
 
 # ---------- 1. Web 前端 ----------
 if [ -z "$SERVICE_FILTER" ] || [ "$SERVICE_FILTER" = "web" ]; then
@@ -48,19 +64,19 @@ if [ -z "$SERVICE_FILTER" ] || [ "$SERVICE_FILTER" = "web" ]; then
   echo ">>> [web] 构建前端镜像 ..."
   docker build \
     -f web-client/Dockerfile \
-    -t "$HARBOR_URL/$HARBOR_PROJECT/ai-trading-web:$IMAGE_TAG" \
+    -t "$HARBOR_URL/$HARBOR_PROJECT/web:$IMAGE_TAG" \
     --build-arg VITE_API_URL=/ \
     --build-arg VITE_WS_URL=/ \
     .
 
   # 额外打 latest 标签
   if [ "$IMAGE_TAG" != "latest" ]; then
-    docker tag "$HARBOR_URL/$HARBOR_PROJECT/ai-trading-web:$IMAGE_TAG" \
-           "$HARBOR_URL/$HARBOR_PROJECT/ai-trading-web:latest"
+    docker tag "$HARBOR_URL/$HARBOR_PROJECT/web:$IMAGE_TAG" \
+           "$HARBOR_URL/$HARBOR_PROJECT/web:latest"
   fi
 
   if [ "$SKIP_PUSH" = false ]; then
-    docker push "$HARBOR_URL/$HARBOR_PROJECT/ai-trading-web:$IMAGE_TAG"
+    docker push "$HARBOR_URL/$HARBOR_PROJECT/web:$IMAGE_TAG"
     echo "  ✓ web 已推送"
   fi
 fi
@@ -71,16 +87,16 @@ if [ -z "$SERVICE_FILTER" ] || [ "$SERVICE_FILTER" = "backend" ]; then
   echo ">>> [backend] 构建后端镜像 ..."
   docker build \
     -f backend/Dockerfile \
-    -t "$HARBOR_URL/$HARBOR_PROJECT/ai-trading-backend:$IMAGE_TAG" \
+    -t "$HARBOR_URL/$HARBOR_PROJECT/backend:$IMAGE_TAG" \
     ./backend
 
   if [ "$IMAGE_TAG" != "latest" ]; then
-    docker tag "$HARBOR_URL/$HARBOR_PROJECT/ai-trading-backend:$IMAGE_TAG" \
-           "$HARBOR_URL/$HARBOR_PROJECT/ai-trading-backend:latest"
+    docker tag "$HARBOR_URL/$HARBOR_PROJECT/backend:$IMAGE_TAG" \
+           "$HARBOR_URL/$HARBOR_PROJECT/backend:latest"
   fi
 
   if [ "$SKIP_PUSH" = false ]; then
-    docker push "$HARBOR_URL/$HARBOR_PROJECT/ai-trading-backend:$IMAGE_TAG"
+    docker push "$HARBOR_URL/$HARBOR_PROJECT/backend:$IMAGE_TAG"
     echo "  ✓ backend 已推送"
   fi
 fi
