@@ -1,21 +1,6 @@
-import axios from 'axios'
+import { createApiClient } from '@/api/client'
 
-function getApiBaseUrl(): string {
-  if ((import.meta as any).env?.VITE_API_URL) {
-    return (import.meta as any).env.VITE_API_URL
-  }
-  return `http://${window.location.hostname}:8766`
-}
-
-const API_BASE_URL = getApiBaseUrl()
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
+const apiClient = createApiClient()
 
 // ==================== 类型定义 ====================
 
@@ -472,11 +457,7 @@ export async function updatePendingOrderConfigAPI(payload: PendingOrderConfigUpd
   return true
 }
 
-const finaApiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: { 'Content-Type': 'application/json' }
-})
+const finaApiClient = createApiClient()
 
 export async function getFinaMainbz(tsCode: string): Promise<FinaMainbzItem[]> {
   const response = await finaApiClient.get<FinaMainbzResponse>('/api/market/hsgt/fina/mainbz', {

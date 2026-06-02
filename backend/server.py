@@ -1684,19 +1684,27 @@ app.include_router(trading_router)
 
 EXTERNAL_API = os.getenv("TRADING_EXTERNAL_API", "http://127.0.0.1:8882")
 MARKET_API = os.getenv("MARKET_API", "http://127.0.0.1:8882")
-USER_API = os.getenv("USER_API", "http://127.0.0.1:8001")
+USER_API = os.getenv("USER_API", "http://192.168.66.198:8001")
+
+
+def _authorization_headers(request: Request) -> Dict[str, str]:
+    auth_header = request.headers.get("authorization") or ""
+    if not auth_header:
+        return {}
+    return {"Authorization": auth_header}
 
 
 async def _proxy_market(full_path: str, request: Request) -> Any:
     url = f"{MARKET_API}/{full_path}"
     params = dict(request.query_params)
+    headers = _authorization_headers(request)
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             if request.method == "GET":
-                resp = await client.get(url, params=params)
+                resp = await client.get(url, params=params, headers=headers)
             else:
                 body = await request.json()
-                resp = await client.post(url, json=body, params=params)
+                resp = await client.post(url, json=body, params=params, headers=headers)
         return resp.json()
     except Exception as e:
         logger.error("代理市场数据失败: %s %s", url, e)
@@ -1714,11 +1722,11 @@ async def proxy_market_post(full_path: str, request: Request):
 
 
 @app.get("/strategy_info")
-async def get_strategy_info():
+async def get_strategy_info(request: Request):
     """获取策略配置"""
     try:
         async with httpx.AsyncClient(trust_env=False) as client:
-            response = await client.get(f"{EXTERNAL_API}/strategy_info")
+            response = await client.get(f"{EXTERNAL_API}/strategy_info", headers=_authorization_headers(request))
             if response.status_code == 200:
                 return response.json()
             return {"switchSta": False, "buy_1m": 0, "sell_1m": 0}
@@ -1728,11 +1736,15 @@ async def get_strategy_info():
 
 
 @app.post("/strategy_action")
-async def strategy_action(request: dict):
+async def strategy_action(payload: dict, request: Request):
     """策略操作"""
     try:
         async with httpx.AsyncClient(trust_env=False) as client:
-            response = await client.post(f"{EXTERNAL_API}/strategy_action", json=request)
+            response = await client.post(
+                f"{EXTERNAL_API}/strategy_action",
+                json=payload,
+                headers=_authorization_headers(request)
+            )
             if response.status_code == 200:
                 return {"code": 0, "message": "success"}
             return {"code": 1, "message": "操作失败"}
@@ -1742,11 +1754,15 @@ async def strategy_action(request: dict):
 
 
 @app.post("/strategy/toggle")
-async def proxy_strategy_toggle(request: dict):
+async def proxy_strategy_toggle(payload: dict, request: Request):
     """策略开关控制 - 转发到外部策略服务"""
     try:
         async with httpx.AsyncClient(trust_env=False) as client:
-            response = await client.post(f"{EXTERNAL_API}/strategy/toggle", json=request)
+            response = await client.post(
+                f"{EXTERNAL_API}/strategy/toggle",
+                json=payload,
+                headers=_authorization_headers(request)
+            )
             if response.status_code == 200:
                 return response.json()
             return {"code": 1, "message": "操作失败"}
@@ -1756,11 +1772,15 @@ async def proxy_strategy_toggle(request: dict):
 
 
 @app.post("/strategy/signals")
-async def proxy_strategy_signals(request: dict):
+async def proxy_strategy_signals(payload: dict, request: Request):
     """获取策略信号 - 转发到外部策略服务"""
     try:
         async with httpx.AsyncClient(trust_env=False) as client:
-            response = await client.post(f"{EXTERNAL_API}/strategy/signals", json=request)
+            response = await client.post(
+                f"{EXTERNAL_API}/strategy/signals",
+                json=payload,
+                headers=_authorization_headers(request)
+            )
             if response.status_code == 200:
                 return response.json()
             return {
@@ -1776,11 +1796,14 @@ async def proxy_strategy_signals(request: dict):
 
 
 @app.get("/strategy/config/take_profit")
-async def proxy_get_take_profit_config():
+async def proxy_get_take_profit_config(request: Request):
     """获取止盈配置 - 转发到外部策略服务"""
     try:
         async with httpx.AsyncClient(trust_env=False) as client:
-            response = await client.get(f"{EXTERNAL_API}/strategy/config/take_profit")
+            response = await client.get(
+                f"{EXTERNAL_API}/strategy/config/take_profit",
+                headers=_authorization_headers(request)
+            )
             if response.status_code == 200:
                 return response.json()
             return {"code": 1, "message": "获取止盈配置失败"}
@@ -1791,6 +1814,7 @@ async def proxy_get_take_profit_config():
 
 @app.post("/strategy/config/take_profit")
 async def proxy_set_take_profit_config(
+    request: Request,
     enabled: Optional[bool] = Query(default=None),
     percent: Optional[float] = Query(default=None),
 ):
@@ -1802,7 +1826,11 @@ async def proxy_set_take_profit_config(
         if percent is not None:
             params["percent"] = percent
         async with httpx.AsyncClient(trust_env=False) as client:
-            response = await client.post(f"{EXTERNAL_API}/strategy/config/take_profit", params=params)
+            response = await client.post(
+                f"{EXTERNAL_API}/strategy/config/take_profit",
+                params=params,
+                headers=_authorization_headers(request)
+            )
             if response.status_code == 200:
                 return response.json()
             return {"code": 1, "message": "设置止盈配置失败"}
@@ -1812,11 +1840,14 @@ async def proxy_set_take_profit_config(
 
 
 @app.get("/strategy/config/stop_loss")
-async def proxy_get_stop_loss_config():
+async def proxy_get_stop_loss_config(request: Request):
     """获取止损配置 - 转发到外部策略服务"""
     try:
         async with httpx.AsyncClient(trust_env=False) as client:
-            response = await client.get(f"{EXTERNAL_API}/strategy/config/stop_loss")
+            response = await client.get(
+                f"{EXTERNAL_API}/strategy/config/stop_loss",
+                headers=_authorization_headers(request)
+            )
             if response.status_code == 200:
                 return response.json()
             return {"code": 1, "message": "获取止损配置失败"}
@@ -1827,6 +1858,7 @@ async def proxy_get_stop_loss_config():
 
 @app.post("/strategy/config/stop_loss")
 async def proxy_set_stop_loss_config(
+    request: Request,
     enabled: Optional[bool] = Query(default=None),
     percent: Optional[float] = Query(default=None),
 ):
@@ -1838,7 +1870,11 @@ async def proxy_set_stop_loss_config(
         if percent is not None:
             params["percent"] = percent
         async with httpx.AsyncClient(trust_env=False) as client:
-            response = await client.post(f"{EXTERNAL_API}/strategy/config/stop_loss", params=params)
+            response = await client.post(
+                f"{EXTERNAL_API}/strategy/config/stop_loss",
+                params=params,
+                headers=_authorization_headers(request)
+            )
             if response.status_code == 200:
                 return response.json()
             return {"code": 1, "message": "设置止损配置失败"}
@@ -1895,11 +1931,11 @@ def _upstream_error(op_name: str, upstream_url: str, response: httpx.Response, c
 
 
 @app.post("/api/auth/login")
-async def auth_login(payload: dict):
+async def auth_login(payload: dict, request: Request):
     try:
         upstream_url = f"{USER_API}/users/login"
         async with httpx.AsyncClient(timeout=12.0) as client:
-            response = await client.post(upstream_url, json=payload)
+            response = await client.post(upstream_url, json=payload, headers=_authorization_headers(request))
         content = _proxy_response_content(response)
         if response.status_code >= 400:
             return _upstream_error("登录", upstream_url, response, content)
@@ -1913,10 +1949,7 @@ async def auth_login(payload: dict):
 async def auth_token_check(request: Request):
     try:
         upstream_url = f"{USER_API}/users/token/check"
-        headers: Dict[str, str] = {}
-        auth_header = request.headers.get("authorization") or ""
-        if auth_header:
-            headers["Authorization"] = auth_header
+        headers = _authorization_headers(request)
         async with httpx.AsyncClient(timeout=12.0) as client:
             response = await client.get(upstream_url, headers=headers)
         content = _proxy_response_content(response)
@@ -1928,8 +1961,39 @@ async def auth_token_check(request: Request):
         return _standard_error(str(e))
 
 
+@app.post("/api/auth/token/refresh")
+async def auth_token_refresh(payload: dict, request: Request):
+    try:
+        upstream_url = f"{USER_API}/users/token/refresh"
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            response = await client.post(upstream_url, json=payload, headers=_authorization_headers(request))
+        content = _proxy_response_content(response)
+        if response.status_code >= 400:
+            return _upstream_error("Token刷新", upstream_url, response, content)
+        return _standard_success(content)
+    except Exception as e:
+        logger.error("auth token refresh proxy failed: %s", e)
+        return _standard_error(str(e))
+
+
+@app.post("/api/auth/token/revoke")
+async def auth_token_revoke(request: Request):
+    try:
+        upstream_url = f"{USER_API}/users/token/revoke"
+        headers = _authorization_headers(request)
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            response = await client.post(upstream_url, headers=headers)
+        content = _proxy_response_content(response)
+        if response.status_code >= 400:
+            return _upstream_error("Token撤销", upstream_url, response, content)
+        return _standard_success(content)
+    except Exception as e:
+        logger.error("auth token revoke proxy failed: %s", e)
+        return _standard_error(str(e))
+
+
 @app.get("/api/auth/users")
-async def auth_get_users(page: int = Query(default=1), page_size: int = Query(default=20)):
+async def auth_get_users(request: Request, page: int = Query(default=1), page_size: int = Query(default=20)):
     try:
         upstream_url = f"{USER_API}/users"
         async with httpx.AsyncClient(timeout=12.0) as client:
@@ -1938,7 +2002,8 @@ async def auth_get_users(page: int = Query(default=1), page_size: int = Query(de
                 params={
                     "page": page,
                     "page_size": page_size
-                }
+                },
+                headers=_authorization_headers(request)
             )
         content = _proxy_response_content(response)
         if response.status_code >= 400:
@@ -1950,11 +2015,11 @@ async def auth_get_users(page: int = Query(default=1), page_size: int = Query(de
 
 
 @app.post("/api/auth/users")
-async def auth_create_user(payload: dict):
+async def auth_create_user(payload: dict, request: Request):
     try:
         upstream_url = f"{USER_API}/users"
         async with httpx.AsyncClient(timeout=12.0) as client:
-            response = await client.post(upstream_url, json=payload)
+            response = await client.post(upstream_url, json=payload, headers=_authorization_headers(request))
         content = _proxy_response_content(response)
         if response.status_code >= 400:
             return _upstream_error("创建用户", upstream_url, response, content)
@@ -1965,11 +2030,11 @@ async def auth_create_user(payload: dict):
 
 
 @app.delete("/api/auth/users/{user_id}")
-async def auth_delete_user(user_id: int):
+async def auth_delete_user(user_id: int, request: Request):
     try:
         upstream_url = f"{USER_API}/users/{user_id}"
         async with httpx.AsyncClient(timeout=12.0) as client:
-            response = await client.delete(upstream_url)
+            response = await client.delete(upstream_url, headers=_authorization_headers(request))
         content = _proxy_response_content(response)
         if response.status_code >= 400:
             return _upstream_error("删除用户", upstream_url, response, content)

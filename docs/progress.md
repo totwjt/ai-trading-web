@@ -191,6 +191,47 @@ App.vue
 
 ## Phase 3: 业务模块开发
 
+### 3.1 用户模块 - 登录注册接入（2026-06-02） ✅
+
+#### 已完成：
+1. ✅ 接入外部鉴权服务代理
+   - 本项目后端 `/api/auth/*` 继续作为前端统一入口
+   - 开发环境默认外部鉴权服务：`http://192.168.66.198:8001`
+   - 调用链固定为：前端 -> Python 后端 -> 外部鉴权 API
+
+2. ✅ 补齐 Token 生命周期接口
+   - `/api/auth/login` 转发外部 `/users/login`
+   - `/api/auth/token/check` 转发外部 `/users/token/check`
+   - 新增 `/api/auth/token/refresh` 转发外部 `/users/token/refresh`
+   - 新增 `/api/auth/token/revoke` 转发外部 `/users/token/revoke`
+   - 后端仍统一返回 `{ code, message, data, timestamp }`
+
+3. ✅ 收紧前端认证流程
+   - 登录页保留公开注册入口
+   - 注册成功后回到登录态并预填账号密码，不自动登录
+   - 登录成功后保存 access token、refresh token 与用户信息，并同步用户 uid
+   - 退出登录时优先撤销 token，失败也清理本地会话
+   - 移除基于默认 uid 的业务路由免登录放行
+
+#### 当前注意事项：
+1. 本轮不新增角色/权限模型；用户管理权限仍依赖后续后端或外部鉴权服务提供明确角色字段
+2. 生产环境鉴权服务地址暂不处理，后续通过 `USER_API` 环境变量覆盖
+
+### 3.1.1 外部 API 鉴权 Header 健全（2026-06-02） ✅
+
+#### 已完成：
+1. ✅ 前端 API 请求统一注入登录 Token
+   - 新增统一 API client
+   - `auth`、`market`、`news`、`strategy`、`backtest`、`trading`、`externalStrategy` 请求统一自动附加 `Authorization: Bearer <access_token>`
+
+2. ✅ 后端代理统一透传 Authorization
+   - `backend/server.py` 的市场、策略、鉴权代理转发外部 API 时透传前端 Bearer token
+   - `backend/trading/routers.py` 的自选、下单、交易记录、交易状态、策略配置外部调用透传 Bearer token
+
+#### 当前注意事项：
+1. 后端本轮仅透传前端登录态 token，不新增服务间固定 token 或自动刷新重试
+2. 若未来外部服务有不同 token 来源，需要按服务拆分认证配置
+
 ### 3.6 路由页面补充：宏观日历 / 因子看板（2026-04-30） ✅
 
 #### 已完成：

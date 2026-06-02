@@ -1,17 +1,7 @@
-import axios from 'axios'
 import type { ApiResponse } from './strategy'
+import { createApiClient } from '@/api/client'
 
-function getApiBaseUrl(): string {
-  if ((import.meta as any).env?.VITE_API_URL) {
-    return (import.meta as any).env.VITE_API_URL
-  }
-  return `http://${window.location.hostname}:8766`
-}
-
-const API_BASE_URL = getApiBaseUrl()
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+const apiClient = createApiClient({
   timeout: 60000,
   headers: {
     'Content-Type': 'application/json'

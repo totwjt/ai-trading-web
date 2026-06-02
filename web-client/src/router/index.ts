@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
-import { useUserStore } from '@/stores/userStore'
 
 const router = createRouter({
   history: createWebHistory('/'),
@@ -128,12 +127,10 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const authStore = useAuthStore()
-  const userStore = useUserStore()
   const requiresAuth = to.meta.requiresAuth !== false
   const requiredPermission = typeof to.meta.permission === 'string' ? to.meta.permission : ''
-  const allowUidCompatAccess = !authStore.isAuthenticated && userStore.hasUser
 
-  if (requiresAuth && !authStore.isAuthenticated && !allowUidCompatAccess) {
+  if (requiresAuth && !authStore.isAuthenticated) {
     return {
       path: '/login',
       query: {

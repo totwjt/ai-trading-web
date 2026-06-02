@@ -1,21 +1,6 @@
-import axios from 'axios'
+import { createApiClient } from '@/api/client'
 
-function getApiBaseUrl(): string {
-  if ((import.meta as any).env?.VITE_API_URL) {
-    return (import.meta as any).env.VITE_API_URL
-  }
-  return `http://${window.location.hostname}:8766`
-}
-
-const API_BASE_URL = getApiBaseUrl()
-
-const marketApiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
+const marketApiClient = createApiClient()
 
 export interface HsgtTop10Item {
   trade_date: string

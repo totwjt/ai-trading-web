@@ -47,7 +47,6 @@ This file contains guidelines for AI agents working on the AI Trading Web projec
 /recommendation -> 智能荐股 (使用 MainLayout)
 /backtest       -> 策略回测 (使用 MainLayout)
 /simulation     -> 模拟交易 (使用 MainLayout)
-/holdings       -> 我的持仓 (使用 MainLayout)
 /settings       -> 设置 (使用 MainLayout)
 ```
 
@@ -60,7 +59,6 @@ App.vue
         ├── RecommendationView.vue (智能荐股 - main 内容)
         ├── BacktestView.vue (策略回测 - main 内容)
         ├── SimulationView.vue (模拟交易 - main 内容)
-        ├── HoldingsView.vue (我的持仓 - main 内容)
         └── SettingsView.vue (设置 - main 内容)
 ```
 

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Icon from '@/components/common/Icon.vue'
 import ThemeSwitcher from '@/components/common/ThemeSwitcher.vue'
+import { revokeTokenAPI } from '@/api/auth'
 import { useAuthStore } from '@/stores/authStore'
 import { useUserStore } from '@/stores/userStore'
 
@@ -19,7 +20,7 @@ const menuItems = computed(() => [
   { path: '/factor-board', name: '因子看板', icon: 'dashboard' },
   { path: '/backtest', name: '策略回测', icon: 'assessment' },
   { path: '/simulation', name: '模拟交易', icon: 'swap_horiz' },
-  { path: '/holdings', name: '我的持仓', icon: 'inventory' },
+  //{ path: '/holdings', name: '我的持仓', icon: 'inventory' },
   { path: '/trading', name: '股票交易', icon: 'trending_up' },
   { path: '/trading-terminal', name: '交易终端', icon: 'analytics' },
   { path: '/strategy-trading', name: '策略交易', icon: 'play_arrow' },
@@ -38,6 +39,14 @@ const showSidebar = computed(() => {
 })
 
 const logout = async () => {
+  const accessToken = authStore.accessToken
+  if (accessToken) {
+    try {
+      await revokeTokenAPI(accessToken)
+    } catch (error) {
+      console.warn('revoke token failed', error)
+    }
+  }
   authStore.clearSession()
   userStore.setUid('')
   await router.replace('/login')

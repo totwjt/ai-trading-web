@@ -1,21 +1,6 @@
-import axios from 'axios'
+import { createApiClient } from '@/api/client'
 
-function getAuthApiBaseUrl(): string {
-  const envUrl = (import.meta as any).env?.VITE_API_URL
-  if (typeof envUrl === 'string' && envUrl.trim()) return envUrl.trim()
-  if (typeof window !== 'undefined') {
-    return `http://${window.location.hostname}:8766`
-  }
-  return 'http://127.0.0.1:8766'
-}
-
-const authApiClient = axios.create({
-  baseURL: getAuthApiBaseUrl(),
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
+const authApiClient = createApiClient()
 
 interface ApiResponse<T> {
   code: number
@@ -47,6 +32,21 @@ export interface LoginResponse {
   user: UserProfile
 }
 
+export interface TokenRefreshRequest {
+  refresh_token: string
+}
+
+export interface TokenRefreshResponse {
+  access_token: string
+  refresh_token: string
+  token_type: string
+  expires_in: number
+}
+
+export interface TokenRevokeResponse {
+  message: string
+}
+
 export interface CreateUserRequest {
   username: string
   password: string
@@ -72,6 +72,30 @@ export async function checkTokenAPI(accessToken: string): Promise<boolean> {
     throw new Error(response.data.message || 'Token校验失败')
   }
   return response.data.data?.valid === true
+}
+
+export async function refreshTokenAPI(payload: TokenRefreshRequest): Promise<TokenRefreshResponse> {
+  const response = await authApiClient.post<ApiResponse<TokenRefreshResponse>>('/api/auth/token/refresh', payload)
+  if (response.data.code !== 0) {
+    throw new Error(response.data.message || 'Token刷新失败')
+  }
+  return response.data.data
+}
+
+export async function revokeTokenAPI(accessToken: string): Promise<TokenRevokeResponse> {
+  const response = await authApiClient.post<ApiResponse<TokenRevokeResponse>>(
+    '/api/auth/token/revoke',
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    }
+  )
+  if (response.data.code !== 0) {
+    throw new Error(response.data.message || '退出登录失败')
+  }
+  return response.data.data
 }
 
 export async function getUsersAPI(page = 1, pageSize = 20): Promise<UserProfile[]> {

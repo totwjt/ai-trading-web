@@ -2,7 +2,7 @@
 股票交易服务 - 股票检索 API
 """
 
-from fastapi import APIRouter, Query, HTTPException, Depends
+from fastapi import APIRouter, Query, HTTPException, Depends, Request
 from pydantic import BaseModel
 from typing import List, Optional, Literal
 from datetime import datetime
@@ -31,6 +31,13 @@ ORDER_API = os.getenv("TRADING_ORDER_API", "http://127.0.0.1:8881")
 TRADE_RECORD_API = os.getenv("TRADING_RECORD_API", "http://127.0.0.1:8881")
 TERMINAL_CITY_OPTIONS = {"上海", "北京", "深圳", "广州", "杭州", "成都"}
 DEFAULT_TERMINAL_CITY = "北京"
+
+
+def authorization_headers(request: Request) -> dict:
+    auth_header = request.headers.get("authorization") or ""
+    if not auth_header:
+        return {}
+    return {"Authorization": auth_header}
 
 
 # ==================== 数据模型 ====================
@@ -300,12 +307,12 @@ async def get_stock_realtime(ts_code: str, db: AsyncSession = Depends(get_db)):
 
 
 @trading_router.get("/watchlist")
-async def get_watchlist(db: AsyncSession = Depends(get_db)):
+async def get_watchlist(request: Request, db: AsyncSession = Depends(get_db)):
     """获取自选股票列表"""
     try:
         logger.info(f"正在请求外部API: {EXTERNAL_API}/stock/realtime")
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(f"{EXTERNAL_API}/stock/realtime")
+            response = await client.get(f"{EXTERNAL_API}/stock/realtime", headers=authorization_headers(request))
 
             logger.info(f"外部API响应状态: {response.status_code}")
             if response.status_code != 200:
@@ -380,6 +387,7 @@ async def get_watchlist(db: AsyncSession = Depends(get_db)):
 @trading_router.post("/watchlist/{ts_code}")
 async def add_watchlist(
     ts_code: str,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """添加自选股票"""
@@ -387,7 +395,8 @@ async def add_watchlist(
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{EXTERNAL_API}/ts_code",
-                json={"ts_code": ts_code}
+                json={"ts_code": ts_code},
+                headers=authorization_headers(request)
             )
             # 200: 成功
             # 400 + "already exists": 已经是自选了，也算成功
@@ -431,11 +440,11 @@ async def add_watchlist(
 
 
 @trading_router.delete("/watchlist/{ts_code}")
-async def remove_watchlist(ts_code: str, db: AsyncSession = Depends(get_db)):
+async def remove_watchlist(ts_code: str, request: Request, db: AsyncSession = Depends(get_db)):
     """删除自选股票"""
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.delete(f"{EXTERNAL_API}/ts_code/{ts_code}")
+            response = await client.delete(f"{EXTERNAL_API}/ts_code/{ts_code}", headers=authorization_headers(request))
             if response.status_code == 200:
                 return {
                     "code": 0,
@@ -688,7 +697,7 @@ async def update_terminal_city(
 
 
 @trading_router.post("/order")
-async def create_order(order: OrderRequest):
+async def create_order(order: OrderRequest, request: Request):
     """快速交易下单（代理到外部交易接口）"""
     try:
         payload = {
@@ -703,7 +712,11 @@ async def create_order(order: OrderRequest):
             payload["position_level"] = order.position_level
 
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(f"{ORDER_API}/api/order", json=payload)
+            response = await client.post(
+                f"{ORDER_API}/api/order",
+                json=payload,
+                headers=authorization_headers(request)
+            )
             result = response.json() if response.content else {}
             if response.status_code >= 400:
                 return {
@@ -1128,6 +1141,7 @@ async def update_pending_order_config(
 
 @trading_router.get("/trade-records/by-machine")
 async def get_trade_records_by_machine(
+    request: Request,
     machine_code: str = Query(..., description="终端MAC地址"),
     start_time: Optional[str] = Query(default=None, description="开始时间 ISO8601"),
     end_time: Optional[str] = Query(default=None, description="结束时间 ISO8601"),
@@ -1141,7 +1155,11 @@ async def get_trade_records_by_machine(
             params["end_time"] = end_time
 
         async with httpx.AsyncClient(timeout=12.0) as client:
-            response = await client.get(f"{TRADE_RECORD_API}/api/trade-records/by-machine", params=params)
+            response = await client.get(
+                f"{TRADE_RECORD_API}/api/trade-records/by-machine",
+                params=params,
+                headers=authorization_headers(request)
+            )
             if response.status_code >= 400:
                 logger.error("按机器查询交易记录失败: status=%s machine_code=%s", response.status_code, machine_code)
                 return {
@@ -1172,11 +1190,11 @@ async def get_trade_records_by_machine(
 # ==================== 交易记录接口 ====================
 
 @trading_router.get("/trades")
-async def get_trades(db: AsyncSession = Depends(get_db)):
+async def get_trades(request: Request, db: AsyncSession = Depends(get_db)):
     """获取交易记录"""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{TRADER_API}/trader/trades")
+            response = await client.get(f"{TRADER_API}/trader/trades", headers=authorization_headers(request))
 
             if response.status_code != 200:
                 logger.error(f"获取交易记录失败: {response.status_code}")
@@ -1223,11 +1241,11 @@ async def get_trades(db: AsyncSession = Depends(get_db)):
 
 
 @trading_router.get("/today_trades")
-async def get_today_trades(db: AsyncSession = Depends(get_db)):
+async def get_today_trades(request: Request, db: AsyncSession = Depends(get_db)):
     """获取当日成交"""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{TRADER_API}/trader/today_trades")
+            response = await client.get(f"{TRADER_API}/trader/today_trades", headers=authorization_headers(request))
 
             if response.status_code != 200:
                 logger.error(f"获取当日成交失败: {response.status_code}")
@@ -1275,11 +1293,11 @@ async def get_today_trades(db: AsyncSession = Depends(get_db)):
 # ==================== 系统状态接口 ====================
 
 @trading_router.get("/system_status")
-async def get_system_status(db: AsyncSession = Depends(get_db)):
+async def get_system_status(request: Request, db: AsyncSession = Depends(get_db)):
     """获取系统连接状态"""
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{TRADER_API}/trader/status")
+            response = await client.get(f"{TRADER_API}/trader/status", headers=authorization_headers(request))
 
             if response.status_code != 200:
                 return {
@@ -1310,11 +1328,11 @@ async def get_system_status(db: AsyncSession = Depends(get_db)):
 # ==================== 策略配置接口 ====================
 
 @trading_router.get("/strategy_info")
-async def get_strategy_info():
+async def get_strategy_info(request: Request):
     """获取策略配置"""
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{EXTERNAL_API}/strategy_info")
+            response = await client.get(f"{EXTERNAL_API}/strategy_info", headers=authorization_headers(request))
             if response.status_code == 200:
                 data = response.json()
                 return {
@@ -1337,19 +1355,23 @@ class StrategyActionRequest(BaseModel):
 
 
 @trading_router.post("/strategy_action")
-async def strategy_action(request: StrategyActionRequest):
+async def strategy_action(payload_request: StrategyActionRequest, request: Request):
     """策略操作"""
     try:
-        payload = {"action": request.action}
-        if request.sta is not None:
-            payload["sta"] = request.sta
-        if request.type:
-            payload["type"] = request.type
-        if request.value is not None:
-            payload["value"] = request.value
+        payload = {"action": payload_request.action}
+        if payload_request.sta is not None:
+            payload["sta"] = payload_request.sta
+        if payload_request.type:
+            payload["type"] = payload_request.type
+        if payload_request.value is not None:
+            payload["value"] = payload_request.value
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(f"{EXTERNAL_API}/strategy_action", json=payload)
+            response = await client.post(
+                f"{EXTERNAL_API}/strategy_action",
+                json=payload,
+                headers=authorization_headers(request)
+            )
             if response.status_code == 200:
                 return {"code": 0, "message": "success", "data": response.json()}
             return {"code": 1, "message": "操作失败", "timestamp": datetime.now().isoformat()}

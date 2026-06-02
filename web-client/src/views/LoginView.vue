@@ -21,11 +21,6 @@ const registerEmail = ref('')
 const registerPassword = ref('')
 const registerConfirmPassword = ref('')
 
-const resolvePermissions = (name: string): string[] => {
-  if (name.toLowerCase() === 'admin') return ['user:manage']
-  return []
-}
-
 const submitLogin = async () => {
   if (!username.value.trim() || !password.value.trim()) {
     message.warning('请输入用户名和密码')
@@ -39,12 +34,10 @@ const submitLogin = async () => {
       username: username.value.trim(),
       password: password.value
     })
-    const permissions = resolvePermissions(result.user.username || '')
     authStore.setSession({
       accessToken: result.access_token,
       refreshToken: result.refresh_token,
-      user: result.user,
-      permissions
+      user: result.user
     })
     userStore.setUid(String(result.user.uid || '').trim())
     message.success('登录成功')
