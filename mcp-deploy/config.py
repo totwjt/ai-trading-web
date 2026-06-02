@@ -39,6 +39,11 @@ class DeployConfig:
         # ----- Build -----
         self.image_tag: str = self._get_env("IMAGE_TAG", "latest")
 
+        # ----- Runtime data sources -----
+        self.market_data_database_url: Optional[str] = self._get_env(
+            "MARKET_DATA_DATABASE_URL", None
+        )
+
         # ----- Timeout -----
         self.ssh_timeout: int = int(self._get_env("SSH_TIMEOUT", "30"))
         self.build_timeout: int = int(self._get_env("BUILD_TIMEOUT", "600"))
@@ -93,6 +98,7 @@ class DeployConfig:
             if self.ssh_host
             else None,
             "image_tag": self.image_tag,
+            "market_data_database_url_configured": bool(self.market_data_database_url),
             "timeouts": {
                 "ssh": self.ssh_timeout,
                 "build": self.build_timeout,

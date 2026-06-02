@@ -16,6 +16,7 @@ import pandas as pd
 from sqlalchemy import text
 
 from common.database import async_session_maker
+from common.market_database import _require_market_session_maker
 from backtest.src.models import (
     Backtest,
     BacktestLog,
@@ -264,7 +265,8 @@ class BacktestEngine:
                 return requested_symbols
             return requested_symbols[:max_symbols]
 
-        async with async_session_maker() as session:
+        market_session_maker = _require_market_session_maker()
+        async with market_session_maker() as session:
             # 完整回测：限制最多 MAX_FULL_BACKTEST_SYMBOLS 只，数据量 >= 50
             if max_symbols is None:
                 rows = await session.execute(
@@ -334,7 +336,8 @@ class BacktestEngine:
             return symbols
 
     async def _load_price_frame(self, symbol: str) -> pd.DataFrame:
-        async with async_session_maker() as session:
+        market_session_maker = _require_market_session_maker()
+        async with market_session_maker() as session:
             rows = await session.execute(
                 text(
                     """
@@ -383,7 +386,8 @@ class BacktestEngine:
         return frame
 
     async def _load_benchmark_series(self) -> Dict[str, float]:
-        async with async_session_maker() as session:
+        market_session_maker = _require_market_session_maker()
+        async with market_session_maker() as session:
             rows = await session.execute(
                 text(
                     """

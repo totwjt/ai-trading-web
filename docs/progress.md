@@ -382,3 +382,23 @@ npm run dev
 1. 通过当前仓库 FastAPI app 的本地 ASGI 调用确认 `/health` 路由正常返回
 2. 受当前终端沙箱权限与数据库连接限制影响，无法在本轮稳定完成基于真实 PostgreSQL 的全量接口回放
 3. 后续若需要继续做真库联调，建议在可访问本地 `localhost:5432/tushare_sync` 的环境下再次执行 `cd backend && python server.py`
+
+### 3.6 行情表独立数据源（2026-06-02） ✅
+
+#### 已完成：
+1. ✅ 新增独立行情库连接配置
+   - 新增 `MARKET_DATA_DATABASE_URL`
+   - 仅用于 `stock_daily`、`stock_adj_factor`、`index_daily`、`stock_basic`
+   - 未配置时行情相关接口与回测行情加载直接失败，不回退主业务库
+
+2. ✅ 拆分回测行情读取与业务写入
+   - 行情读取切到独立行情库
+   - `backtests`、`backtest_logs`、`equity_curves`、`backtest_trades` 仍使用主业务库
+
+3. ✅ 股票搜索与实时行情接口切换
+   - `/api/trading/stock/search` 读取行情库 `stock_basic`
+   - `/api/trading/stock/realtime/{ts_code}` 读取行情库 `stock_daily`
+
+#### 当前剩余风险：
+1. 生产 `.env.deploy` 需要补真实 `MARKET_DATA_DATABASE_URL` 凭据后再部署
+2. `z_strategies` 中四张表字段需与当前 SQL 保持一致

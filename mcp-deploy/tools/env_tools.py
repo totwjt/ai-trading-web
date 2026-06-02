@@ -33,6 +33,8 @@ def register_env_tools(mcp: FastMCP) -> None:
             warnings.append("SSH_HOST 未配置（如在开发环境仅构建，可忽略）")
         if not config.ssh_user:
             warnings.append("SSH_USER 未配置（如在开发环境仅构建，可忽略）")
+        if not config.market_data_database_url:
+            warnings.append("MARKET_DATA_DATABASE_URL 未配置，行情/回测数据读取会失败")
 
         if warnings:
             result["status"] = "warning"
@@ -78,6 +80,7 @@ def register_env_tools(mcp: FastMCP) -> None:
             "POSTGRES_USER",
             "POSTGRES_PASSWORD",
             "POSTGRES_DB",
+            "MARKET_DATA_DATABASE_URL",
         ]
 
         missing = [v for v in required_vars if v not in content]

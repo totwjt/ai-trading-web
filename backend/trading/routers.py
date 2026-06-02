@@ -12,6 +12,7 @@ import re
 import os
 
 from common.database import get_db
+from common.market_database import get_market_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 try:
@@ -176,13 +177,21 @@ def get_stock_match_score(keyword: str, ts_code: str, name: str) -> Optional[int
     return None
 
 
+def format_daily_trade_time(value) -> Optional[str]:
+    if not value:
+        return None
+    if hasattr(value, "strftime"):
+        return value.strftime("%Y-%m-%d 00:00:00")
+    return datetime.strptime(str(value), "%Y%m%d").strftime("%Y-%m-%d 00:00:00")
+
+
 # ==================== 路由 ====================
 
 @trading_router.get("/stock/search", response_model=StockSearchResponse)
 async def search_stocks(
     keyword: str = Query(..., description="搜索关键词，支持股票代码、名称或首字母简写"),
     limit: int = Query(default=20, ge=1, le=100, description="返回结果数量"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_market_db)
 ):
     """
     股票检索 API
@@ -252,26 +261,20 @@ async def search_stocks(
 
     except Exception as e:
         logger.error(f"股票搜索失败: {e}")
-        return StockSearchResponse(
-            code=0,
-            message="success",
-            data=[],
-            total=0,
-            timestamp=datetime.now().isoformat()
-        )
+        raise HTTPException(status_code=503, detail=f"股票搜索失败: {e}") from e
 
 
 @trading_router.get("/stock/realtime/{ts_code}", response_model=dict)
-async def get_stock_realtime(ts_code: str, db: AsyncSession = Depends(get_db)):
+async def get_stock_realtime(ts_code: str, db: AsyncSession = Depends(get_market_db)):
     """
     获取单只股票实时行情
     """
     try:
         query = text("""
-            SELECT ts_code, trade_time, open, high, low, close, vol
+            SELECT ts_code, trade_date, open, high, low, close, vol
             FROM stock_daily
             WHERE ts_code = :ts_code
-            ORDER BY trade_time DESC
+            ORDER BY trade_date DESC
             LIMIT 1
         """)
 
@@ -283,7 +286,7 @@ async def get_stock_realtime(ts_code: str, db: AsyncSession = Depends(get_db)):
 
         return {
             "ts_code": row[0],
-            "trade_time": row[1].strftime("%Y-%m-%d %H:%M:%S") if row[1] else None,
+            "trade_time": format_daily_trade_time(row[1]),
             "open": float(row[2]) if row[2] else 0,
             "high": float(row[3]) if row[3] else 0,
             "low": float(row[4]) if row[4] else 0,
@@ -295,15 +298,7 @@ async def get_stock_realtime(ts_code: str, db: AsyncSession = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"获取实时行情失败: {e}")
-        return {
-            "ts_code": ts_code,
-            "trade_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "open": 0,
-            "high": 0,
-            "low": 0,
-            "close": 0,
-            "vol": 0
-        }
+        raise HTTPException(status_code=503, detail=f"获取实时行情失败: {e}") from e
 
 
 @trading_router.get("/watchlist")

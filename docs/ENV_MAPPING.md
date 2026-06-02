@@ -95,6 +95,7 @@
 | `TRADING_RECORD_API` | `http://host.docker.internal:8881` | `192.168.66.26:8881` |
 | `USER_API` | `http://host.docker.internal:8001` | `192.168.66.26:8001` |
 | `DATABASE_URL` | `postgresql+asyncpg://wangjiangtao:123456@postgres:5432/tushare_sync` | Docker 内部 postgres 容器 |
+| `MARKET_DATA_DATABASE_URL` | `postgresql+asyncpg://<user>:<password>@host.docker.internal:5432/z_strategies` | 宿主机行情库，仅用于 `stock_daily` / `stock_adj_factor` / `index_daily` / `stock_basic` |
 
 ---
 
@@ -105,7 +106,8 @@
 | 前端开发服务器 | `192.168.66.186:3000` | — |
 | 后端 FastAPI | `192.168.66.186:8766` | Docker `backend:8766` → 暴露 `:8766` |
 | Nginx 入口 | — | Docker `web:80` → 暴露 `:8880`（80被占用） |
-| PostgreSQL | 宿主机 `localhost:5432` | Docker 内部 `postgres:5432` |
+| 主业务 PostgreSQL | 宿主机 `localhost:5432` | Docker 内部 `postgres:5432` |
+| 行情 PostgreSQL | — | 宿主机 `host.docker.internal:5432/z_strategies` |
 | **行情数据 (MARKET)** | `192.168.66.143:8099` | `192.168.66.26:8882` |
 | **策略/交易外部 (EXTERNAL)** | `192.168.66.143:8000` | `192.168.66.26:8882`（合并到 8882） |
 | **Trader** | `192.168.66.155:8003` | `192.168.66.26:8003` |
@@ -135,7 +137,8 @@
 |---|---|---|
 | 前端→后端 | 跨域 HTTP → `192.168.66.186:8766` | 同域 Nginx 反代 |
 | 后端→上游 | 直连各机器 IP | via `host.docker.internal` |
-| 数据库 | `localhost:5432`（本地） | `postgres:5432`（Docker 内部） |
+| 主业务数据库 | `localhost:5432`（本地） | `postgres:5432`（Docker 内部） |
+| 行情数据库 | `MARKET_DATA_DATABASE_URL` | `host.docker.internal:5432/z_strategies` |
 
 ---
 
