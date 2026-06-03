@@ -32,6 +32,7 @@ from common.database import async_session_maker, init_db
 from recommendation.db import get_latest_news, get_news_by_id
 from backtest.src.routers import strategy_router, backtest_router, preview_router
 from trading.routers import trading_router
+from trading.simulation_routers import simulation_router
 
 # 注册所有 SQLAlchemy 模型到 Base.metadata，确保 init_db() 能创建全部表
 import trading.models  # noqa: F401
@@ -1681,6 +1682,7 @@ app.include_router(strategy_router, prefix="/api")
 app.include_router(backtest_router, prefix="/api")
 app.include_router(preview_router, prefix="/api")
 app.include_router(trading_router)
+app.include_router(simulation_router)
 
 EXTERNAL_API = os.getenv("TRADING_EXTERNAL_API", "http://127.0.0.1:8882")
 MARKET_API = os.getenv("MARKET_API", "http://127.0.0.1:8882")

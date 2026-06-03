@@ -2,171 +2,97 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Icon from '@/components/common/Icon.vue'
+import {
+  getSimulation,
+  getHoldings,
+  getTrades,
+  pauseSimulation as pauseSimAPI,
+  resumeSimulation as resumeSimAPI,
+  stopSimulation as stopSimAPI,
+} from '@/api/simulation'
+import type { SimulationItem, HoldingItem, TradeRecord } from '@/api/simulation'
 
 const route = useRoute()
 const router = useRouter()
 
-// 模拟详情数据
-const simulation = ref({
-  id: 1,
-  name: '趋势先行A模拟',
-  strategyName: '趋势先行A (大盘股)',
-  status: 'running',
-  statusText: '运行中',
-  initialCapital: 1000000,
-  currentCapital: 1124800,
-  totalReturn: 12.48,
-  todayReturn: 1.24,
-  todayPL: 13840,
-  holdingsValue: 824500,
-  holdingsCount: 3,
-  winRate: 68.5,
-  tradeCount: 142,
-  startDate: '2024-01-15',
-  lastTradeTime: '10:32:15',
-  availableCapital: 300300,
-  frozenCapital: 0
+const loading = ref(true)
+const error = ref('')
+const operating = ref(false)
+
+const simulation = ref<SimulationItem>({
+  id: 0,
+  name: '',
+  strategy_name: '',
+  strategyName: '',
+  status: '',
+  status_text: '',
+  statusText: '',
+  initial_capital: 0,
+  initialCapital: 0,
+  current_capital: 0,
+  currentCapital: 0,
+  total_return: 0,
+  totalReturn: 0,
+  today_return: 0,
+  todayReturn: 0,
+  today_pl: 0,
+  todayPL: 0,
+  holdings_value: 0,
+  holdingsValue: 0,
+  holdings_count: 0,
+  holdingsCount: 0,
+  win_rate: 0,
+  winRate: 0,
+  trade_count: 0,
+  tradeCount: 0,
+  start_date: '',
+  startDate: '',
+  last_trade_time: '',
+  lastTradeTime: '',
+  available_capital: 0,
+  availableCapital: 0,
+  frozen_capital: 0,
+  frozenCapital: 0,
 })
 
-// 持仓股票列表
-const holdings = ref([
-  {
-    id: 1,
-    name: '贵州茅台',
-    code: '600519.SH',
-    quantity: 100,
-    avgCost: 1850.00,
-    currentPrice: 1880.50,
-    marketValue: 188050.00,
-    pl: 3050.00,
-    plPercent: 1.65,
-    weight: 22.8
-  },
-  {
-    id: 2,
-    name: '宁德时代',
-    code: '300750.SZ',
-    quantity: 500,
-    avgCost: 220.00,
-    currentPrice: 215.50,
-    marketValue: 107750.00,
-    pl: -2250.00,
-    plPercent: -2.05,
-    weight: 13.1
-  },
-  {
-    id: 3,
-    name: '招商银行',
-    code: '600036.SH',
-    quantity: 2000,
-    avgCost: 35.50,
-    currentPrice: 36.80,
-    marketValue: 73600.00,
-    pl: 2600.00,
-    plPercent: 3.66,
-    weight: 8.9
-  },
-  {
-    id: 4,
-    name: '中国平安',
-    code: '601318.SH',
-    quantity: 1000,
-    avgCost: 42.50,
-    currentPrice: 41.20,
-    marketValue: 41200.00,
-    pl: -1300.00,
-    plPercent: -3.06,
-    weight: 5.0
-  },
-  {
-    id: 5,
-    name: '五粮液',
-    code: '000858.SZ',
-    quantity: 200,
-    avgCost: 145.00,
-    currentPrice: 148.50,
-    marketValue: 29700.00,
-    pl: 700.00,
-    plPercent: 2.41,
-    weight: 3.6
-  }
-])
+const holdings = ref<HoldingItem[]>([])
+const trades = ref<TradeRecord[]>([])
 
-// 交易记录列表
-const trades = ref([
-  {
-    id: 1,
-    time: '10:32:15',
-    stockName: '中国平安',
-    stockCode: '601318.SH',
-    direction: 'buy',
-    directionText: '买入',
-    price: 41.20,
-    quantity: 1000,
-    amount: 41200.00,
-    status: '已成交'
-  },
-  {
-    id: 2,
-    time: '09:45:22',
-    stockName: '五粮液',
-    stockCode: '000858.SZ',
-    direction: 'sell',
-    directionText: '卖出',
-    price: 148.50,
-    quantity: 100,
-    amount: 14850.00,
-    status: '已成交'
-  },
-  {
-    id: 3,
-    time: '09:30:15',
-    stockName: '贵州茅台',
-    stockCode: '600519.SH',
-    direction: 'buy',
-    directionText: '买入',
-    price: 1875.00,
-    quantity: 100,
-    amount: 187500.00,
-    status: '已成交'
-  },
-  {
-    id: 4,
-    time: '10:15:30',
-    stockName: '招商银行',
-    stockCode: '600036.SH',
-    direction: 'buy',
-    directionText: '买入',
-    price: 36.50,
-    quantity: 500,
-    amount: 18250.00,
-    status: '已成交'
-  },
-  {
-    id: 5,
-    time: '14:28:00',
-    stockName: '宁德时代',
-    stockCode: '300750.SZ',
-    direction: 'sell',
-    directionText: '卖出',
-    price: 218.00,
-    quantity: 200,
-    amount: 43600.00,
-    status: '已成交'
+async function loadDetail() {
+  const id = Number(route.params.id)
+  if (!id) {
+    error.value = '无效的模拟ID'
+    loading.value = false
+    return
   }
-])
 
-// 格式化金额
+  loading.value = true
+  error.value = ''
+  try {
+    const [simData, holdingsData, tradesData] = await Promise.all([
+      getSimulation(id),
+      getHoldings(id),
+      getTrades(id, { page: 1, page_size: 50 }),
+    ])
+    simulation.value = simData
+    holdings.value = holdingsData
+    trades.value = tradesData.items
+  } catch (e: any) {
+    error.value = e.message || '加载详情失败'
+    console.error('加载模拟详情失败:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
 const formatMoney = (value: number) => {
-  return value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return (value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-// 收益率颜色
 const getReturnColor = (value: number) => {
-  return value > 0 ? 'text-up' : value < 0 ? 'text-down' : 'text-textSub'
+  return (value || 0) > 0 ? 'text-up' : (value || 0) < 0 ? 'text-down' : 'text-textSub'
 }
 
-// 状态颜色
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'running':
@@ -180,25 +106,54 @@ const getStatusColor = (status: string) => {
   }
 }
 
-// 返回列表
 const goBack = () => {
   router.push('/simulation')
 }
 
-// 控制操作
-const pauseSimulation = () => {
-  simulation.value.status = 'paused'
-  simulation.value.statusText = '已暂停'
+const handlePause = async () => {
+  operating.value = true
+  try {
+    await pauseSimAPI(simulation.value.id)
+    simulation.value.status = 'paused'
+    simulation.value.statusText = '已暂停'
+  } catch (e: any) {
+    console.error('暂停失败:', e)
+    error.value = e.message || '暂停失败'
+  } finally {
+    operating.value = false
+  }
 }
 
-const resumeSimulation = () => {
-  simulation.value.status = 'running'
-  simulation.value.statusText = '运行中'
+const handleResume = async () => {
+  operating.value = true
+  try {
+    await resumeSimAPI(simulation.value.id)
+    simulation.value.status = 'running'
+    simulation.value.statusText = '运行中'
+  } catch (e: any) {
+    console.error('恢复失败:', e)
+    error.value = e.message || '恢复失败'
+  } finally {
+    operating.value = false
+  }
+}
+
+const handleStop = async () => {
+  operating.value = true
+  try {
+    await stopSimAPI(simulation.value.id)
+    simulation.value.status = 'completed'
+    simulation.value.statusText = '已完成'
+  } catch (e: any) {
+    console.error('停止失败:', e)
+    error.value = e.message || '停止失败'
+  } finally {
+    operating.value = false
+  }
 }
 
 onMounted(() => {
-  const id = route.params.id
-  console.log('Simulation Detail ID:', id)
+  loadDetail()
 })
 </script>
 
@@ -234,19 +189,25 @@ onMounted(() => {
         <div class="flex items-center gap-2">
           <button 
             v-if="simulation.status === 'running'"
-            class="px-3 py-1.5 border border-yellow-500 text-yellow-600 rounded text-xs font-semibold hover:bg-yellow-50 transition-colors"
-            @click="pauseSimulation"
+            class="px-3 py-1.5 border border-yellow-500 text-yellow-600 rounded text-xs font-semibold hover:bg-yellow-50 transition-colors disabled:opacity-50"
+            @click="handlePause"
+            :disabled="operating"
           >
-            暂停模拟
+            {{ operating ? '操作中...' : '暂停模拟' }}
           </button>
           <button 
             v-if="simulation.status === 'paused'"
-            class="px-3 py-1.5 bg-green-500 text-white rounded text-xs font-semibold hover:bg-green-600 transition-colors"
-            @click="resumeSimulation"
+            class="px-3 py-1.5 bg-green-500 text-white rounded text-xs font-semibold hover:bg-green-600 transition-colors disabled:opacity-50"
+            @click="handleResume"
+            :disabled="operating"
           >
-            恢复模拟
+            {{ operating ? '操作中...' : '恢复模拟' }}
           </button>
-          <button class="px-3 py-1.5 bg-red-500 text-white rounded text-xs font-semibold hover:bg-red-600 transition-colors">
+          <button 
+            class="px-3 py-1.5 bg-red-500 text-white rounded text-xs font-semibold hover:bg-red-600 transition-colors disabled:opacity-50"
+            @click="handleStop"
+            :disabled="operating"
+          >
             结束模拟
           </button>
         </div>
@@ -255,6 +216,19 @@ onMounted(() => {
 
     <!-- 页面内容 (可滚动) -->
     <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+      <!-- 错误提示 -->
+      <div v-if="error" class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+        {{ error }}
+        <button class="ml-2 underline" @click="loadDetail">重试</button>
+      </div>
+
+      <!-- 加载中 -->
+      <div v-if="loading" class="flex items-center justify-center py-20">
+        <Icon icon="mdi:loading" :size="32" class="text-primary animate-spin" />
+        <span class="ml-2 text-textSub">加载中...</span>
+      </div>
+
+      <template v-if="!loading">
       <!-- 上：持仓股票列表 (固定高度，可滚动) -->
       <div class="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col" style="max-height: 280px;">
         <div class="px-6 py-3 border-b border-border flex items-center justify-between shrink-0">
@@ -501,6 +475,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
+    </template>
     </div>
   </div>
 </template>

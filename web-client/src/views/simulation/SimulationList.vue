@@ -1,207 +1,124 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Icon from '@/components/common/Icon.vue'
+import {
+  getSimulations,
+  getSimulationStats,
+  getAvailableStrategies,
+  createSimulation,
+} from '@/api/simulation'
+import type { SimulationItem, AvailableStrategy } from '@/api/simulation'
 
 const router = useRouter()
+
+// 加载状态
+const loading = ref(false)
+const error = ref('')
 
 // 选择策略弹框
 const showStrategyModal = ref(false)
 const selectedStrategyId = ref<number | null>(null)
+const creating = ref(false)
 
 // 搜索和筛选
 const searchQuery = ref('')
 const filterStatus = ref('all')
 
-// 模拟交易列表数据
-const simulations = ref([
-  {
-    id: 1,
-    name: '趋势先行A模拟',
-    strategyName: '趋势先行A (大盘股)',
-    status: 'running',
-    statusText: '运行中',
-    initialCapital: 1000000,
-    currentCapital: 1124800,
-    totalReturn: 12.48,
-    todayReturn: 1.24,
-    todayPL: 13840,
-    holdingsValue: 824500,
-    holdingsCount: 3,
-    winRate: 68.5,
-    tradeCount: 142,
-    startDate: '2024-01-15',
-    lastTradeTime: '10:32:15'
-  },
-  {
-    id: 2,
-    name: '高频套利V2模拟',
-    strategyName: '高频套利V2',
-    status: 'running',
-    statusText: '运行中',
-    initialCapital: 500000,
-    currentCapital: 524000,
-    totalReturn: 4.8,
-    todayReturn: -0.32,
-    todayPL: -1680,
-    holdingsValue: 312000,
-    holdingsCount: 2,
-    winRate: 81.0,
-    tradeCount: 567,
-    startDate: '2024-02-01',
-    lastTradeTime: '09:45:22'
-  },
-  {
-    id: 3,
-    name: '均线回归Alpha模拟',
-    strategyName: '均线回归Alpha',
-    status: 'paused',
-    statusText: '已暂停',
-    initialCapital: 1000000,
-    currentCapital: 979000,
-    totalReturn: -2.1,
-    todayReturn: 0,
-    todayPL: 0,
-    holdingsValue: 545000,
-    holdingsCount: 2,
-    winRate: 52.3,
-    tradeCount: 89,
-    startDate: '2024-01-20',
-    lastTradeTime: '14:28:00'
-  },
-  {
-    id: 4,
-    name: '小市值因子模拟',
-    strategyName: '小市值因子策略',
-    status: 'completed',
-    statusText: '已完成',
-    initialCapital: 1000000,
-    currentCapital: 1356000,
-    totalReturn: 35.6,
-    todayReturn: 0,
-    todayPL: 0,
-    holdingsValue: 0,
-    holdingsCount: 0,
-    winRate: 72.1,
-    tradeCount: 234,
-    startDate: '2023-10-01',
-    lastTradeTime: '2024-03-15'
-  }
-])
+// 模拟交易列表（来自 API）
+const simulations = ref<SimulationItem[]>([])
+const totalSimulationsCount = ref(0)
 
-// 可选策略列表（用于弹框选择）
-const availableStrategies = ref([
-  {
-    id: 1,
-    name: '趋势先行A (大盘股)',
-    type: 'MA交叉策略',
-    returns: '+12.4%',
-    winRate: '68.2%',
-    risk: '中风险',
-    selected: false
-  },
-  {
-    id: 2,
-    name: '均线回归Alpha',
-    type: '量化多因子',
-    returns: '-2.1%',
-    winRate: '52.3%',
-    risk: '高风险',
-    selected: false
-  },
-  {
-    id: 3,
-    name: '高频套利V2',
-    type: '高频交易',
-    returns: '+4.8%',
-    winRate: '81.0%',
-    risk: '低风险',
-    selected: false
-  },
-  {
-    id: 4,
-    name: '风格轮动',
-    type: '多因子策略',
-    returns: '+24.8%',
-    winRate: '65.4%',
-    risk: '中风险',
-    selected: false
-  }
-])
-
-// 统计汇总
-const stats = computed(() => {
-  const runningCount = simulations.value.filter(s => s.status === 'running').length
-  const totalReturn = simulations.value.reduce((sum, s) => sum + s.totalReturn, 0)
-  const totalTodayPL = simulations.value.reduce((sum, s) => sum + s.todayPL, 0)
-  return {
-    runningCount,
-    totalSimulations: simulations.value.length,
-    totalReturn,
-    totalTodayPL
-  }
+// 统计汇总（来自 API）
+const stats = ref({
+  runningCount: 0,
+  totalSimulations: 0,
+  totalReturn: 0,
+  todayPL: 0,
 })
+
+// 可选策略列表（来自 API）
+const availableStrategies = ref<AvailableStrategy[]>([])
 
 // 筛选后的列表
 const filteredSimulations = computed(() => {
   return simulations.value.filter(sim => {
     const matchSearch = sim.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      sim.strategyName.toLowerCase().includes(searchQuery.value.toLowerCase())
+      (sim.strategyName || '').toLowerCase().includes(searchQuery.value.toLowerCase())
     const matchStatus = filterStatus.value === 'all' || sim.status === filterStatus.value
     return matchSearch && matchStatus
   })
 })
 
-// 打开选择策略弹框
-const openStrategyModal = () => {
+// 从 API 加载所有数据
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [simRes, statsRes] = await Promise.all([
+      getSimulations({ page: 1, page_size: 50 }),
+      getSimulationStats(),
+    ])
+    simulations.value = simRes.items
+    totalSimulationsCount.value = simRes.total
+    stats.value = {
+      runningCount: (statsRes as any).running_count ?? (statsRes as any).runningCount ?? 0,
+      totalSimulations: (statsRes as any).total_simulations ?? (statsRes as any).totalSimulations ?? simRes.total,
+      totalReturn: (statsRes as any).total_return ?? (statsRes as any).totalReturn ?? 0,
+      todayPL: (statsRes as any).todayPL ?? 0,
+    }
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
+    console.error('加载模拟交易数据失败:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 打开选择策略弹框（懒加载策略列表）
+const openStrategyModal = async () => {
   showStrategyModal.value = true
+  if (availableStrategies.value.length === 0) {
+    try {
+      availableStrategies.value = await getAvailableStrategies()
+    } catch (e: any) {
+      console.error('获取策略列表失败:', e)
+    }
+  }
 }
 
 // 关闭弹框
 const closeStrategyModal = () => {
   showStrategyModal.value = false
   selectedStrategyId.value = null
-  // 重置选中状态
   availableStrategies.value.forEach(s => s.selected = false)
 }
 
 // 选择策略
-const selectStrategy = (strategy: typeof availableStrategies.value[0]) => {
+const selectStrategy = (strategy: AvailableStrategy) => {
   availableStrategies.value.forEach(s => s.selected = false)
   strategy.selected = true
   selectedStrategyId.value = strategy.id
 }
 
-// 创建模拟
-const createSimulation = () => {
-  if (!selectedStrategyId.value) return
-  
-  // 模拟创建成功
-  const strategy = availableStrategies.value.find(s => s.id === selectedStrategyId.value)
-  const newSimulation = {
-    id: simulations.value.length + 1,
-    name: `${strategy?.name}模拟`,
-    strategyName: strategy?.name || '',
-    status: 'running',
-    statusText: '运行中',
-    initialCapital: 1000000,
-    currentCapital: 1000000,
-    totalReturn: 0,
-    todayReturn: 0,
-    todayPL: 0,
-    holdingsValue: 0,
-    holdingsCount: 0,
-    winRate: parseFloat(strategy?.winRate || '0'),
-    tradeCount: 0,
-    startDate: new Date().toISOString().split('T')[0],
-    lastTradeTime: '--'
+// 创建模拟（调用 API）
+const handleCreateSimulation = async () => {
+  if (!selectedStrategyId.value || creating.value) return
+  creating.value = true
+  try {
+    const result = await createSimulation({ strategy_id: selectedStrategyId.value })
+    closeStrategyModal()
+    await loadData() // 刷新列表
+    const newId = result?.id
+    if (newId) {
+      router.push(`/simulation/detail/${newId}`)
+    }
+  } catch (e: any) {
+    console.error('创建模拟失败:', e)
+    error.value = e.message || '创建模拟失败'
+  } finally {
+    creating.value = false
   }
-  
-  simulations.value.unshift(newSimulation)
-  closeStrategyModal()
-  
-  // 跳转到详情页
-  router.push(`/simulation/detail/${newSimulation.id}`)
 }
 
 // 跳转到详情页
@@ -211,7 +128,7 @@ const viewDetail = (id: number) => {
 
 // 格式化金额
 const formatMoney = (value: number) => {
-  return value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return (value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 // 状态颜色
@@ -230,8 +147,14 @@ const getStatusColor = (status: string) => {
 
 // 收益率颜色
 const getReturnColor = (value: number) => {
-  return value > 0 ? 'text-up' : value < 0 ? 'text-down' : 'text-textSub'
+  return (value || 0) > 0 ? 'text-up' : (value || 0) < 0 ? 'text-down' : 'text-textSub'
 }
+
+// 状态文本映射
+onMounted(() => {
+  loadData()
+})
+
 </script>
 
 <template>
@@ -267,8 +190,8 @@ const getReturnColor = (value: number) => {
       </div>
       <div class="bg-card p-4 rounded-lg shadow-sm border border-border">
         <p class="text-xs text-textMute mb-1">今日盈亏</p>
-        <p class="text-2xl font-bold font-numeric" :class="getReturnColor(stats.totalTodayPL)">
-          {{ stats.totalTodayPL > 0 ? '+' : '' }}{{ formatMoney(stats.totalTodayPL) }}
+        <p class="text-2xl font-bold font-numeric" :class="getReturnColor(stats.todayPL)">
+          {{ (stats.todayPL || 0) > 0 ? '+' : '' }}{{ formatMoney(stats.todayPL || 0) }}
         </p>
         <p class="text-xs text-textMute mt-1">当日实时更新</p>
       </div>
@@ -499,14 +422,14 @@ const getReturnColor = (value: number) => {
               <button 
                 :class="[
                   'px-4 py-2 rounded text-sm font-semibold transition-opacity',
-                  selectedStrategyId 
+                  selectedStrategyId && !creating
                     ? 'bg-primary text-white hover:opacity-90' 
                     : 'bg-gray-200 text-textMute cursor-not-allowed'
                 ]"
-                :disabled="!selectedStrategyId"
-                @click="createSimulation"
+                :disabled="!selectedStrategyId || creating"
+                @click="handleCreateSimulation"
               >
-                创建模拟
+                {{ creating ? '创建中...' : '创建模拟' }}
               </button>
             </div>
           </div>
