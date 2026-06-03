@@ -290,7 +290,7 @@ onMounted(() => {
                 </span>
               </td>
               <td class="px-6 py-3.5 text-right">
-                <span class="font-numeric text-sm text-textSub">{{ holding.weight.toFixed(1) }}%</span>
+                <span class="font-numeric text-sm text-textSub">{{ holding.weight?.toFixed(1) }}%</span>
               </td>
             </tr>
           </tbody>

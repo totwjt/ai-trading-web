@@ -7,6 +7,8 @@ import {
   getSimulationStats,
   getAvailableStrategies,
   createSimulation,
+  pauseSimulation,
+  resumeSimulation,
 } from '@/api/simulation'
 import type { SimulationItem, AvailableStrategy } from '@/api/simulation'
 
@@ -35,6 +37,7 @@ const stats = ref({
   totalSimulations: 0,
   totalReturn: 0,
   todayPL: 0,
+  strategyCount: 0,
 })
 
 // 可选策略列表（来自 API）
@@ -62,10 +65,11 @@ async function loadData() {
     simulations.value = simRes.items
     totalSimulationsCount.value = simRes.total
     stats.value = {
-      runningCount: (statsRes as any).running_count ?? (statsRes as any).runningCount ?? 0,
-      totalSimulations: (statsRes as any).total_simulations ?? (statsRes as any).totalSimulations ?? simRes.total,
-      totalReturn: (statsRes as any).total_return ?? (statsRes as any).totalReturn ?? 0,
-      todayPL: (statsRes as any).todayPL ?? 0,
+      runningCount: (statsRes as any).running_count ?? (statsRes as any).runningCount,
+      totalSimulations: (statsRes as any).total_simulations ?? (statsRes as any).totalSimulations,
+      totalReturn: (statsRes as any).total_return ?? (statsRes as any).totalReturn,
+      todayPL: (statsRes as any).todayPL ?? (statsRes as any).totalTodayPL,
+      strategyCount: (statsRes as any).strategy_count ?? (statsRes as any).strategyCount,
     }
   } catch (e: any) {
     error.value = e.message || '加载失败'
@@ -126,6 +130,32 @@ const viewDetail = (id: number) => {
   router.push(`/simulation/detail/${id}`)
 }
 
+// 列表页暂停模拟
+const handleListPause = async (id: number) => {
+  try {
+    await pauseSimulation(id)
+    const sim = simulations.value.find(s => s.id === id)
+    if (sim) {
+      sim.status = 'paused'
+    }
+  } catch (e: any) {
+    error.value = e.message || '暂停失败'
+  }
+}
+
+// 列表页恢复模拟
+const handleListResume = async (id: number) => {
+  try {
+    await resumeSimulation(id)
+    const sim = simulations.value.find(s => s.id === id)
+    if (sim) {
+      sim.status = 'running'
+    }
+  } catch (e: any) {
+    error.value = e.message || '恢复失败'
+  }
+}
+
 // 格式化金额
 const formatMoney = (value: number) => {
   return (value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -184,20 +214,20 @@ onMounted(() => {
       <div class="bg-card p-4 rounded-lg shadow-sm border border-border">
         <p class="text-xs text-textMute mb-1">累计收益率</p>
         <p class="text-2xl font-bold font-numeric" :class="getReturnColor(stats.totalReturn)">
-          {{ stats.totalReturn > 0 ? '+' : '' }}{{ stats.totalReturn.toFixed(2) }}%
+          {{ stats.totalReturn != null ? ((stats.totalReturn > 0 ? '+' : '') + stats.totalReturn.toFixed(2) + '%') : '' }}
         </p>
         <p class="text-xs text-textMute mt-1">所有模拟汇总</p>
       </div>
       <div class="bg-card p-4 rounded-lg shadow-sm border border-border">
         <p class="text-xs text-textMute mb-1">今日盈亏</p>
         <p class="text-2xl font-bold font-numeric" :class="getReturnColor(stats.todayPL)">
-          {{ (stats.todayPL || 0) > 0 ? '+' : '' }}{{ formatMoney(stats.todayPL || 0) }}
+          {{ stats.todayPL != null ? ((stats.todayPL > 0 ? '+' : '') + formatMoney(stats.todayPL)) : '' }}
         </p>
         <p class="text-xs text-textMute mt-1">当日实时更新</p>
       </div>
       <div class="bg-card p-4 rounded-lg shadow-sm border border-border">
         <p class="text-xs text-textMute mb-1">策略库</p>
-        <p class="text-2xl font-bold font-numeric text-primary">{{ availableStrategies.length }}</p>
+        <p class="text-2xl font-bold font-numeric text-primary">{{ stats.strategyCount }}</p>
         <p class="text-xs text-textMute mt-1">可引用策略</p>
       </div>
     </div>
@@ -308,12 +338,14 @@ onMounted(() => {
                 <button 
                   v-if="sim.status === 'running'"
                   class="text-yellow-600 hover:text-yellow-700 text-xs font-semibold"
+                  @click="handleListPause(sim.id)"
                 >
                   暂停
                 </button>
                 <button 
                   v-if="sim.status === 'paused'"
                   class="text-green-600 hover:text-green-700 text-xs font-semibold"
+                  @click="handleListResume(sim.id)"
                 >
                   恢复
                 </button>
@@ -380,7 +412,7 @@ onMounted(() => {
                     </span>
                   </div>
                   <div class="flex items-center gap-4 text-xs text-textMute">
-                    <span>历史收益: <span :class="strategy.returns.startsWith('+') ? 'text-up' : 'text-down'" class="font-semibold">{{ strategy.returns }}</span></span>
+                    <span>历史收益: <span :class="(strategy.returns || '').startsWith('+') ? 'text-up' : 'text-down'" class="font-semibold">{{ strategy.returns }}</span></span>
                     <span>胜率: <span class="font-semibold text-textSub">{{ strategy.winRate }}</span></span>
                     <span>风险: <span class="font-semibold text-yellow-500">{{ strategy.risk }}</span></span>
                   </div>

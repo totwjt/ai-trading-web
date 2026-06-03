@@ -50,7 +50,7 @@ export interface AvailableStrategy {
   id: number
   name: string
   type?: string
-  returns: string
+  returns?: string
   win_rate?: string
   winRate?: string
   risk?: string
@@ -72,7 +72,7 @@ export interface HoldingItem {
   pl: number
   pl_percent: number
   plPercent: number
-  weight: number
+  weight?: number
 }
 
 export interface TradeRecord {
@@ -106,21 +106,21 @@ export interface SimulationStats {
 export function normalizeSimulation(item: any): SimulationItem {
   return {
     ...item,
-    strategyName: item.strategyName || item.strategy_name || '',
-    statusText: item.statusText || item.status_text || '',
-    initialCapital: item.initialCapital ?? item.initial_capital ?? 0,
-    currentCapital: item.currentCapital ?? item.current_capital ?? 0,
-    totalReturn: item.totalReturn ?? item.total_return ?? 0,
-    todayReturn: item.todayReturn ?? item.today_return ?? 0,
-    todayPL: item.todayPL ?? item.today_pl ?? 0,
-    holdingsValue: item.holdingsValue ?? item.holdings_value ?? 0,
-    holdingsCount: item.holdingsCount ?? item.holdings_count ?? 0,
-    winRate: item.winRate ?? item.win_rate ?? 0,
-    tradeCount: item.tradeCount ?? item.trade_count ?? 0,
-    startDate: item.startDate || item.start_date || '',
-    lastTradeTime: item.lastTradeTime || item.last_trade_time || item.lastTradeDateTime || '',
-    availableCapital: item.availableCapital ?? item.available_capital ?? 0,
-    frozenCapital: item.frozenCapital ?? item.frozen_capital ?? 0,
+    strategyName: item.strategyName ?? item.strategy_name,
+    statusText: item.statusText ?? item.status_text,
+    initialCapital: item.initialCapital ?? item.initial_capital,
+    currentCapital: item.currentCapital ?? item.current_capital,
+    totalReturn: item.totalReturn ?? item.total_return,
+    todayReturn: item.todayReturn ?? item.today_return,
+    todayPL: item.todayPL ?? item.today_pl,
+    holdingsValue: item.holdingsValue ?? item.holdings_value,
+    holdingsCount: item.holdingsCount ?? item.holdings_count,
+    winRate: item.winRate ?? item.win_rate,
+    tradeCount: item.tradeCount ?? item.trade_count,
+    startDate: item.startDate ?? item.start_date,
+    lastTradeTime: item.lastTradeTime ?? item.last_trade_time ?? item.lastTradeDateTime,
+    availableCapital: item.availableCapital ?? item.available_capital,
+    frozenCapital: item.frozenCapital ?? item.frozen_capital,
   }
 }
 
@@ -128,26 +128,27 @@ export function normalizeSimulation(item: any): SimulationItem {
 export function normalizeHolding(item: any): HoldingItem {
   return {
     ...item,
-    code: item.code || item.symbol || item.ts_code || '',
-    avgCost: item.avgCost ?? item.avg_cost ?? item.cost_price ?? 0,
-    currentPrice: item.currentPrice ?? item.current_price ?? 0,
-    marketValue: item.marketValue ?? item.market_value ?? 0,
-    pl: item.pl ?? item.profit_loss ?? 0,
-    plPercent: item.plPercent ?? item.pl_percent ?? item.profit_loss_percent ?? 0,
+    code: item.code ?? item.symbol ?? item.ts_code,
+    avgCost: item.avgCost ?? item.avg_cost ?? item.cost_price,
+    currentPrice: item.currentPrice ?? item.current_price,
+    marketValue: item.marketValue ?? item.market_value,
+    pl: item.pl ?? item.profit_loss,
+    plPercent: item.plPercent ?? item.pl_percent ?? item.profit_loss_percent,
   }
 }
 
 /** 标准化交易记录字段 */
 export function normalizeTrade(item: any): TradeRecord {
+  const direction = item.direction ?? item.trade_type
   return {
     ...item,
-    time: item.time || item.timestamp || '',
-    stockName: item.stockName || item.stock_name || item.name || '',
-    stockCode: item.stockCode || item.stock_code || item.symbol || '',
-    direction: item.direction || item.trade_type || '',
-    directionText: item.directionText || item.direction_text || '',
-    amount: item.amount ?? ((item.price * item.quantity) || 0),
-    status: item.status || 'completed',
+    time: item.time ?? item.timestamp,
+    stockName: item.stockName ?? item.stock_name ?? item.name,
+    stockCode: item.stockCode ?? item.stock_code ?? item.symbol,
+    direction,
+    directionText: item.directionText ?? item.direction_text ?? (direction === 'buy' ? '买入' : direction === 'sell' ? '卖出' : direction),
+    amount: item.amount ?? (item.price != null && item.quantity != null ? item.price * item.quantity : undefined),
+    status: item.status,
   }
 }
 
@@ -182,7 +183,7 @@ export async function getAvailableStrategies(): Promise<AvailableStrategy[]> {
   if (data.code !== 0) {
     throw new Error(data.message || '获取策略列表失败')
   }
-  return data.data || []
+  return data.data?.items || []
 }
 
 export async function getSimulation(id: number): Promise<SimulationItem> {
@@ -234,7 +235,7 @@ export async function getHoldings(id: number): Promise<HoldingItem[]> {
   if (data.code !== 0) {
     throw new Error(data.message || '获取持仓失败')
   }
-  const rawItems = data.data || []
+  const rawItems = data.data?.items || data.data || []
   return Array.isArray(rawItems) ? rawItems.map(normalizeHolding) : []
 }
 
