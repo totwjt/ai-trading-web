@@ -36,7 +36,14 @@ def register_build_tools(mcp: FastMCP) -> None:
         services_list = ["web", "backend"] if services == "all" else [services]
 
         for service in services_list:
-            service_result = _build_single_service(service, tag, registry, project_root)
+            service_result = _build_single_service(
+                service,
+                tag,
+                registry,
+                project_root,
+                config.build_platform,
+                config.build_timeout,
+            )
             results.append(service_result)
 
         return [{"type": "text", "text": str(results)}]
@@ -87,13 +94,19 @@ def register_build_tools(mcp: FastMCP) -> None:
                 "docker_available": docker_ok,
                 "docker_version": docker_version,
                 "harbor_registry": config.get_harbor_registry(),
+                "build_platform": config.build_platform,
                 "existing_images": existing_images,
             }),
         }]
 
 
 def _build_single_service(
-    service: str, tag: str, registry: str, project_root: Path
+    service: str,
+    tag: str,
+    registry: str,
+    project_root: Path,
+    build_platform: str,
+    build_timeout: int,
 ) -> dict:
     """构建单个服务的 Docker 镜像。"""
     if service == "web":
@@ -109,22 +122,23 @@ def _build_single_service(
 
     cmd = [
         "docker", "build",
+        "--platform", build_platform,
         "-f", dockerfile,
         "-t", image_name,
-        context,
     ]
 
     # web 构建时传递 build args
     if service == "web":
         cmd.extend(["--build-arg", "VITE_API_URL=/"])
         cmd.extend(["--build-arg", "VITE_WS_URL=/"])
+    cmd.append(context)
 
     try:
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=600,
+            timeout=build_timeout,
             cwd=str(project_root),
         )
         if result.returncode == 0:
@@ -133,12 +147,14 @@ def _build_single_service(
                 "status": "success",
                 "image": image_name,
                 "tag": tag,
+                "platform": build_platform,
             }
         else:
             return {
                 "service": service,
                 "status": "failed",
                 "image": image_name,
+                "platform": build_platform,
                 "error": result.stderr[-500:] if result.stderr else "未知错误",
             }
     except subprocess.TimeoutExpired:
@@ -146,12 +162,14 @@ def _build_single_service(
             "service": service,
             "status": "failed",
             "image": image_name,
-            "error": "构建超时（超过 600 秒）",
+            "platform": build_platform,
+            "error": f"构建超时（超过 {build_timeout} 秒）",
         }
     except FileNotFoundError:
         return {
             "service": service,
             "status": "failed",
             "image": image_name,
+            "platform": build_platform,
             "error": "未找到 Docker 命令，请确认 Docker 已安装",
         }

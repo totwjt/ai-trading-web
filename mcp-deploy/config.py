@@ -1,6 +1,7 @@
 """mcp-deploy 配置管理——从 .env / .env.deploy 加载环境变量。"""
 
 import os
+import shutil
 from pathlib import Path
 from typing import Optional
 
@@ -17,7 +18,7 @@ class DeployConfig:
         if project_root:
             self.project_root = Path(project_root).resolve()
         else:
-            self.project_root = Path.cwd().resolve()
+            self.project_root = Path(self._get_env("PROJECT_ROOT", os.getcwd())).resolve()
 
         self._load_dotenv_files()
 
@@ -35,9 +36,11 @@ class DeployConfig:
         self.ssh_password: Optional[str] = self._get_env(
             "SSH_PASSWORD", None
         )  # 不推荐，优先密钥
+        self.remote_deploy_dir: str = self._get_env("REMOTE_DEPLOY_DIR", "/root") or "/root"
 
         # ----- Build -----
         self.image_tag: str = self._get_env("IMAGE_TAG", "latest")
+        self.build_platform: str = self._get_env("BUILD_PLATFORM", "linux/amd64") or "linux/amd64"
 
         # ----- Runtime data sources -----
         self.market_data_database_url: Optional[str] = self._get_env(
@@ -77,6 +80,14 @@ class DeployConfig:
         """完整 Harbor 仓库地址：harbor_url/project"""
         return f"{self.harbor_url}/{self.harbor_project}"
 
+    def get_remote_compose_file(self) -> str:
+        """生产服务器 docker compose 文件路径。"""
+        return f"{self.remote_deploy_dir.rstrip('/')}/docker-compose.prod.yml"
+
+    def get_remote_env_file(self) -> str:
+        """生产服务器 .env.deploy 文件路径。"""
+        return f"{self.remote_deploy_dir.rstrip('/')}/.env.deploy"
+
     def get_deploy_env_path(self) -> Optional[Path]:
         """返回 .env.deploy 的完整路径（如果存在）。"""
         candidates = [
@@ -88,6 +99,24 @@ class DeployConfig:
                 return p
         return None
 
+    def has_valid_ssh_key(self) -> bool:
+        """是否配置了存在的 SSH key。"""
+        if not self.ssh_key_path:
+            return False
+        return Path(self.ssh_key_path).expanduser().exists()
+
+    def ssh_auth_mode(self) -> str:
+        """返回当前 SSH 认证模式，不暴露凭据。"""
+        if self.has_valid_ssh_key():
+            return "key"
+        if self.ssh_password:
+            return "password"
+        return "missing"
+
+    def sshpass_available(self) -> bool:
+        """密码 SSH 所需的 sshpass 是否可用。"""
+        return shutil.which("sshpass") is not None
+
     def summarize(self) -> dict:
         """返回非敏感配置摘要（脱敏密码/token）。"""
         return {
@@ -97,7 +126,15 @@ class DeployConfig:
             "ssh": f"{self.ssh_user}@{self.ssh_host}:{self.ssh_port}"
             if self.ssh_host
             else None,
+            "ssh_auth_mode": self.ssh_auth_mode(),
+            "sshpass_available": self.sshpass_available()
+            if self.ssh_auth_mode() == "password"
+            else None,
+            "remote_deploy_dir": self.remote_deploy_dir,
+            "remote_compose_file": self.get_remote_compose_file(),
+            "remote_env_file": self.get_remote_env_file(),
             "image_tag": self.image_tag,
+            "build_platform": self.build_platform,
             "market_data_database_url_configured": bool(self.market_data_database_url),
             "timeouts": {
                 "ssh": self.ssh_timeout,

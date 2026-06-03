@@ -3,7 +3,7 @@
 from mcp.server.fastmcp import FastMCP
 
 from config import DeployConfig
-from tools.ssh_tools import _run_ssh_command
+from tools.ssh_tools import _compose_cmd, _image_tag_prefix, _run_ssh_command, _with_remote_dir
 
 
 def register_verify_tools(mcp: FastMCP) -> None:
@@ -21,7 +21,7 @@ def register_verify_tools(mcp: FastMCP) -> None:
             config,
             (
                 "echo '=== 容器状态 ===' && "
-                "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' && "
+                f"{_compose_cmd(config)} ps && "
                 "echo '' && "
                 "echo '=== 所有容器(含已停止) ===' && "
                 "docker ps -a --format 'table {{.Names}}\t{{.Status}}'"
@@ -32,7 +32,10 @@ def register_verify_tools(mcp: FastMCP) -> None:
         if result["status"] == "success":
             return [{
                 "type": "text",
-                "text": f"--- 服务状态 ---\n{result['stdout']}",
+                "text": (
+                    f"--- 服务状态 ---\n远端路径: {config.remote_deploy_dir}\n"
+                    f"{result['stdout']}"
+                ),
             }]
         else:
             return [{
@@ -155,9 +158,9 @@ def register_verify_tools(mcp: FastMCP) -> None:
         config = DeployConfig()
 
         # 拉取指定版本镜像
-        pull_cmd = (
-            f"cd /root/ai-trading-web && "
-            f"IMAGE_TAG={image_tag} docker compose -f docker-compose.prod.yml --env-file .env.deploy pull"
+        pull_cmd = _with_remote_dir(
+            config,
+            f"{_image_tag_prefix(image_tag)}{_compose_cmd(config)} pull",
         )
         pull_result = _run_ssh_command(config, pull_cmd, readonly=False)
 
@@ -167,9 +170,9 @@ def register_verify_tools(mcp: FastMCP) -> None:
                 "text": f"✗ 回滚失败: 无法拉取镜像 {image_tag}\n{pull_result.get('error', '')}",
             }]
 
-        up_cmd = (
-            f"cd /root/ai-trading-web && "
-            f"IMAGE_TAG={image_tag} docker compose -f docker-compose.prod.yml --env-file .env.deploy up -d"
+        up_cmd = _with_remote_dir(
+            config,
+            f"{_image_tag_prefix(image_tag)}{_compose_cmd(config)} up -d",
         )
         up_result = _run_ssh_command(config, up_cmd, readonly=False)
 

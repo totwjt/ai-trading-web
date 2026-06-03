@@ -1,8 +1,32 @@
 """环境检查工具——读取和验证部署配置。"""
 
+from pathlib import Path
+
+import dotenv
 from mcp.server.fastmcp import FastMCP
 
 from config import DeployConfig
+
+PLACEHOLDER_MARKERS = (
+    "your-",
+    "your_",
+    "<your",
+    "<YOUR",
+    "placeholder",
+    "changeme",
+    "change-me",
+    "todo",
+    "example.com",
+)
+
+REQUIRED_VARS = [
+    "HARBOR_URL",
+    "HARBOR_PROJECT",
+    "POSTGRES_USER",
+    "POSTGRES_PASSWORD",
+    "POSTGRES_DB",
+    "MARKET_DATA_DATABASE_URL",
+]
 
 
 def register_env_tools(mcp: FastMCP) -> None:
@@ -57,41 +81,17 @@ def register_env_tools(mcp: FastMCP) -> None:
         config = DeployConfig()
         env_file = config.get_deploy_env_path() if not env_file_path else env_file_path
 
+        env_file = Path(env_file) if env_file else None
+
         if not env_file or not env_file.exists():
             return [{"type": "text", "text": "错误: 未找到 .env.deploy 文件。请先创建（可从 .env.deploy.example 复制）。"}]
 
-        with open(env_file, "r", encoding="utf-8") as f:
-            content = f.read()
-
-        placeholders = ["your-", "your_", "<your", "<YOUR"]
-        has_placeholder = any(ph in content for ph in placeholders)
-
-        empty_vars = []
-        for line in content.splitlines():
-            line = line.strip()
-            if line and "=" in line and not line.startswith("#"):
-                key, val = line.split("=", 1)
-                if not val or val.strip() == "":
-                    empty_vars.append(key.strip())
-
-        required_vars = [
-            "HARBOR_URL",
-            "HARBOR_PROJECT",
-            "POSTGRES_USER",
-            "POSTGRES_PASSWORD",
-            "POSTGRES_DB",
-            "MARKET_DATA_DATABASE_URL",
-        ]
-
-        missing = [v for v in required_vars if v not in content]
+        validation = validate_env_file(env_file)
 
         result = {
             "file_exists": True,
             "file_path": str(env_file),
-            "has_placeholder_values": has_placeholder,
-            "empty_variables": empty_vars,
-            "missing_required_vars": missing,
-            "is_valid": not has_placeholder and not empty_vars and not missing,
+            **validation,
         }
 
         return [{"type": "text", "text": str(result)}]
@@ -105,3 +105,38 @@ def register_env_tools(mcp: FastMCP) -> None:
         config = DeployConfig()
         summary = config.summarize()
         return [{"type": "text", "text": str(summary)}]
+
+
+def validate_env_file(env_file: Path) -> dict:
+    """验证部署环境文件，返回不含敏感值的结果。"""
+    values = dotenv.dotenv_values(env_file)
+
+    empty_vars = []
+    placeholder_vars = []
+    for key, value in values.items():
+        if key is None:
+            continue
+        normalized = (value or "").strip()
+        if normalized == "":
+            empty_vars.append(key)
+            continue
+        lower = normalized.lower()
+        if any(marker.lower() in lower for marker in PLACEHOLDER_MARKERS):
+            placeholder_vars.append(key)
+
+    missing = [key for key in REQUIRED_VARS if key not in values]
+    invalid_required_vars = sorted(set(missing + empty_vars + placeholder_vars) & set(REQUIRED_VARS))
+
+    return {
+        "has_placeholder_values": bool(placeholder_vars),
+        "placeholder_variables": placeholder_vars,
+        "empty_variables": empty_vars,
+        "missing_required_vars": missing,
+        "invalid_required_vars": invalid_required_vars,
+        "market_data_database_url_configured": (
+            "MARKET_DATA_DATABASE_URL" in values
+            and bool((values.get("MARKET_DATA_DATABASE_URL") or "").strip())
+            and "MARKET_DATA_DATABASE_URL" not in placeholder_vars
+        ),
+        "is_valid": not invalid_required_vars,
+    }

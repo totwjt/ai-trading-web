@@ -6,8 +6,8 @@
 3. SSH 连接信息从 .env.deploy 读取，不硬编码
 """
 
-import io
 import os
+import shlex
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -39,14 +39,21 @@ def register_ssh_tools(mcp: FastMCP) -> None:
                 "text": f"✓ SSH 连接成功\n  服务器: {config.ssh_user}@{config.ssh_host}:{config.ssh_port}\n  响应: {result['stdout']}",
             }]
         else:
+            auth_help = (
+                "SSH_KEY_PATH 未配置或不可用，且 SSH_PASSWORD 未配置"
+                if config.ssh_auth_mode() == "missing"
+                else "已配置 SSH_PASSWORD，但本机未安装 sshpass"
+                if config.ssh_auth_mode() == "password" and not config.sshpass_available()
+                else "请检查 SSH 凭据"
+            )
             return [{
                 "type": "text",
                 "text": f"✗ SSH 连接失败: {result.get('error', '连接超时或被拒绝')}\n"
                         f"请确认:\n"
                         f"1. 生产服务器 {config.ssh_host} 是否可达\n"
                         f"2. 用户 {config.ssh_user} 是否存在\n"
-                        f"3. SSH 密钥是否正确 (ssh_key_path={config.ssh_key_path})\n"
-                        f"4. 生产服务器是否已添加本机公钥",
+                        f"3. SSH 认证模式: {config.ssh_auth_mode()}\n"
+                        f"4. {auth_help}",
             }]
 
     @mcp.tool(
@@ -102,7 +109,7 @@ def register_ssh_tools(mcp: FastMCP) -> None:
             "docker --version",
             "docker compose version",
             "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'",
-            "docker compose -f docker-compose.prod.yml config --services 2>/dev/null || echo 'compose file not found'",
+            f"{_compose_cmd(config)} config --services 2>/dev/null || echo 'compose file not found'",
         ]
 
         combined_cmd = " && ".join(commands)
@@ -165,6 +172,37 @@ def register_ssh_tools(mcp: FastMCP) -> None:
         return [{"type": "text", "text": str(result)}]
 
     @mcp.tool(
+        name="deploy__ssh_preflight",
+        description="[部署] 预检生产服务器 compose/env 路径和配置是否匹配。只读操作，不修改远端文件。",
+    )
+    def ssh_preflight() -> list[dict]:
+        """检查远端 compose/env 文件路径和 docker compose config。"""
+        config = DeployConfig()
+        compose_file = config.get_remote_compose_file()
+        env_file = config.get_remote_env_file()
+        cmd = (
+            f"test -f {_q(compose_file)} && "
+            f"test -f {_q(env_file)} && "
+            f"{_compose_cmd(config)} config >/dev/null && "
+            "echo PREFLIGHT_OK"
+        )
+        result = _run_ssh_command(config, cmd, readonly=True)
+
+        payload = {
+            "remote_deploy_dir": config.remote_deploy_dir,
+            "remote_compose_file": compose_file,
+            "remote_env_file": env_file,
+            "ok": result["status"] == "success",
+        }
+        if result["status"] != "success":
+            payload["error"] = result.get("error", "远端预检失败")
+            payload["hint"] = (
+                "请确认 REMOTE_DEPLOY_DIR 是否指向包含 docker-compose.prod.yml 和 .env.deploy 的目录。"
+            )
+
+        return [{"type": "text", "text": str(payload)}]
+
+    @mcp.tool(
         name="deploy__ssh_pull_images",
         description="[部署] 在生产服务器上拉取最新镜像（docker compose pull）。建议先调用 deploy__ssh_check_docker 确认环境正常。",
     )
@@ -180,23 +218,23 @@ def register_ssh_tools(mcp: FastMCP) -> None:
         """
         config = DeployConfig()
         tag = image_tag or config.image_tag
+        service_args = _service_args(services)
+        if service_args is None:
+            return [{
+                "type": "text",
+                "text": "services 仅支持 'web'、'backend' 或 'all'",
+            }]
 
-        if tag != "latest":
-            pull_cmd = (
-                f"cd /root/ai-trading-web && "
-                f"IMAGE_TAG={tag} docker compose -f docker-compose.prod.yml --env-file .env.deploy pull"
-            )
-        else:
-            pull_cmd = (
-                "cd /root/ai-trading-web && "
-                "docker compose -f docker-compose.prod.yml --env-file .env.deploy pull"
-            )
+        pull_cmd = _with_remote_dir(config, f"{_image_tag_prefix(tag)}{_compose_cmd(config)} pull{service_args}")
 
         result = _run_ssh_command(config, pull_cmd, readonly=False)
         if result["status"] == "success":
             return [{
                 "type": "text",
-                "text": f"✓ 镜像拉取成功 (tag: {tag})",
+                "text": (
+                    f"✓ 镜像拉取成功 (services: {services}, tag: {tag})\n"
+                    f"远端路径: {config.remote_deploy_dir}"
+                ),
             }]
         else:
             return [{
@@ -210,12 +248,14 @@ def register_ssh_tools(mcp: FastMCP) -> None:
     )
     def ssh_compose_up(
         image_tag: str = "",
+        services: str = "all",
         force_confirmed: bool = False,
     ) -> list[dict]:
         """在生产服务器启动服务。
 
         Args:
             image_tag: 镜像标签（默认 "latest"）
+            services: 启动范围 "web", "backend", "all"（默认 "all"）
             force_confirmed: 是否已确认风险。mcp-deploy 要求必须确认才能执行。
         """
         if not force_confirmed:
@@ -230,23 +270,26 @@ def register_ssh_tools(mcp: FastMCP) -> None:
 
         config = DeployConfig()
         tag = image_tag or config.image_tag
+        service_args = _service_args(services)
+        if service_args is None:
+            return [{
+                "type": "text",
+                "text": "services 仅支持 'web'、'backend' 或 'all'",
+            }]
 
-        if tag != "latest":
-            cmd = (
-                f"cd /root/ai-trading-web && "
-                f"IMAGE_TAG={tag} docker compose -f docker-compose.prod.yml --env-file .env.deploy up -d"
-            )
-        else:
-            cmd = (
-                "cd /root/ai-trading-web && "
-                "docker compose -f docker-compose.prod.yml --env-file .env.deploy up -d"
-            )
+        cmd = _with_remote_dir(config, f"{_image_tag_prefix(tag)}{_compose_cmd(config)} up -d{service_args}")
 
         result = _run_ssh_command(config, cmd, readonly=False)
         if result["status"] == "success":
+            sanity = _post_deploy_sanity(config, services)
             return [{
                 "type": "text",
-                "text": f"✓ docker compose up -d 执行成功\n请调用 deploy__verify_services 验证服务状态。",
+                "text": (
+                    "✓ docker compose up -d 执行成功\n"
+                    f"远端路径: {config.remote_deploy_dir}\n"
+                    f"启动检查: {sanity}\n"
+                    "请调用 deploy__verify_services 验证服务状态。"
+                ),
             }]
         else:
             return [{
@@ -271,10 +314,7 @@ def register_ssh_tools(mcp: FastMCP) -> None:
             }]
 
         config = DeployConfig()
-        cmd = (
-            "cd /root/ai-trading-web && "
-            "docker compose -f docker-compose.prod.yml --env-file .env.deploy down"
-        )
+        cmd = _with_remote_dir(config, f"{_compose_cmd(config)} down")
 
         result = _run_ssh_command(config, cmd, readonly=False)
         if result["status"] == "success":
@@ -298,16 +338,33 @@ def _run_ssh_command(
         if safety.risk_level == "blocked":
             return {"status": "failed", "error": f"安全限制: {safety.reason}"}
 
+    auth_mode = config.ssh_auth_mode()
+    if auth_mode == "missing":
+        return {
+            "status": "failed",
+            "error": "未配置可用 SSH 认证。请配置 SSH_KEY_PATH 或 SSH_PASSWORD。",
+        }
+    if auth_mode == "password" and not config.sshpass_available():
+        return {
+            "status": "failed",
+            "error": "已配置 SSH_PASSWORD，但本机未安装 sshpass。请安装 sshpass 或改用 SSH key。",
+        }
+
     # 构建 SSH 命令
-    ssh_cmd = ["ssh"]
+    ssh_cmd = []
+    env = os.environ.copy()
+    if auth_mode == "password":
+        ssh_cmd.extend(["sshpass", "-e"])
+        env["SSHPASS"] = config.ssh_password or ""
+
+    ssh_cmd.append("ssh")
 
     if config.ssh_port and config.ssh_port != 22:
         ssh_cmd.extend(["-p", str(config.ssh_port)])
 
-    if config.ssh_key_path:
+    if auth_mode == "key" and config.ssh_key_path:
         key_path = Path(config.ssh_key_path).expanduser()
-        if key_path.exists():
-            ssh_cmd.extend(["-i", str(key_path)])
+        ssh_cmd.extend(["-i", str(key_path)])
 
     # 禁用主机密钥检查（内网环境）
     ssh_cmd.extend([
@@ -315,6 +372,8 @@ def _run_ssh_command(
         "-o", "UserKnownHostsFile=/dev/null",
         "-o", "ConnectTimeout=10",
     ])
+    if auth_mode == "key":
+        ssh_cmd.extend(["-o", "BatchMode=yes"])
 
     ssh_cmd.append(f"{config.ssh_user}@{config.ssh_host}")
     ssh_cmd.append(command)
@@ -325,6 +384,7 @@ def _run_ssh_command(
             capture_output=True,
             text=True,
             timeout=config.ssh_timeout,
+            env=env,
         )
         if result.returncode == 0:
             return {
@@ -340,6 +400,67 @@ def _run_ssh_command(
     except subprocess.TimeoutExpired:
         return {"status": "failed", "error": "SSH 命令执行超时"}
     except FileNotFoundError:
-        return {"status": "failed", "error": "未找到 ssh 命令"}
+        missing = "sshpass" if auth_mode == "password" else "ssh"
+        return {"status": "failed", "error": f"未找到 {missing} 命令"}
     except Exception as e:
         return {"status": "failed", "error": str(e)}
+
+
+def _q(value: str) -> str:
+    return shlex.quote(value)
+
+
+def _with_remote_dir(config: DeployConfig, command: str) -> str:
+    return f"cd {_q(config.remote_deploy_dir)} && {command}"
+
+
+def _compose_cmd(config: DeployConfig) -> str:
+    return (
+        "docker compose "
+        f"-f {_q(config.get_remote_compose_file())} "
+        f"--env-file {_q(config.get_remote_env_file())}"
+    )
+
+
+def _image_tag_prefix(tag: str) -> str:
+    return f"IMAGE_TAG={_q(tag)} " if tag and tag != "latest" else ""
+
+
+def _service_args(services: str) -> Optional[str]:
+    if services == "all":
+        return ""
+    if services in {"web", "backend"}:
+        return f" {_q(services)}"
+    return None
+
+
+def _post_deploy_sanity(config: DeployConfig, services: str) -> dict:
+    service_args = _service_args(services)
+    if service_args is None:
+        return {"ok": False, "error": "invalid services"}
+
+    ps_cmd = _with_remote_dir(
+        config,
+        f"{_compose_cmd(config)} ps --format '{{{{.Service}}}}|{{{{.State}}}}|{{{{.Status}}}}'{service_args}",
+    )
+    ps_result = _run_ssh_command(config, ps_cmd, readonly=True)
+    logs_cmd = _with_remote_dir(config, f"{_compose_cmd(config)} logs --tail 40{service_args}")
+    logs_result = _run_ssh_command(config, logs_cmd, readonly=True)
+
+    stdout = ps_result.get("stdout", "") if ps_result["status"] == "success" else ""
+    log_text = logs_result.get("stdout", "") if logs_result["status"] == "success" else ""
+    failure_markers = [
+        "exec format error",
+        "exited",
+        "traceback",
+        "error:",
+        "failed",
+    ]
+
+    return {
+        "services": services,
+        "up": ps_result["status"] == "success" and "running" in stdout.lower(),
+        "ps": stdout[-1000:],
+        "startup_failures": [marker for marker in failure_markers if marker in log_text.lower()],
+        "logs_tail": log_text[-2000:],
+    }

@@ -39,10 +39,7 @@ from tools.deploy_tools import register_deploy_tools
 from tools.verify_tools import register_verify_tools
 
 # 创建 MCP 服务器实例
-mcp = FastMCP(
-    "mcp-deploy",
-    description="AI 生产部署 MCP 服务器——安全地构建、推送、部署和验证生产环境",
-)
+mcp = FastMCP("mcp-deploy")
 
 # 注册所有工具模块
 register_env_tools(mcp)       # 环境检查

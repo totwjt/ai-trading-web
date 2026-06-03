@@ -54,3 +54,35 @@ environment.
 - Fetch a small tail of logs and flag startup-level failures such as `exec format error`.
 - Keep business/API validation optional because production functional testing may be done manually.
 - Acceptance: architecture/startup failures are surfaced immediately after deployment.
+
+## 8. Make the Deploy Flow MCP-State Driven
+
+- Add a single read-only status tool, for example `deploy__status`, that returns
+  the current deploy state from MCP-managed configuration and checks.
+- The normal AI flow should not require manually reading `.env.deploy`, asking the
+  user to paste deployment secrets, or requesting terminal sandbox escalation for
+  ad hoc SSH/docker commands. MCP should load configuration internally and return
+  only redacted or boolean state such as:
+  - deploy config file found
+  - required variables present
+  - SSH auth mode: `key`, `password`, or `missing`
+  - `sshpass` availability when password auth is selected
+  - remote deploy directory
+  - compose/env preflight result
+  - Docker/build platform status
+  - recommended next tool/action
+- `deploy__check_env`, `deploy__validate_env`, and
+  `deploy__read_env_summary` should become implementation details or lower-level
+  diagnostics. The normal AI-facing flow should start with `deploy__status`.
+- The standard deploy guide and `deploy__whats_next` should use the status tool
+  output instead of assuming the AI already inspected local files.
+- Password-based SSH should be hidden behind MCP tools. AI should call
+  `deploy__ssh_test_connection`, `deploy__ssh_pull_images`,
+  `deploy__ssh_compose_up`, etc.; it should not assemble terminal commands like
+  `sshpass -p '...' ssh ...`.
+- High-risk operation confirmation should be represented as MCP tool parameters
+  such as `force_confirmed=true` or `confirmed=true`, not as terminal command
+  escalation prompts for hand-written SSH/docker commands.
+- Acceptance: a deployment can be planned and executed by calling MCP tools only,
+  without repeated terminal privilege prompts for SSH/docker commands and without
+  exposing `SSH_PASSWORD` in prompts, terminal output, or tool responses.
