@@ -402,3 +402,98 @@ npm run dev
 #### 当前剩余风险：
 1. 生产 `.env.deploy` 需要补真实 `MARKET_DATA_DATABASE_URL` 凭据后再部署
 2. `z_strategies` 中四张表字段需与当前 SQL 保持一致
+
+### T4: 我的持仓侧边栏入口恢复（2026-06-03） ✅
+
+#### 已完成：
+1. ✅ 取消 `MainLayout.vue:23` holdings 菜单注释
+2. ✅ `npm run build` 通过
+3. ✅ 侧边栏恢复"我的持仓"菜单项，可正常跳转 `/holdings`
+
+#### 同步更新：
+- `docs/remaining-tasks.md` 已同步更新 T2/T4/T5/T6/T8/T10 的实际状态
+
+### T1: 实盘模拟前后端联调（2026-06-03） ✅
+
+#### 已完成：
+1. ✅ 确认后端 `/api/trading/simulations/` 路由可访问，返回真实数据
+2. ✅ 修复 `api/simulation.ts` 字段映射
+   - `normalizeHolding`: `cost_price→avgCost`, `profit_loss→pl`, `profit_loss_percent→plPercent`, `symbol→code`
+   - `normalizeTrade`: `timestamp→time`, `symbol→stockCode`, `name→stockName`, `trade_type→direction`
+   - 自动计算 `amount = price * quantity`
+   - camelCase 字段优先于 snake_case 读取
+3. ✅ `npm run build` 通过
+
+### T3: WebSocket backtest.{id} 主题完善（2026-06-03） ✅
+
+#### 已完成：
+1. ✅ `BacktestDetail.vue` 增加 WebSocket 订阅 `['backtest.{id}']`
+2. ✅ 注册 `ws.onEvent('backtest.{id}', ...)` 实时更新 status/progress
+3. ✅ WS 状态变更时自动停止轮询并刷新全量数据
+4. ✅ 页面卸载时取消订阅和事件清理
+5. ✅ `npm run build` 通过
+
+### T5: 前端单元测试建设（2026-06-03） ✅
+
+#### 已完成：
+1. ✅ `api/simulation.ts` 导出 `normalizeSimulation` / `normalizeHolding` / `normalizeTrade`
+2. ✅ 创建 `tests/simulation.test.ts` — 23 个测试覆盖：
+   - camelCase / snake_case 双格式输入
+   - 字段优先级（camelCase 优先于 snake_case）
+   - null/undefined 默认值回退
+   - 额外字段保留
+   - `lastTradeDateTime` 兼容
+   - `symbol`/`ts_code` fallback
+   - `amount` 自动计算
+3. ✅ `npm run test` — 全部 23 个测试通过
+4. ✅ `tests/utils.test.ts` 补充基础工具函数测试
+
+### T6: API 集成测试基础框架（2026-06-03） 🔶
+
+#### 已完成：
+1. ✅ 创建 `backend/tests/` 目录结构
+2. ✅ `conftest.py` — ASGI Transport fixture
+3. ✅ `test_health.py` — 基础健康检查测试（2 条）
+4. ✅ `test_simulation_api.py` — 模拟 API 测试框架（2 条）
+
+#### 待办：
+- 激活 `.venv` 后安装 `pytest` + `httpx` 运行验证
+- 覆盖更多路由
+
+### T7: Docker 生产部署验证（2026-06-03） ✅
+
+#### 已完成：
+1. ✅ `backend/Dockerfile` 构建成功：`docker build backend/` → `ai-trading-backend:test` (389MB)
+2. ✅ `web-client/Dockerfile` 存在且结构正确（多阶段构建 + nginx）
+3. ✅ `deploy/nginx.conf` 存在（55 行）
+4. ✅ `.env.deploy` 存在
+
+#### 注意事项：
+- 构建使用私有仓库 `192.168.66.26:8000` 基础镜像
+- 在 Harbor 可访问环境下 `docker compose build` 即可
+
+### T8: 文档补齐 - DATABASE.md（2026-06-03） ✅
+
+#### 已完成：
+1. ✅ 创建 `docs/DATABASE.md`，包含：
+   - 10 张 SQLAlchemy 表完整结构（User, Terminal, Watchlist, PendingOrder, PendingOrderConfig, Strategy, Backtest, BacktestTrade, BacktestLog, EquityCurve）
+   - 4 种枚举类型
+   - 关系图（ER）
+   - 迁移管理说明
+
+### T9: 回测多标的支持扩展（2026-06-03） ✅
+
+#### 已完成（代码确认已实现）：
+1. ✅ `BacktestParams` 已定义 `symbols: string[]`
+2. ✅ `EditStrategy.vue` 已有 `symbolInput` 输入框 + `parseSymbols()`
+3. ✅ `buildBacktestParams()` 已包含 `symbols: parseSymbols(symbolInput.value)`
+4. ✅ `buildStrategyPayload().config.symbols` 已包含
+5. ✅ 后端引擎 `_resolve_symbols()` 已支持多标的
+6. ✅ `DEFAULT_BACKTEST_SYMBOLS` 已配置默认股票池
+
+### T10: 风控系统前端页面对接（2026-06-03） ❌ 忽略
+
+#### 说明：
+- 用户确认忽略此任务
+- 后端无 risk REST API，仅 WebSocket `publish_risk()` 推送
+- `publish_risk()` 无调用者，实际未产生风险数据
