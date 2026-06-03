@@ -15,11 +15,13 @@ import {
   type PerformanceResponse,
   type TradeItem
 } from '@/api/backtest'
+import { useWebSocket } from '@/composables/useWebSocket'
 import EquityChart from '@/components/backtest/EquityChart.vue'
 import Icon from '@/components/common/Icon.vue'
 
 const route = useRoute()
 const router = useRouter()
+const ws = useWebSocket()
 
 const backtestId = computed(() => Number(route.params.id))
 const returnStrategyId = computed(() => {
@@ -188,6 +190,7 @@ const commissionStats = computed(() => {
 let progressTimer: ReturnType<typeof setInterval> | null = null
 let progressRequestInFlight = false
 let panelsRequestInFlight = false
+let offBacktestEvent: (() => void) | null = null
 
 function stopProgressPolling() {
   if (progressTimer) {
@@ -396,10 +399,38 @@ async function handlePrimaryAction() {
 
 onMounted(() => {
   void fetchData()
+
+  // 订阅 WebSocket backtest.{id} 主题，实时接收回测进度
+  const bId = backtestId.value
+  if (bId && Number.isFinite(bId) && bId > 0) {
+    const topic = `backtest.${bId}`
+    ws.subscribe([topic])
+
+    offBacktestEvent = ws.onEvent(topic, (data: any) => {
+      if (data?.status) {
+        detail.value = {
+          ...detail.value,
+          status: data.status as BacktestDetail['status'],
+          progress: data.progress
+        } as BacktestDetail
+        // 状态不再是 pending/running 时，停止轮询并刷新全量数据
+        if (!['pending', 'running'].includes(data.status)) {
+          stopProgressPolling()
+          void fetchData({ silentPanels: true })
+        }
+      }
+    })
+  }
 })
 
 onBeforeUnmount(() => {
   stopProgressPolling()
+  offBacktestEvent?.()
+  const bId = backtestId.value
+  if (bId && Number.isFinite(bId) && bId > 0) {
+    ws.unsubscribe([`backtest.${bId}`])
+  }
+  offBacktestEvent = null
 })
 </script>
 
