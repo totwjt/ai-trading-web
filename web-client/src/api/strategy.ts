@@ -36,6 +36,7 @@ export interface StrategyConfig {
 export interface Strategy {
   id: number
   name: string
+  uid?: string
   strategy_type: string | null
   status: 'running' | 'paused' | 'stopped' | 'error'
   code?: string
@@ -48,6 +49,7 @@ export interface Strategy {
 export interface StrategyListItem {
   id: number
   name: string
+  uid?: string
   sta: boolean
   strategy_type: string | null
   status: 'running' | 'paused' | 'stopped' | 'error'
@@ -66,6 +68,7 @@ export interface StrategyListResponse {
 export interface StrategyCreate {
   name: string
   strategy_type?: string
+  uid?: string
   code: string
   config?: StrategyConfig
   description?: string
@@ -83,6 +86,7 @@ export async function getStrategyList(params?: {
   page?: number
   page_size?: number
   status?: string
+  uid?: string
 }): Promise<{ items: StrategyListItem[]; total: number; page: number; page_size: number }> {
   const response = await apiClient.get<ApiResponse<StrategyListResponse>>('/api/strategies', { params })
   if (response.data.code !== 0) {

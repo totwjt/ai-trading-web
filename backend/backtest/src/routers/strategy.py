@@ -24,6 +24,7 @@ async def list_strategies(
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=10, ge=1, le=100, description="每页数量"),
     status: Optional[StrategyStatus] = Query(default=None, description="筛选状态"),
+    uid: Optional[str] = Query(default=None, description="用户UID"),
     db: AsyncSession = Depends(get_db)
 ):
     """获取策略列表"""
@@ -33,6 +34,10 @@ async def list_strategies(
     if status:
         query = query.where(Strategy.status == status)
         count_query = count_query.where(Strategy.status == status)
+
+    if uid:
+        query = query.where(Strategy.uid == uid)
+        count_query = count_query.where(Strategy.uid == uid)
 
     query = query.order_by(Strategy.updated_at.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)
@@ -47,6 +52,7 @@ async def list_strategies(
         {
             "id": s.id,
             "name": s.name,
+            "uid": s.uid,
             "sta": s.sta,
             "strategy_type": s.strategy_type,
             "status": s.status.value if s.status else None,
@@ -87,6 +93,7 @@ async def get_strategy(
         data={
             "id": strategy.id,
             "name": strategy.name,
+            "uid": strategy.uid,
             "strategy_type": strategy.strategy_type,
             "status": strategy.status.value if strategy.status else None,
             "code": strategy.code,
@@ -107,6 +114,7 @@ async def create_strategy(
     strategy = Strategy(
         name=data.name,
         strategy_type=data.strategy_type,
+        uid=data.uid,
         code=data.code,
         config=data.config.model_dump() if data.config else {},
         description=data.description,

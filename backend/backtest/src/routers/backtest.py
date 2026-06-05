@@ -43,6 +43,7 @@ async def list_backtests(
     page_size: int = Query(default=10, ge=1, le=100, description="每页数量"),
     strategy_id: Optional[int] = Query(default=None, description="策略ID筛选"),
     status: Optional[BacktestStatus] = Query(default=None, description="状态筛选"),
+    uid: Optional[str] = Query(default=None, description="用户UID"),
     db: AsyncSession = Depends(get_db)
 ):
     """获取回测记录列表"""
@@ -56,6 +57,10 @@ async def list_backtests(
     if status:
         query = query.where(Backtest.status == status)
         count_query = count_query.where(Backtest.status == status)
+    
+    if uid:
+        query = query.where(Strategy.uid == uid)
+        count_query = count_query.where(Strategy.uid == uid)
     
     query = query.order_by(Backtest.created_at.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)

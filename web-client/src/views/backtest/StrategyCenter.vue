@@ -2,9 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { deleteStrategy, getStrategyList, type StrategyListItem } from '@/api/strategy'
+import { useUserStore } from '@/stores/userStore'
 import Icon from '@/components/common/Icon.vue'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 const strategies = ref<StrategyListItem[]>([])
 const loading = ref(false)
@@ -27,7 +29,7 @@ const statusText: Record<string, string> = {
 async function fetchStrategies() {
   loading.value = true
   try {
-    const result = await getStrategyList({ page_size: 100 })
+    const result = await getStrategyList({ page_size: 100, uid: userStore.uid })
     strategies.value = result.items
   } catch (error) {
     console.error('获取策略列表失败:', error)

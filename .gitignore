@@ -12,6 +12,8 @@ dist/
 .vscode/
 .idea/
 .opencode/
+.omo/
+opencode.json
 *.swp
 *.swo
 *~

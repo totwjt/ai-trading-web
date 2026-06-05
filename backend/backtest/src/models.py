@@ -73,6 +73,9 @@ class Strategy(Base):
     # 用户ID (写死)
     user_id: Mapped[int] = mapped_column(Integer, default=1, comment="用户ID")
     
+    # 用户UID (冗余字段，对应 users.uid)
+    uid: Mapped[str] = mapped_column(String(64), nullable=True, comment="用户UID")
+    
     # 策略状态
     status: Mapped[StrategyStatus] = mapped_column(
         SQLEnum(StrategyStatus), 

@@ -236,6 +236,75 @@ App.vue
 - 回测说明：`docs/backtest.md`
 - API 文档目录：`docs/API/`
 
+## 运行时环境（重要）
+
+本项目的开发环境和生产环境**运行方式完全不同**，AI 代理必须准确区分：
+
+### 开发环境（192.168.66.186，本地 Mac）
+
+后端和前端直接在本机运行，**不使用 Docker**：
+
+```
+start.sh
+├── cd backend && python server.py    # 后端：Mac 原生 Python 进程，监听 8766
+│   └── server.py: load_dotenv('backend/.env')  # 环境变量来源
+└── cd web-client && npm run dev      # 前端：Vite 开发服务器
+```
+
+关键点：
+- **后端进程是 Mac 原生 Python**（不是 Docker 容器），通过 `backend/server.py` 启动
+- **环境变量来自 `backend/.env`**（通过 `python-dotenv` 的 `load_dotenv()` 加载）
+- `.env.deploy` 在开发环境**不生效**— 那是生产 Docker 部署用的
+- 启动方式：`cd backend && source .venv/bin/activate && python server.py`
+- 前端启动方式：`cd web-client && npm run dev`
+
+### 生产环境（192.168.66.226，服务器）
+
+全部运行在 Docker 中：
+
+```
+docker compose -f docker-compose.prod.yml --env-file .env.deploy up -d
+├── postgres:5432（Docker 内部）
+├── backend:8766（Docker 容器）
+│   └── 环境变量来自 .env.deploy（非 backend/.env）
+└── web (Nginx):80
+```
+
+关键点：
+- **所有服务在 Docker 容器中运行**
+- **环境变量来自 `.env.deploy`**（运行时通过 `--env-file` 注入）
+- `host.docker.internal` 指向宿主机（生产服务器自身）
+- 更新配置需要修改 `.env.deploy` 并重启容器
+
+### ⚠️ 平台架构不兼容（Apple Silicon → amd64 生产机）
+
+**开发机（Mac）是 arm64 架构，生产服务器（26）是 amd64 架构**。本地构建的 Docker 镜像默认是 arm64，拉到生产机运行会报 `exec format error`。
+
+**所有面向生产的镜像构建都必须指定 `--platform linux/amd64`**：
+
+```bash
+# web-client（Dockerfile 默认 TARGETPLATFORM=linux/arm64，必须覆盖）
+docker build --platform linux/amd64 --build-arg TARGETPLATFORM=linux/amd64 -f web-client/Dockerfile -t web:latest .
+
+# backend（Python 基础镜像，同样需要 amd64）
+docker build --platform linux/amd64 -t backend:latest ./backend
+```
+
+**mcp-deploy 已内置处理**：`config.py` 中 `BUILD_PLATFORM=linux/amd64`，使用 `mcp-deploy` 部署时会自动加上 `--platform linux/amd64`。
+
+> ⚠️ 如果手动 `docker build` 推送到 Harbor，**必须记住加 `--platform linux/amd64`**，否则生产机拉下来跑不起来。
+
+### 环境文件对照
+
+| 文件 | 适用环境 | 加载方式 | 是否提交 |
+|------|---------|---------|---------|
+| `backend/.env` | **开发**（Mac 原生运行） | `server.py` → `load_dotenv()` | ❌ `.gitignore` |
+| `.env.deploy` | **生产**（Docker 容器） | `docker compose --env-file` | ❌ `.gitignore` |
+| `.env.deploy.example` | 模板 | 手动复制 | ✅ 提交 |
+| `web-client/.env` | 前端开发 | Vite 自动加载 | ❌ `.gitignore` |
+
+> ⚠️ **AI 代理注意**：修改 `.env.deploy` 不影响本地开发环境，修改 `backend/.env` 不影响生产环境。必须先确认当前处理的是哪个运行环境。
+
 ## 发布与部署
 
 ### 部署架构
@@ -267,18 +336,8 @@ App.vue
 └───────────────────────────────────────────────┘
 ```
 
-- **开发环境** (`192.168.66.186`)：运行 `./deploy/build.sh` 构建镜像并推送到 Harbor
+- **开发环境** (`192.168.66.186`)：运行 `./deploy/build.sh` 构建镜像并推送到 Harbor（仅构建镜像，本地运行不依赖 Docker）
 - **生产环境** (`192.168.66.226`)：SSH 登录后拉取镜像并启动
-
-### 环境配置文件
-
-| 文件 | 用途 | 是否提交 |
-|------|------|---------|
-| `backend/.env` | 开发环境后端配置（数据库凭据、上游 API 地址） | ❌ `.gitignore` |
-| `.env.deploy` | Docker Compose 部署配置（生产环境凭据） | ❌ `.gitignore` |
-| `.env.deploy.example` | 部署配置模板（仅占位符，无真实凭据） | ✅ 提交 |
-| `web-client/.env` | 前端开发环境配置 | ❌ `.gitignore` |
-| `web-client/.env.development` | 前端开发环境覆盖（远程后端 IP） | ✅ 示例值可提交 |
 
 > **安全规则**：
 > - 所有 `.env` 文件均被 `.gitignore` 忽略，禁止提交到 Git
@@ -295,8 +354,10 @@ App.vue
 
 ### 构建 & 推送（开发机执行）
 
+> ⚠️ **架构注意事项**：开发机是 **arm64（Apple Silicon）**，生产机是 **amd64**。构建生产镜像时必须指定 `linux/amd64` 平台，否则生产机容器会因 `exec format error` 启动失败。见上方"平台架构不兼容"说明。
+
 ```bash
-# 构建并推送全部服务（latest 标签）
+# 构建并推送全部服务（latest 标签，自动使用 linux/amd64）
 ./deploy/build.sh
 
 # 构建并推送指定版本
@@ -306,8 +367,8 @@ App.vue
 ./deploy/build.sh --skip-push
 
 # 只构建某个服务
-./deploy/build.sh --service web
-./deploy/build.sh --service backend
+./deploy/build.sh --build web
+./deploy/build.sh --build backend
 ```
 
 ### 部署到生产（SSH 登录后执行）
@@ -363,14 +424,26 @@ IMAGE_TAG=v1.2.3 docker compose -f docker-compose.prod.yml --env-file .env.deplo
 - `POSTGRES_DB` — 数据库名
 
 #### 后端上游 API 配置
-- `DATABASE_URL` — SQLAlchemy 数据库连接字符串
-- `MARKET_API` — 行情数据服务地址
-- `TRADING_EXTERNAL_API` — 策略/交易外部服务地址
-- `TRADING_TRADER_API` — Trader 服务地址
-- `TRADING_ORDER_API` — 订单服务地址
-- `TRADING_RECORD_API` — 交易记录服务地址
-- `USER_API` — 用户服务地址
-- `RECOMMEND_DB_*` — 荐股数据库连接配置
+
+**开发环境 (`backend/.env`)**
+| 变量 | 值 | 说明 |
+|------|----|------|
+| `DATABASE_URL` | `postgresql+asyncpg://...@localhost:5432/tushare_sync` | 主数据库（本地） |
+| `MARKET_DATA_DATABASE_URL` | `postgresql+asyncpg://...@192.168.66.26:5432/z_strategies` | 行情数据库（26 服务器） |
+| `MARKET_API` | `http://192.168.66.143:8882` | 行情数据服务 |
+| `TRADING_EXTERNAL_API` | `http://192.168.66.143:8882` | 策略/交易外部服务 |
+| `TRADING_TRADER_API` | `http://192.168.66.155:8003` | Trader 服务 |
+| `TRADING_ORDER_API` | `http://192.168.66.135:8881` | 订单服务 |
+| `TRADING_RECORD_API` | `http://192.168.66.135:8881` | 交易记录服务 |
+| `USER_API` | `http://192.168.66.198:8001` | 用户服务 |
+| `RECOMMEND_DB_*` | 荐股数据库连接配置 | 指向 26 的 `stock_strategy` 库 |
+
+**生产环境 (`host.docker.internal` 指向 26 宿主机)**
+| 变量 | 值（示例） | 说明 |
+|------|-----------|------|
+| `DATABASE_URL` | `postgresql+asyncpg://...@postgres:5432/tushare_sync` | Docker 内部 postgres 容器 |
+| `MARKET_DATA_DATABASE_URL` | `postgresql+asyncpg://...@host.docker.internal:5432/z_strategies` | 宿主机 26 的 `z_strategies` 库 |
+| 其他 API | `http://host.docker.internal:XXXX` | 宿主机 26 上的服务 |
 
 ### 验证
 
@@ -427,6 +500,10 @@ IMAGE_TAG=v1.2.2 docker compose -f docker-compose.prod.yml --env-file .env.deplo
 7. 通常按照 `docs/plan.md` 的阶段推进
 8. 完成明确阶段后，更新 `docs/progress.md`
 9. 新增 AI 提示词时，要同步校验是否符合本文件的目录要求
+10. **排查运行时问题时，必须验证实际运行进程**，不能仅凭文件存在就推断运行方式
+    - 发现 `Dockerfile`/`docker-compose.yml` 不代表当前服务一定在 Docker 中运行
+    - 必须用 `lsof -i :端口`、`ps aux`、`docker ps` 等命令确认实际运行时
+    - 必须确认环境变量的真实来源（`load_dotenv` 文件 vs Docker env_file vs 系统环境变量）
 
 ## 策略回测补充约束（2026-03-21）
 

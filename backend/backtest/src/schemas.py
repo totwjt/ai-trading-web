@@ -51,6 +51,7 @@ class StrategyCreate(BaseModel):
     """创建策略请求"""
     name: str = Field(..., max_length=100, description="策略名称")
     strategy_type: Optional[str] = Field(None, description="策略类型")
+    uid: Optional[str] = Field(None, description="用户UID")
     code: str = Field(..., description="策略代码")
     config: Optional[StrategyConfig] = Field(default_factory=StrategyConfig, description="策略配置")
     description: Optional[str] = Field(None, description="策略描述")
@@ -74,6 +75,7 @@ class StrategyItem(BaseModel):
     """策略列表项"""
     id: int
     name: str
+    uid: Optional[str] = None
     strategy_type: Optional[str]
     status: StrategyStatus
     created_at: datetime

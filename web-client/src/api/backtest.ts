@@ -212,6 +212,7 @@ export async function getBacktestList(params?: {
   page_size?: number
   strategy_id?: number
   status?: string
+  uid?: string
 }): Promise<{ items: BacktestListItem[]; total: number; page: number; page_size: number }> {
   const response = await apiClient.get<ApiResponse<BacktestListResponse>>('/api/backtests', { params })
   if (response.data.code !== 0) {

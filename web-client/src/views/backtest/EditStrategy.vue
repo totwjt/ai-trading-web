@@ -3,10 +3,12 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getStrategyDetail, createStrategy, updateStrategy } from '@/api/strategy'
 import { previewStrategy, createBacktest, runBacktest, type BacktestParams, type PreviewResult } from '@/api/backtest'
+import { useUserStore } from '@/stores/userStore'
 import Icon from '@/components/common/Icon.vue'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 const strategyId = computed(() => route.params.id ? Number(route.params.id) : null)
 const isNew = computed(() => !strategyId.value)
@@ -215,6 +217,7 @@ function buildStrategyPayload() {
   return {
     name: strategyName.value.trim(),
     strategy_type: strategyType.value,
+    uid: userStore.uid,
     code: strategyCode.value,
     description: strategyDescription.value || undefined,
     config: {

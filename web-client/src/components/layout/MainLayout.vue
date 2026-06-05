@@ -20,7 +20,6 @@ const menuItems = computed(() => [
   { path: '/factor-board', name: '因子看板', icon: 'dashboard' },
   { path: '/backtest', name: '策略回测', icon: 'assessment' },
   { path: '/simulation', name: '模拟交易', icon: 'swap_horiz' },
-  { path: '/holdings', name: '我的持仓', icon: 'inventory' },
   { path: '/trading', name: '股票交易', icon: 'trending_up' },
   { path: '/trading-terminal', name: '交易终端', icon: 'analytics' },
   { path: '/strategy-trading', name: '策略交易', icon: 'play_arrow' },
@@ -68,17 +67,6 @@ const logout = async () => {
             <Icon icon="mdi:chart-line" :size="20" class="text-white" />
           </div>
           <span class="text-lg font-bold text-textMain tracking-tight">华璟智璇 量化交易系统</span>
-        </div>
-        <!-- Global Search -->
-        <div class="relative w-80">
-          <input
-            class="w-full h-8 bg-gray-100 dark:bg-gray-800 border-none rounded-full px-9 text-xs bg-card text-textMain focus:ring-2 focus:ring-primary/20 transition-all"
-            placeholder="搜索股票代码 / 名称 / 简拼"
-            type="text"
-          />
-          <svg class="w-3.5 h-3.5 absolute left-3 top-2 text-textMute" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
-          </svg>
         </div>
       </div>
       <div class="flex items-center space-x-4 text-textSub">

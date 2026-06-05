@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted, watch, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { getStrategyList } from '@/api/strategy'
 import type { StrategyListItem } from '@/api/strategy'
+import { useUserStore } from '@/stores/userStore'
 import {
   toggleStrategy,
   getStrategySignals,
@@ -13,6 +14,7 @@ import {
 } from '@/api/externalStrategy'
 import type { StrategySignal } from '@/api/externalStrategy'
 
+const userStore = useUserStore()
 const strategies = ref<StrategyListItem[]>([])
 const selectedStrategyId = ref<number | null>(null)
 const signals = ref<StrategySignal[]>([])
@@ -71,7 +73,7 @@ async function fetchStrategies() {
   loadingList.value = true
   error.value = ''
   try {
-    const result = await getStrategyList({ page_size: 100 })
+    const result = await getStrategyList({ page_size: 100, uid: userStore.uid })
     strategies.value = result.items
     if (result.items.length > 0 && !selectedStrategyId.value) {
       selectedStrategyId.value = result.items[0].id

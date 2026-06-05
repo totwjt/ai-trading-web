@@ -87,12 +87,6 @@ const router = createRouter({
       meta: { title: '模拟详情', hideSidebar: true, requiresAuth: true }
     },
     {
-      path: '/holdings',
-      name: '我的持仓',
-      component: () => import('@/views/HoldingsView.vue'),
-      meta: { title: '我的持仓', icon: 'inventory', requiresAuth: true }
-    },
-    {
       path: '/trading',
       name: '股票交易',
       component: () => import('@/views/TradingView.vue'),

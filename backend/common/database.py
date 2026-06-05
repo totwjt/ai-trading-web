@@ -4,6 +4,7 @@
 """
 
 import os
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from typing import AsyncGenerator
@@ -62,6 +63,25 @@ async def init_db():
     """初始化数据库 - 创建所有表"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # 运行存量迁移
+    await run_migrations()
+
+
+async def run_migrations():
+    """运行数据库迁移（安全地添加缺失的列 + 数据回填）"""
+    async with engine.begin() as conn:
+        # strategies 表新增 uid 字段（冗余字段，对应 users.uid）
+        await conn.execute(text(
+            "ALTER TABLE strategies ADD COLUMN IF NOT EXISTS uid VARCHAR(64)"
+        ))
+
+        # 回填存量数据的 uid（通过 users.id 映射 users.uid）
+        await conn.execute(text("""
+            UPDATE strategies
+            SET uid = (SELECT uid FROM users WHERE id = strategies.user_id)
+            WHERE uid IS NULL OR uid = ''
+        """))
 
 
 async def close_db():

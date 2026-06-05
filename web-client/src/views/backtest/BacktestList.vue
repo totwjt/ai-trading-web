@@ -2,10 +2,12 @@
 import { computed, ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getBacktestList, type BacktestListItem } from '@/api/backtest'
+import { useUserStore } from '@/stores/userStore'
 import Icon from '@/components/common/Icon.vue'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 const backtests = ref<BacktestListItem[]>([])
 const loading = ref(false)
@@ -57,7 +59,8 @@ async function fetchData() {
     const result = await getBacktestList({
       page: pagination.value.page,
       page_size: pagination.value.pageSize,
-      strategy_id: selectedStrategyId.value || undefined
+      strategy_id: selectedStrategyId.value || undefined,
+      uid: userStore.uid
     })
     backtests.value = result.items
     pagination.value.total = result.total
