@@ -87,12 +87,6 @@ const router = createRouter({
       meta: { title: '模拟详情', hideSidebar: true, requiresAuth: true }
     },
     {
-      path: '/trading',
-      name: '股票交易',
-      component: () => import('@/views/TradingView.vue'),
-      meta: { title: '股票交易', icon: 'trending_up', requiresAuth: true }
-    },
-    {
       path: '/trading-terminal',
       name: '交易终端',
       component: () => import('@/views/TradingTerminalView.vue'),

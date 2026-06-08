@@ -20,7 +20,6 @@ const menuItems = computed(() => [
   { path: '/factor-board', name: '因子看板', icon: 'dashboard' },
   { path: '/backtest', name: '策略回测', icon: 'assessment' },
   { path: '/simulation', name: '模拟交易', icon: 'swap_horiz' },
-  { path: '/trading', name: '股票交易', icon: 'trending_up' },
   { path: '/trading-terminal', name: '交易终端', icon: 'analytics' },
   { path: '/strategy-trading', name: '策略交易', icon: 'play_arrow' },
   { path: '/risk-control', name: '风控系统', icon: 'shield' }

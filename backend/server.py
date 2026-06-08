@@ -1686,7 +1686,7 @@ app.include_router(simulation_router)
 
 EXTERNAL_API = os.getenv("TRADING_EXTERNAL_API", "http://127.0.0.1:8882")
 MARKET_API = os.getenv("MARKET_API", "http://127.0.0.1:8882")
-USER_API = os.getenv("USER_API", "http://192.168.66.198:8001")
+USER_API = os.getenv("USER_API", "http://host.docker.internal:8001")
 
 
 def _authorization_headers(request: Request) -> Dict[str, str]:

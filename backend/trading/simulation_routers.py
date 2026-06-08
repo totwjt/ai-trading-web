@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 simulation_router = APIRouter(prefix="/api/trading/simulations", tags=["simulations"])
 
-SIMULATION_API = os.getenv("SIMULATION_API", "http://192.168.66.26:7000")
+SIMULATION_API = os.getenv("SIMULATION_API", "http://host.docker.internal:7000")
 
 
 def authorization_headers(request: Request) -> dict:
