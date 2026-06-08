@@ -14,6 +14,10 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     uid = Column(String(64), nullable=False, unique=True, index=True, comment="用户唯一标识")
+    username = Column(String(50), nullable=False, unique=True, comment="用户名")
+    phone = Column(String(20), nullable=False, comment="手机号")
+    email = Column(String(100), nullable=True, comment="邮箱")
+    password = Column(String(255), nullable=False, comment="密码")
     created_at = Column(DateTime, default=datetime.now, comment="创建时间")
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间")
 
